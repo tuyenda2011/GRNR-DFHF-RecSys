@@ -1,8 +1,8 @@
 """Fit GF-CF once and evaluate validation only with the shared protocol.
 
 Called by train_model.py --model gfcf. Same retained train sample, warm cohort, mask, candidate set
-and Evaluator as run_sgkr.py; the full catalog is kept. The SVD uses the authors' library (sparsesvd).
-Run records (plan, source archive, progress, budget) follow run_sgkr.py via scripts/closed_form_run.py.
+and Evaluator as run_grnr.py; the full catalog is kept. The SVD uses the authors' library (sparsesvd).
+Run records (plan, source archive, progress, budget) follow run_grnr.py via scripts/closed_form_run.py.
 """
 from __future__ import annotations
 
@@ -29,7 +29,7 @@ def run(args):
         model = GFCF(config).fit(run.x)
         run.progress("fitted", fit_seconds=model.fit_report["seconds"])
         run.guard.atomic_write(run.output / "model.npz", model.save)
-        # Reload the artifact before evaluating, as run_sgkr.py does.
+        # Reload the artifact before evaluating, as run_grnr.py does.
         restored = GFCF.load(run.output / "model.npz")
         probe = np.asarray(sorted(run.validation.u_idx.unique())[:64], dtype=np.int64)
         np.testing.assert_allclose(restored.score(probe), model.score(probe), rtol=1e-6, atol=1e-9)

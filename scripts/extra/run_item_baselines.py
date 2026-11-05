@@ -25,7 +25,7 @@ from src.data.quality_report import warm_cohort
 from src.data.sparsity import create_sparse_train_set
 from src.evaluation.evaluator import EVALUATION_PROTOCOL, Evaluator
 from src.evaluation.metrics import compute_topk_metrics
-from src.models.sgkr import SGKR
+from src.models.grnr import GRNR
 from src.utils.run_budget import RunBudget
 from src.utils.source_identity import SourceGuard, capture_sources
 
@@ -286,7 +286,7 @@ def main(argv=None):
     validation, cohort = warm_cohort(train, validation)
     if validation.empty:
         raise ValueError("No warm validation targets")
-    x = SGKR.interaction_matrix(train.u_idx.to_numpy(), train.i_idx.to_numpy(), stats["num_users"], stats["num_items"])
+    x = GRNR.interaction_matrix(train.u_idx.to_numpy(), train.i_idx.to_numpy(), stats["num_users"], stats["num_items"])
     evaluator = Evaluator(full_train, validation, *x.shape, [10, 20], args.eval_batch_size,
                           candidate_items=set(train.i_idx.unique()), popularity_df=train)
     output.mkdir(parents=True, exist_ok=False)

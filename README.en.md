@@ -1,21 +1,22 @@
-# SGKR & SPHR — A Recommender System for Electronics Products
+# A Recommender System for Electronics Products
 
 [Tiếng Việt](README.md) · **English**
 
-An individual *Advanced Machine Learning* major assignment. I propose two top-N recommenders, **SGKR** (a closed-form
-item–item model) and **SPHR** (a history-based model trained by gradient descent), and compare them with five
+An individual *Advanced Machine Learning* major assignment. I propose two top-N recommenders,
+**Graph-Regularized Neighborhood Regression (GRNR)** (a closed-form item–item model) and
+**Diffusion-Filtered History Factorization (DFHF)** (a history-based model trained by gradient descent), and compare them with five
 published baselines on Amazon Electronics. Every model shares the same data, split, full-catalog evaluator and
 metrics, and every reported number can be re-derived from the stored run files.
 
 ## Highlights
 
-- **SGKR has the best NDCG@20 at full density (0.0383)** and beats LightGCN, XSimGCL and DirectAU with
+- **GRNR has the best NDCG@20 at full density (0.0383)** and beats LightGCN, XSimGCL and DirectAU with
   statistical significance (Holm-adjusted p = 0.0006), while training in **2.5 minutes on a CPU**, about 17×
   faster than the fastest graph neural network.
-- **SPHR is the strongest model on sparse data:** best NDCG@20 at 25 % and 50 % of the training interactions.
-- **Against closed-form models of its own kind**, SGKR is statistically tied with full EASE at full density,
+- **DFHF is the strongest model on sparse data:** best NDCG@20 at 25 % and 50 % of the training interactions.
+- **Against closed-form models of its own kind**, GRNR is statistically tied with full EASE at full density,
   which needs a 7.5 GB matrix that cannot be stored, and beats EASE pruned to a storable size and GF-CF.
-- **Limits:** SGKR is not the best at 50 % density, and all results come from a single seed on the validation
+- **Limits:** GRNR is not the best at 50 % density, and all results come from a single seed on the validation
   split (see [Limitations](#limitations)).
 
 ## Contents
@@ -26,6 +27,13 @@ metrics, and every reported number can be re-derived from the stored run files.
 
 ## Reproducing the results
 
+**Model names.** GRNR and DFHF replace the former SGKR and SPHR labels in active code and configuration.
+Stored checkpoints, predictions, metadata and logs remain in their original *results/sgkr/* and
+*results/sphr/* folders. Loaders resolve the new names to existing runs without retraining completed runs.
+Fresh runs use *grnr* or *dfhf* folders. Historical source snapshots keep their original names.
+The GitHub repository is now
+[GRNR-DFHF-RecSys](https://github.com/tuyenda2011/GRNR-DFHF-RecSys).
+
 ```bash
 conda create -n AML python=3.11 && conda activate AML
 pip install -r requirements.txt
@@ -33,8 +41,8 @@ pip install -r requirements.txt
 python scripts/prepare_data.py                         # download from SNAP and build the dataset
 python scripts/audit_data.py                           # data checks
 
-python scripts/train_model.py --model sgkr --density 1.0
-#   --model    sgkr | sphr | lightgcn | xsimgcl | directau | ease | gfcf
+python scripts/train_model.py --model grnr --density 1.0
+#   --model    grnr | dfhf | lightgcn | xsimgcl | directau | ease | gfcf
 #   --density  1.0 | 0.75 | 0.5 | 0.25
 
 python scripts/summarize_results.py                    # results/summary.csv
@@ -48,9 +56,9 @@ Each run writes `results/<model>/d<density>/seed42/` with `metrics.json`, the va
 checkpoint, `history.csv` for the iterative models and `logs/`, which holds the run plan, an archive of the
 source code, progress and resource budget. Finished runs are skipped. The iterative models train all 200 epochs
 (no early stopping) and keep the checkpoint with the best validation NDCG@20.
-`python scripts/run_experiments.py` runs the main grid: SGKR, SPHR and the three GNNs at four densities.
+`python scripts/run_experiments.py` runs the main grid: GRNR, DFHF and the three GNNs at four densities.
 
-**Hardware.** SGKR and GF-CF run on a laptop CPU. SPHR and the graph baselines were trained on Kaggle GPUs
+**Hardware.** GRNR and GF-CF run on a laptop CPU. DFHF and the graph baselines were trained on Kaggle GPUs
 (`kaggle/kaggle_train.ipynb`). EASE inverts a dense 44,843 × 44,843 matrix and needs **about 9.1 GB of free
 RAM**, so it was run in a Kaggle CPU session (`kaggle/kaggle_ease.ipynb`).
 
@@ -63,8 +71,8 @@ python -m streamlit run app/streamlit_app.py
 The interface is laid out for a 1920 × 1080 screen and written in Vietnamese. It has three tabs:
 
 - **Existing customer:** the top-10 of all seven models side by side, with the customer's next purchase
-  highlighted and SGKR's explanation of its first recommendation.
-- **New customer:** build a history by searching for products. SGKR, SPHR, EASE and GF-CF answer at once; the
+  highlighted and GRNR's explanation of its first recommendation.
+- **New customer:** build a history by searching for products. GRNR, DFHF, EASE and GF-CF answer at once; the
   graph baselines cannot serve users unseen in training.
 - **Model evaluation:** leaderboards, charts, statistical tests and report figures, split into the trained-model
   and the closed-form comparisons.
@@ -75,21 +83,21 @@ The demo loads the stored checkpoints and reads only the training and validation
 
 | Model | Family | How it is obtained | Hardware |
 |---|---|---|---|
-| **SGKR** (proposed) | Item–item regression | Closed-form solve | CPU |
-| **SPHR** (proposed) | History-based factorisation | Adam, full-catalog softmax | GPU |
+| **GRNR** (proposed) | Item–item regression | Closed-form solve | CPU |
+| **DFHF** (proposed) | History-based factorisation | Adam, full-catalog softmax | GPU |
 | LightGCN [1] | Graph neural network | Gradient training, up to 200 epochs | GPU |
 | XSimGCL [2] | Graph neural network + contrastive learning | Gradient training, up to 200 epochs | GPU |
 | DirectAU [3] | Alignment–uniformity objective | Gradient training, up to 200 epochs | GPU |
 | EASE [4] | Item–item regression | Closed-form solve | CPU |
 | GF-CF [5] | Graph filtering | Closed-form (SVD) | CPU |
 
-**SGKR** is an item–item ridge regression with graph regularisation. Each item is predicted from its 128 most
+**GRNR** is an item–item ridge regression with graph regularisation. Each item is predicted from its 128 most
 related items, with adaptive regularisation, and the system is solved exactly (Cholesky) with the target item
 excluded from its own context. It has no user parameters and no optimiser, so it scores any purchase history
 directly, including users never seen in training. It can also explain each recommendation by the history items
 that contribute most.
 
-**SPHR** represents a user by their normalised purchase history over diffusion-filtered item tables:
+**DFHF** represents a user by their normalised purchase history over diffusion-filtered item tables:
 
 ```math
 \mathrm{score}(u, i) = \mathbf{q}_u^{\top} \tilde{\mathbf{v}}_i + b_i,
@@ -98,7 +106,7 @@ that contribute most.
 
 where $`H_u`$ is the user's purchase history, $`\tilde{\mathbf{s}}_j`$ and $`\tilde{\mathbf{v}}_i`$ are the filtered source and target item
 vectors and $`b_i`$ is an item bias. It is trained with Adam on a full-catalog softmax over leave-one-out contexts.
-Like SGKR, it serves new users from their history alone.
+Like GRNR, it serves new users from their history alone.
 
 The three graph baselines learn one embedding per training user, so they cannot recommend to a new user without
 retraining.
@@ -129,8 +137,8 @@ evaluable users.
 
 | Model | 25 % | 50 % | 75 % | 100 % | Training time at 100 % |
 |---|---:|---:|---:|---:|---:|
-| **SGKR** | 0.0080 | 0.0171 | 0.0293 | **0.0383** | 2.5 min (CPU) |
-| **SPHR** | **0.0177** | **0.0227** | 0.0290 | 0.0352 | 127 min (GPU) |
+| **GRNR** | 0.0080 | 0.0171 | 0.0293 | **0.0383** | 2.5 min (CPU) |
+| **DFHF** | **0.0177** | **0.0227** | 0.0290 | 0.0352 | 127 min (GPU) |
 | XSimGCL | 0.0112 | 0.0193 | 0.0276 | 0.0329 | 63 min (GPU) |
 | DirectAU | 0.0103 | 0.0205 | 0.0270 | 0.0321 | 85 min (GPU) |
 | LightGCN | 0.0084 | 0.0184 | 0.0226 | 0.0265 | 43 min (GPU) |
@@ -143,7 +151,7 @@ Training times were measured on different hardware (CPU vs. GPU) and are compara
   <img src="reports/figures/H1_density_ndcg20.png" width="49%" alt="NDCG@20 by density, trained models">
   <img src="reports/figures/H1_closed_form_density_ndcg20.png" width="49%" alt="NDCG@20 by density, closed-form models">
 </p>
-<p align="center"><sub>NDCG@20 by training density. Left: SGKR, SPHR and the graph baselines. Right: SGKR and
+<p align="center"><sub>NDCG@20 by training density. Left: GRNR, DFHF and the graph baselines. Right: GRNR and
 the closed-form baselines.</sub></p>
 
 ### Statistical comparisons
@@ -155,26 +163,26 @@ users (10,000 resamples), one-sided in favour of the proposed model.
 
 | Comparison | Δ NDCG@20 | 95 % CI | Holm p |
 |---|---:|---|---:|
-| SGKR − LightGCN | +0.0117 | [+0.0109, +0.0126] | 0.0006 |
-| SGKR − XSimGCL | +0.0054 | [+0.0046, +0.0061] | 0.0006 |
-| SGKR − DirectAU | +0.0062 | [+0.0055, +0.0070] | 0.0006 |
-| SPHR − LightGCN | +0.0086 | [+0.0080, +0.0093] | 0.0006 |
-| SPHR − XSimGCL | +0.0023 | [+0.0017, +0.0028] | 0.0006 |
-| SPHR − DirectAU | +0.0031 | [+0.0025, +0.0038] | 0.0006 |
+| GRNR − LightGCN | +0.0117 | [+0.0109, +0.0126] | 0.0006 |
+| GRNR − XSimGCL | +0.0054 | [+0.0046, +0.0061] | 0.0006 |
+| GRNR − DirectAU | +0.0062 | [+0.0055, +0.0070] | 0.0006 |
+| DFHF − LightGCN | +0.0086 | [+0.0080, +0.0093] | 0.0006 |
+| DFHF − XSimGCL | +0.0023 | [+0.0017, +0.0028] | 0.0006 |
+| DFHF − DirectAU | +0.0031 | [+0.0025, +0.0038] | 0.0006 |
 
-**Supplementary comparison: SGKR vs. closed-form models** (tables B5–B6, Holm over three comparisons per
+**Supplementary comparison: GRNR vs. closed-form models** (tables B5–B6, Holm over three comparisons per
 density). This family was defined after the results were seen and is exploratory.
 
-| SGKR − … | 25 % | 50 % | 75 % | 100 % |
+| GRNR − … | 25 % | 50 % | 75 % | 100 % |
 |---|---|---|---|---|
-| EASE (full, 7.5 GB) | SGKR better | EASE better | tie (p = 0.72) | tie (p = 0.051) |
-| EASE top-128 (25–32 MB) | SGKR better | EASE better | SGKR better | SGKR better |
-| GF-CF | SGKR better | SGKR better | SGKR better | SGKR better |
+| EASE (full, 7.5 GB) | GRNR better | EASE better | tie (p = 0.72) | tie (p = 0.051) |
+| EASE top-128 (25–32 MB) | GRNR better | EASE better | GRNR better | GRNR better |
+| GF-CF | GRNR better | GRNR better | GRNR better | GRNR better |
 
-SGKR checkpoints take 6–41 MB depending on density, about the size of EASE top-128.
+GRNR checkpoints take 6–41 MB depending on density, about the size of EASE top-128.
 
-**Where SGKR does not win.** At 50 % density SGKR is below the three graph baselines and both EASE variants.
-At 25 % and 50 % SPHR is the strongest model. GF-CF is weak on this very sparse data: its symmetric degree
+**Where GRNR does not win.** At 50 % density GRNR is below the three graph baselines and both EASE variants.
+At 25 % and 50 % DFHF is the strongest model. GF-CF is weak on this very sparse data: its symmetric degree
 normalisation favours rarely bought items.
 
 ## Evaluation protocol
@@ -203,7 +211,7 @@ normalisation favours rarely bought items.
 ## Repository layout
 
 ```
-configs/   locked configurations: sgkr, sphr, lightgcn, xsimgcl, directau, ease, gfcf, common
+configs/   locked configurations: grnr, dfhf, lightgcn, xsimgcl, directau, ease, gfcf, common
 src/       data pipeline, evaluator, losses, training loop, models (src/models/*.py)
 scripts/   command-line entry points; scripts/verify/ holds SymPy checks of the closed forms
 app/       Streamlit demo: streamlit_app.py (UI), recommender.py (model loading), benchmark.py (statistics)

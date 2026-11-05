@@ -33,14 +33,14 @@ from scripts.validation_io import load_validation_inputs
 # Fixed identity per model (reference categorical palette, slots 1-5 in validated order); shapes and
 # solid/dashed (hatched) styles are the secondary encoding. Proposed models solid, baselines dashed.
 STYLE = {
-    "sgkr": {"label": "SGKR (đề xuất)", "short": "SGKR", "color": "#2a78d6", "marker": "o", "line": "-"},
-    "sphr": {"label": "SPHR (đề xuất)", "short": "SPHR", "color": "#eb6834", "marker": "s", "line": "-"},
+    "grnr": {"label": "GRNR (đề xuất)", "short": "GRNR", "color": "#2a78d6", "marker": "o", "line": "-"},
+    "dfhf": {"label": "DFHF (đề xuất)", "short": "DFHF", "color": "#eb6834", "marker": "s", "line": "-"},
     "lightgcn": {"label": "LightGCN", "short": "LightGCN", "color": "#1baf7a", "marker": "^", "line": "--"},
     "xsimgcl": {"label": "XSimGCL", "short": "XSimGCL", "color": "#eda100", "marker": "D", "line": "--"},
     "directau": {"label": "DirectAU", "short": "DirectAU", "color": "#e87ba4", "marker": "v", "line": "--"},
 }
 ORDER = tuple(STYLE)
-PROPOSED, BASELINES = ("sgkr", "sphr"), ("lightgcn", "xsimgcl", "directau")
+PROPOSED, BASELINES = ("grnr", "dfhf"), ("lightgcn", "xsimgcl", "directau")
 FIGURE_METRICS = ("NDCG@20", "NDCG@10", "Recall@20", "Recall@10")
 TABLE_METRICS = ("NDCG@10", "NDCG@20", "Recall@10", "Recall@20")
 INK, MUTED, GRID = "#0b0b0b", "#52514e", "#e4e3df"
@@ -164,7 +164,7 @@ def table_training(summary, folder, density):
         table = pd.DataFrame(rows)
         for column in ("Epoch tốt nhất", "Số epoch đã chạy"):
             if column in table:
-                table[column] = table[column].astype("Int64")  # SGKR (closed form) leaves these empty
+                table[column] = table[column].astype("Int64")  # GRNR (closed form) leaves these empty
         table.to_csv(folder / f"B4_training_d{round(density * 100)}.csv", index=False, encoding="utf-8-sig")
 
 

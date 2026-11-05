@@ -1,11 +1,11 @@
-"""Supplementary report: SGKR against the closed-form baselines only (EASE, EASE top-128, GF-CF).
+"""Supplementary report: GRNR against the closed-form baselines only (EASE, EASE top-128, GF-CF).
 
   python scripts/make_closed_form_report.py
 
 Writes next to the main report without touching it. The figures are the main report's own types (same
 drawing code, make_combined_figures.bar_figure), restricted to these four models:
   reports/tables/B5_closed_form.csv                   metrics, train time and checkpoint size, all four densities
-  reports/tables/B6_closed_form_significance.csv      SGKR minus each model: paired bootstrap, Holm over 3 per density
+  reports/tables/B6_closed_form_significance.csv      GRNR minus each model: paired bootstrap, Holm over 3 per density
   reports/figures/H1_closed_form_density_<metric>.png as H1
   reports/figures/H4_closed_form_retention_<metric>.png as H4
   reports/figures/H5_closed_form_user_groups_<metric>.png as H5
@@ -19,6 +19,7 @@ Exploratory: this comparison family was defined after the results were seen. Val
 """
 from __future__ import annotations
 
+import argparse
 import json
 import sys
 from pathlib import Path
@@ -39,14 +40,15 @@ from scripts.compare_val_runs import holm_adjust, paired_bootstrap, per_user_met
 from scripts.make_combined_figures import bar_figure, figure_groups, figure_ndcg_at_k
 from scripts.make_report import FIGURE_METRICS, MUTED, setup, slug
 from scripts.validation_io import load_validation_inputs
+from src.utils.model_names import resolve_model_run
 
 SEED = 42
 DENSITIES = (0.25, 0.5, 0.75, 1.0)
 METRICS = ("NDCG@10", "NDCG@20", "Recall@10", "Recall@20")
 RIVALS = ("ease", "ease128", "gfcf")
-ARMS = ("sgkr", *RIVALS)
-# Same keys as make_report.STYLE; baselines are hatched/dashed by the drawing code (only SGKR is proposed here).
-STYLE = {"sgkr": {"label": "SGKR (đề xuất)", "color": "#2a78d6", "marker": "o", "line": "-"},
+ARMS = ("grnr", *RIVALS)
+# Same keys as make_report.STYLE; baselines are hatched/dashed by the drawing code (only GRNR is proposed here).
+STYLE = {"grnr": {"label": "GRNR (đề xuất)", "color": "#2a78d6", "marker": "o", "line": "-"},
          "ease": {"label": "EASE (đầy đủ)", "color": "#7a5cc7", "marker": "D", "line": "--"},
          "ease128": {"label": "EASE top-128", "color": "#b39ae6", "marker": "d", "line": ":"},
          "gfcf": {"label": "GF-CF", "color": "#8c6d46", "marker": "s", "line": "--"}}
@@ -54,7 +56,7 @@ STYLE = {"sgkr": {"label": "SGKR (đề xuất)", "color": "#2a78d6", "marker": 
 
 def run_dir(model, density, results):
     folder = "ease" if model == "ease128" else model
-    return results / folder / f"d{round(density * 100)}" / f"seed{SEED}"
+    return resolve_model_run(results, folder, density, SEED)
 
 
 def ease_top128_predictions(density, results, full_train, validation, stats):
@@ -68,10 +70,10 @@ def ease_top128_predictions(density, results, full_train, validation, stats):
         from src.data.sparsity import create_sparse_train_set
         from src.evaluation.evaluator import Evaluator
         from src.evaluation.metrics import compute_topk_metrics
-        from src.models.sgkr import SGKR
+        from src.models.grnr import GRNR
         train = create_sparse_train_set(full_train, density, SEED)
         cohort, _ = warm_cohort(train, validation)
-        x = SGKR.interaction_matrix(train.u_idx.to_numpy(), train.i_idx.to_numpy(), stats["num_users"],
+        x = GRNR.interaction_matrix(train.u_idx.to_numpy(), train.i_idx.to_numpy(), stats["num_users"],
                                     stats["num_items"]).astype(np.float32)
         weights = sparse.load_npz(folder / "checkpoint.npz")
         evaluator = Evaluator(full_train, cohort, *x.shape, [10, 20], 128, candidate_items=set(train.i_idx.unique()),
@@ -122,7 +124,7 @@ def table_metrics(results, num_items):
 def table_tests(scores, repeats=10_000):
     rows = []
     for density in DENSITIES:
-        users, _, values, _ = scores[("sgkr", density, SEED)]
+        users, _, values, _ = scores[("grnr", density, SEED)]
         reference = pd.Series(values["NDCG@20"], index=users)
         block = []
         for model in RIVALS:
@@ -160,8 +162,14 @@ def figures(table, scores, full_train, folder, notes):
                "không lưu", "H7c_closed_form_checkpoint_size", folder, notes, fmt="{:,.1f}", log=True, **kwargs)
 
 
-def main():
-    results, reports = ROOT / "results", ROOT / "reports"
+def main(argv=None):
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--results", type=Path, default=ROOT / "results")
+    parser.add_argument("--output", type=Path, default=ROOT / "reports")
+    args = parser.parse_args(argv)
+    results, reports = args.results, args.output
+    (reports / "figures").mkdir(parents=True, exist_ok=True)
+    (reports / "tables").mkdir(parents=True, exist_ok=True)
     setup()
     _, full_train, validation, stats = load_validation_inputs(None, ROOT)
     targets = dict(zip(validation.u_idx.astype(int), validation.i_idx.astype(int)))
@@ -175,7 +183,7 @@ def main():
     scores = {(model, density, SEED): per_user(model, density, results, targets, (full_train, validation, stats))
               for model in ARMS for density in DENSITIES}
     tests = table_tests(scores)
-    pd.DataFrame({"So sánh": "SGKR - " + tests.model.map(lambda m: STYLE[m]["label"]), "Mật độ": tests["Mật độ"],
+    pd.DataFrame({"So sánh": "GRNR - " + tests.model.map(lambda m: STYLE[m]["label"]), "Mật độ": tests["Mật độ"],
                   "Delta NDCG@20": tests.delta.round(5), "KTC 95% dưới": [round(c[0], 5) for c in tests.ci95],
                   "KTC 95% trên": [round(c[1], 5) for c in tests.ci95], "p một phía": tests.p_one_sided.round(5),
                   "p Holm": tests.p_holm.round(5), "Số user": tests.n_users}

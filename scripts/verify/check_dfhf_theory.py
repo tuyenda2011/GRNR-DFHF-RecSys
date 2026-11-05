@@ -1,4 +1,4 @@
-"""Exact small-instance and scalar checks for the SPHR proposal; no model training."""
+"""Exact small-instance and scalar checks for the DFHF proposal; no model training."""
 import argparse
 import json
 import sys
@@ -111,7 +111,7 @@ def main():
         "limits": ["General proofs and their assumptions are in the design document.",
                    "Scalar identities and one exact matrix example do not prove arbitrary-size results.",
                    "No claim of Adam convergence to a global optimum or prevention of all overfitting.",
-                   "No SPHR training or empirical superiority claim."]}
+                   "No DFHF training or empirical superiority claim."]}
     args.output.parent.mkdir(parents=True, exist_ok=True)
     with args.output.open("x", encoding="utf-8") as stream:
         json.dump(report, stream, indent=2)

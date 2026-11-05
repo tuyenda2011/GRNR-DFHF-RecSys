@@ -1,6 +1,6 @@
-"""Reported models: the three baselines plus SGKR (src.models.sgkr) and SPHR (src.models.sphr).
+"""Reported models: the three baselines plus GRNR (src.models.grnr) and DFHF (src.models.dfhf).
 
-Earlier research models (RecFlow, SCSR, SGKR ranking tails) were removed; they remain in git history.
+Earlier research models (RecFlow, SCSR, GRNR ranking tails) were removed; they remain in git history.
 """
 from src.models.base import BaseRecommender
 from src.models.lightgcn import LightGCN

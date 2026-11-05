@@ -1,4 +1,4 @@
-"""Fit one SGKR configuration and evaluate validation only with the shared protocol."""
+"""Fit one GRNR configuration and evaluate validation only with the shared protocol."""
 from __future__ import annotations
 
 import argparse
@@ -27,8 +27,8 @@ from src.data.quality_report import warm_cohort
 from src.data.sparsity import create_sparse_train_set
 from src.evaluation.evaluator import EVALUATION_PROTOCOL, Evaluator
 from src.evaluation.metrics import compute_topk_metrics
-from src.models.sgkr import SGKR, SGKRConfig
-from src.models.sgkr import SOURCE_SHA256 as SGKR_SOURCE_SHA256
+from src.models.grnr import GRNR, GRNRConfig
+from src.models.grnr import SOURCE_SHA256 as GRNR_SOURCE_SHA256
 from src.utils.run_budget import RunBudget
 from src.utils.source_identity import (
     SOURCE_SHA256 as GUARD_SOURCE_SHA256,
@@ -41,8 +41,8 @@ from src.utils.source_identity import (
 )
 
 SOURCE_SHA256 = source_identity(__file__)
-_IMPORTED_SOURCES = {"src/models/sgkr.py": SGKR_SOURCE_SHA256,
-                     "scripts/run_sgkr.py": SOURCE_SHA256,
+_IMPORTED_SOURCES = {"src/models/grnr.py": GRNR_SOURCE_SHA256,
+                     "scripts/run_grnr.py": SOURCE_SHA256,
                      "src/utils/source_identity.py": GUARD_SOURCE_SHA256}
 _RUNTIME_SOURCES = capture_sources(ROOT, [Path(__file__), ROOT/"scripts/config_io.py",
                                           *sorted((ROOT/"src").rglob("*.py"))], _IMPORTED_SOURCES)
@@ -75,9 +75,9 @@ def fit_checkpoint_reference(path):
     source_plan_path = path.parent/"plan.json"
     source = json.loads(source_plan_path.read_text(encoding="utf-8"))
     runtime_source_guard()
-    if source.get("model") != "sgkr":
-        raise ValueError("Reuse requires an SGKR checkpoint with its original plan.json")
-    names = ("src/models/sgkr.py", "src/data/sparsity.py", "src/data/quality_report.py",
+    if source.get("model") != "grnr":
+        raise ValueError("Reuse requires an GRNR checkpoint with its original plan.json")
+    names = ("src/models/grnr.py", "src/data/sparsity.py", "src/data/quality_report.py",
              "src/evaluation/evaluator.py", "src/evaluation/metrics.py")
     compatibility = verify_legacy_sources(ROOT, source["source_hashes"],
         {name: _RUNTIME_SOURCES[name] for name in names}, archive=path.parent/"source")
@@ -101,10 +101,10 @@ def load_reused_fit(reference, config, train, dimensions, current):
                  "mask_sha256", "evaluation_protocol", "versions"):
         if source[name] != current[name]:
             raise ValueError(f"Reused fit has different {name}")
-    model = SGKR.load(reference["path"])
+    model = GRNR.load(reference["path"])
     if model.config != config or (model.num_users, model.num_items) != tuple(dimensions):
         raise ValueError("Reused checkpoint config/dimensions differ")
-    retained = SGKR.interaction_matrix(train.u_idx.to_numpy(), train.i_idx.to_numpy(), *dimensions)
+    retained = GRNR.interaction_matrix(train.u_idx.to_numpy(), train.i_idx.to_numpy(), *dimensions)
     if (model.interactions != retained).nnz:
         raise ValueError("Reused checkpoint retained edges differ")
     return model
@@ -112,7 +112,7 @@ def load_reused_fit(reference, config, train, dimensions, current):
 
 def parser():
     result = argparse.ArgumentParser(description=__doc__)
-    result.add_argument("--config", type=Path, default=ROOT / "configs/sgkr.yaml")
+    result.add_argument("--config", type=Path, default=ROOT / "configs/grnr.yaml")
     result.add_argument("--bundle", default=None)
     result.add_argument("--output", type=Path, default=None)
     result.add_argument("--sparsity", type=float, default=.25, help="Fraction of train edges retained")
@@ -142,9 +142,9 @@ def parser():
 def run(args):
     runtime_source_guard()
     config_digest = digest(args.config)
-    settings = read_model_config(args.config, "sgkr-core")
+    settings = read_model_config(args.config, "grnr-core")
     if not isinstance(settings, dict):
-        raise TypeError("SGKR config must be a mapping")
+        raise TypeError("GRNR config must be a mapping")
     for name in ("neighbors", "alpha", "graph_weight", "positive_weight", "eta_linear", "eta_bias", "threads",
                  "adaptive_power", "adaptive_cap", "boundary_weight", "support_alpha", "popularity_tilt"):
         value = getattr(args, name, None)
@@ -152,21 +152,21 @@ def run(args):
             settings[name] = value
     if args.no_adaptive_regularization:
         settings["adaptive_regularization"] = False
-    config = SGKRConfig.from_dict(settings)
+    config = GRNRConfig.from_dict(settings)
     if not 0 < args.sparsity <= 1 or args.density_seed < 0 or args.eval_batch_size < 1 or args.diagnostic_users < 0:
         raise ValueError("Invalid sparsity, density seed or evaluation batch size")
     if args.dry_run:
-        print(json.dumps({"model": "sgkr", "solver": "cholesky", "config": asdict(config),
+        print(json.dumps({"model": "grnr", "solver": "cholesky", "config": asdict(config),
                           "density": args.sparsity, "density_seed": args.density_seed,
                           "diagnostic_users": args.diagnostic_users,
                           "theory_diagnostics": getattr(args, "theory_diagnostics", False),
                           "validation_only": True}, indent=2))
         return None
     fit_reference = fit_checkpoint_reference(args.fit_checkpoint) if getattr(args, "fit_checkpoint", None) else None
-    output = args.output or ROOT / "results/experiments" / datetime.now(timezone.utc).strftime("sgkr_%Y%m%d_%H%M%S_%f")
+    output = args.output or ROOT / "results/experiments" / datetime.now(timezone.utc).strftime("grnr_%Y%m%d_%H%M%S_%f")
     output = output.resolve()
     output.mkdir(parents=True, exist_ok=False)
-    budget = RunBudget("sgkr")
+    budget = RunBudget("grnr")
     budget.configs_tried = 1
     bundle = resolve_bundle(args.bundle, data_root=ROOT / "data")
     full_train = pd.read_parquet(bundle.split_path("train"))
@@ -184,7 +184,7 @@ def run(args):
     guard = SourceGuard(ROOT, source_hashes, config=args.config)
     guard.archive_to(output/"source")
     guard = SourceGuard(ROOT, source_hashes, config=args.config, archive=output/"source")
-    plan = {"status": "prepared", "model": "sgkr", "stage": "exploratory_validation_only",
+    plan = {"status": "prepared", "model": "grnr", "stage": "exploratory_validation_only",
             "bundle_id": bundle.build_id, "bundle_path": str(bundle.root), "config": asdict(config),
             "density": args.sparsity, "density_seed": args.density_seed,
             "diagnostic_users": args.diagnostic_users,
@@ -200,16 +200,16 @@ def run(args):
         plan["fit_reference"] = fit_reference
         shutil.copy2(fit_reference["source_plan"], output/"original_fit_plan.json")
     write_json(output / "plan.json", plan)
-    print(f"[SGKR] Retained edges: {len(train):,} | Val users: {cohort['evaluable_users']:,} | Output: {output}", flush=True)
+    print(f"[GRNR] Retained edges: {len(train):,} | Val users: {cohort['evaluable_users']:,} | Output: {output}", flush=True)
     log = output / "progress.jsonl"
 
     def progress(event):
         with log.open("a", encoding="utf-8") as stream:
             stream.write(json.dumps(event) + "\n")
         if event["stage"] == "features_ready":
-            print(f"[SGKR] Features ready [{event['seconds']:.1f}s] | Solving item systems...", flush=True)
+            print(f"[GRNR] Features ready [{event['seconds']:.1f}s] | Solving item systems...", flush=True)
         else:
-            print(f"[SGKR] Items {event['completed']:,}/{event['items']:,} [{event['seconds']:.1f}s]", flush=True)
+            print(f"[GRNR] Items {event['completed']:,}/{event['items']:,} [{event['seconds']:.1f}s]", flush=True)
 
     started = time.perf_counter()
     try:
@@ -217,23 +217,23 @@ def run(args):
         plan["status"] = "evaluating_saved_fit" if fit_reference else "fitting"
         write_json(output / "plan.json", plan)
         if fit_reference is not None:
-            print("[SGKR] Reusing fitted checkpoint; no coefficient solves.", flush=True)
+            print("[GRNR] Reusing fitted checkpoint; no coefficient solves.", flush=True)
             model = load_reused_fit(fit_reference, config, train, [stats["num_users"], stats["num_items"]], plan)
             guard.atomic_write(output/"model.npz", lambda temporary: shutil.copy2(fit_reference["path"], temporary))
             if digest(output/"model.npz") != fit_reference["sha256"]:
                 raise ValueError("Reused checkpoint changed during copy")
         else:
-            model = SGKR(config).fit(train.u_idx.to_numpy(), train.i_idx.to_numpy(),
+            model = GRNR(config).fit(train.u_idx.to_numpy(), train.i_idx.to_numpy(),
                                      stats["num_users"], stats["num_items"], progress)
             guard.atomic_write(output/"model.npz", model.save)
         plan["fit_checkpoint_sha256"] = digest(output/"model.npz")
         write_json(output/"plan.json", plan)
         if getattr(args, "theory_diagnostics", False):
-            from src.evaluation.theory_diagnostics import sgkr_graph_diagnostics
-            write_json(output/"theory_diagnostics.json", sgkr_graph_diagnostics(model))
+            from src.evaluation.theory_diagnostics import grnr_graph_diagnostics
+            write_json(output/"theory_diagnostics.json", grnr_graph_diagnostics(model))
         # Reload the artifact before evaluating; verify independent score reconstruction.
         guard.check()
-        restored = SGKR.load(output / "model.npz")
+        restored = GRNR.load(output / "model.npz")
         probe = np.asarray(sorted(validation.u_idx.unique())[:8], dtype=np.int64)
         np.testing.assert_allclose(model.score(probe), restored.score(probe), rtol=1e-12, atol=1e-12)
         maximum_gap = 0.
@@ -261,7 +261,7 @@ def run(args):
         write_json(output / "branch_diagnostics.json", diagnostics)
         np.save(output / "val_predictions.npy", predictions.numpy())
         np.save(output / "val_users.npy", np.asarray(evaluator.eval_users))
-        result = {"model": "sgkr", "validation_only": True, "val_metrics": metrics,
+        result = {"model": "grnr", "validation_only": True, "val_metrics": metrics,
                   "fit_report": model.fit_report, "score_reconstruction_max_gap": maximum_gap,
                   "checkpoint_replay": "passed", "inference_latency_ms_per_user": latency,
                   "branch_diagnostics_users": len(diagnostics["users"]),
@@ -270,7 +270,7 @@ def run(args):
         guard.check()
         write_json(output / "result.json", result)
         plan["status"] = "complete"
-        print(f"[SGKR] Complete | Val Recall@10: {metrics['Recall@10']:.4f} | Val NDCG@10: {metrics['NDCG@10']:.4f}"
+        print(f"[GRNR] Complete | Val Recall@10: {metrics['Recall@10']:.4f} | Val NDCG@10: {metrics['NDCG@10']:.4f}"
               f" | Val Recall@20: {metrics['Recall@20']:.4f} | Val NDCG@20: {metrics['NDCG@20']:.4f}", flush=True)
         return result
     except BaseException as error:

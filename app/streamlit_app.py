@@ -1,4 +1,4 @@
-"""Demo: Hệ thống khuyến nghị sản phẩm điện tử (SGKR, SPHR, three graph baselines and two closed-form baselines).
+"""Demo: Hệ thống khuyến nghị sản phẩm điện tử (GRNR, DFHF, three graph baselines and two closed-form baselines).
 
   streamlit run app/streamlit_app.py
 
@@ -6,7 +6,7 @@ Laid out for a 1920x1080 desktop. Three tabs:
   Gợi ý cho khách     the top-10 of all seven models side by side (one column each, grouped by family) next to the
                       customer's history and next purchase; hovering a product lights it up in every column.
   Khách mới           the same grid for a history built from a product search (graph baselines cannot serve it).
-  Đánh giá mô hình    key findings, leaderboard, charts, paired tests against SGKR, protocol and report figures.
+  Đánh giá mô hình    key findings, leaderboard, charts, paired tests against GRNR, protocol and report figures.
 Validation data only; the test split is never opened.
 """
 from __future__ import annotations
@@ -25,7 +25,7 @@ import numpy as np
 import pandas as pd
 import streamlit as st
 
-from app.benchmark import METRICS, by_density, closed_form, closed_form_all, leaderboard, significance
+from app.benchmark import METRICS, by_density, closed_form, closed_form_all, leaderboard, read_summary, significance
 from app.recommender import (COLORS, DENSITIES, FAMILY_COLORS, GROUPS, KINDS, LABELS, MODELS, PREVIEW, RESULTS,
                              checkpoint_ndcg, load_data, load_ranker, recommend, sample_users)
 
@@ -256,7 +256,7 @@ def why_box(ranker, history, top, codes, data):
     lines = "".join(f'<div><span class="code">{codes.get(item, "·")}</span><span style="flex:1">'
                     f'{html.escape(short(item_label(data, item)[0], 42))}</span><b>{value / total:.0%}</b></div>'
                     for item, value in parts)
-    return (f'<div class="why"><b>Vì sao SGKR gợi ý #1?</b>'
+    return (f'<div class="why"><b>Vì sao GRNR gợi ý #1?</b>'
             f'{lines or "<div>Chỉ do độ phổ biến (bias) của sản phẩm.</div>"}</div>')
 
 
@@ -303,9 +303,9 @@ def tab_existing(data, samples, eligible):
         off ={m: f"Chưa train ở mật độ {density:.0%}" for m in MODELS if loaded[m] is None}
         st.markdown(matrix(data, tops, density, target, ms, off, kinds), unsafe_allow_html=True)
     with left:
-        if "sgkr" in tops:
-            ranker = loaded["sgkr"]
-            st.markdown(why_box(ranker, ranker.train_items(user), tops["sgkr"], codes, data), unsafe_allow_html=True)
+        if "grnr" in tops:
+            ranker = loaded["grnr"]
+            st.markdown(why_box(ranker, ranker.train_items(user), tops["grnr"], codes, data), unsafe_allow_html=True)
 
 
 # ---------- tab 2: new customer ----------
@@ -368,14 +368,14 @@ def tab_new(data):
 
 # ---------- tab 3: benchmark ----------
 
-MAIN_MODELS = ("sgkr", "sphr", "lightgcn", "xsimgcl", "directau")
+MAIN_MODELS = ("grnr", "dfhf", "lightgcn", "xsimgcl", "directau")
 GREEN, AMBER, RED = ("background-color:#e6f5ee;color:#13865d;font-weight:600",
                      "background-color:#fff8e6;color:#8a6d00;font-weight:600",
                      "background-color:#fdecea;color:#c0392b;font-weight:600")
 
 
 def verdict_style(verdict):
-    if verdict.startswith(("SGKR", "SPHR")):
+    if verdict.startswith(("GRNR", "DFHF")):
         return GREEN
     return AMBER if verdict.startswith("Chưa") else RED
 
@@ -394,7 +394,7 @@ def findings_main(table, tests, density):
     best = table.iloc[0]
     finding(COLORS[best.model], f"<b>{best['Mô hình']}</b> có NDCG@20 cao nhất ở mật độ {density:.0%}: "
                                 f"<b>{best['NDCG@20']:.4f}</b>.")
-    for proposed in ("sgkr", "sphr"):
+    for proposed in ("grnr", "dfhf"):
         rows = tests[tests.proposed == proposed] if not tests.empty else tests
         if rows.empty:
             continue
@@ -408,29 +408,29 @@ def findings_main(table, tests, density):
         if len(worse):
             text += "; kém hơn " + ", ".join(f"<b>{LABELS[m]}</b>" for m in worse.baseline)
         finding(COLORS[proposed], text + ".")
-    sgkr, gnn = table[table.model == "sgkr"], table[table.model.isin(["lightgcn", "xsimgcl", "directau"])]
-    if len(sgkr) and len(gnn):
+    grnr, gnn = table[table.model == "grnr"], table[table.model.isin(["lightgcn", "xsimgcl", "directau"])]
+    if len(grnr) and len(gnn):
         fastest = gnn.train_seconds.min()
-        finding("#13865d", f"SGKR train trong <b>{sgkr.train_seconds.iloc[0] / 60:.1f} phút</b>, nhanh hơn khoảng "
-                           f"<b>{fastest / sgkr.train_seconds.iloc[0]:.0f}×</b> so với GNN nhanh nhất "
+        finding("#13865d", f"GRNR train trong <b>{grnr.train_seconds.iloc[0] / 60:.1f} phút</b>, nhanh hơn khoảng "
+                           f"<b>{fastest / grnr.train_seconds.iloc[0]:.0f}×</b> so với GNN nhanh nhất "
                            f"({fastest / 60:.0f} phút), và gợi ý được cho khách mới.")
 
 
 def leaderboard_view(table):
     table = table.assign(**{"Train (phút)": table.train_seconds / 60})
-    view = table[["Hạng", "Mô hình", "Nhóm", *METRICS, "vs SGKR", "Train (phút)", "inference_ms_per_user"]]
-    view = view.rename(columns={"vs SGKR": "NDCG@20 so với SGKR (%)", "inference_ms_per_user": "Suy luận (ms/user)"})
+    view = table[["Hạng", "Mô hình", "Nhóm", *METRICS, "vs GRNR", "Train (phút)", "inference_ms_per_user"]]
+    view = view.rename(columns={"vs GRNR": "NDCG@20 so với GRNR (%)", "inference_ms_per_user": "Suy luận (ms/user)"})
     family = {kind: accent for kind, (accent, _) in FAMILY_COLORS.items()}
     styler = (view.style
-              .format({**{m: "{:.4f}" for m in METRICS}, "NDCG@20 so với SGKR (%)": "{:+.1f}",
+              .format({**{m: "{:.4f}" for m in METRICS}, "NDCG@20 so với GRNR (%)": "{:+.1f}",
                        "Train (phút)": "{:.1f}", "Suy luận (ms/user)": "{:.3f}"})
               .highlight_max(subset=list(METRICS), props="font-weight:700; background-color:#e6f5ee")
               .map(lambda kind: f"color:{family.get(kind, '#1c2030')}; font-weight:600", subset=["Nhóm"])
               .map(lambda v: "color:#13865d" if v > 0 else "color:#c0392b" if v < 0 else "",
-                   subset=["NDCG@20 so với SGKR (%)"])
-              .apply(lambda row: ["background-color:#e8f0fc" if row["Mô hình"] == "SGKR" else ""] * len(row), axis=1))
+                   subset=["NDCG@20 so với GRNR (%)"])
+              .apply(lambda row: ["background-color:#e8f0fc" if row["Mô hình"] == "GRNR" else ""] * len(row), axis=1))
     st.dataframe(styler, hide_index=True, width="stretch")
-    st.caption("Như bảng B2 của báo cáo. Tô xanh: cao nhất cột. Thời gian train: SGKR chạy CPU, các mô hình khác GPU.")
+    st.caption("Như bảng B2 của báo cáo. Tô xanh: cao nhất cột. Thời gian train: GRNR chạy CPU, các mô hình khác GPU.")
 
 
 def charts(density, metric):
@@ -469,25 +469,25 @@ def significance_view(tests):
     st.caption("Như bảng B3: paired bootstrap 10.000 lần, một phía (mô hình đề xuất tốt hơn), Holm trên 6 so sánh.")
 
 
-CLOSED_COLORS = {"SGKR (đề xuất)": COLORS["sgkr"], "EASE (đầy đủ)": COLORS["ease"], "EASE top-128": "#b39ae6",
+CLOSED_COLORS = {"GRNR (đề xuất)": COLORS["grnr"], "EASE (đầy đủ)": COLORS["ease"], "EASE top-128": "#b39ae6",
                  "GF-CF": COLORS["gfcf"]}
 CLOSED_METRICS = ["NDCG@20", "NDCG@10", "Recall@20", "Recall@10"]  # B5 has no MRR
 
 
 def closed_form_overview(b5, b6, density):
     """Conclusions and table B5 of the closed-form part at this density."""
-    rivals = dict(zip(b6["So sánh"].str.replace("SGKR - ", "", regex=False), b6["Kết luận"]))
-    phrases = (("SGKR tốt hơn", "SGKR tốt hơn có ý nghĩa so với"),
+    rivals = dict(zip(b6["So sánh"].str.replace("GRNR - ", "", regex=False), b6["Kết luận"]))
+    phrases = (("GRNR tốt hơn", "GRNR tốt hơn có ý nghĩa so với"),
                ("Chưa khác biệt có ý nghĩa", "chưa khác biệt có ý nghĩa với"), ("Mô hình này tốt hơn", "kém hơn"))
     parts = [label + " " + ", ".join(f"<b>{name}</b>" for name, v in rivals.items() if v == verdict)
              for verdict, label in phrases if verdict in rivals.values()]
     text = "; ".join(parts)
-    finding(COLORS["sgkr"], text[:1].upper() + text[1:] + " (Holm, p &lt; 0,05).")
+    finding(COLORS["grnr"], text[:1].upper() + text[1:] + " (Holm, p &lt; 0,05).")
     size = dict(zip(b5["Mô hình"], b5["Checkpoint (MB)"]))
     minutes = dict(zip(b5["Mô hình"], b5["Train (phút)"]))
-    finding("#13865d", f"Checkpoint: SGKR <b>{size['SGKR (đề xuất)']:.1f} MB</b> · EASE top-128 "
+    finding("#13865d", f"Checkpoint: GRNR <b>{size['GRNR (đề xuất)']:.1f} MB</b> · EASE top-128 "
                        f"<b>{size['EASE top-128']:.1f} MB</b> · EASE đầy đủ cần <b>{size['EASE (đầy đủ)'] / 1024:.1f} GB"
-                       f"</b> (không lưu được). Train: SGKR {minutes['SGKR (đề xuất)']:.1f} phút, EASE "
+                       f"</b> (không lưu được). Train: GRNR {minutes['GRNR (đề xuất)']:.1f} phút, EASE "
                        f"{minutes['EASE (đầy đủ)']:.1f} phút.")
     metrics = CLOSED_METRICS
     st.markdown(f"##### Bảng xếp hạng · mật độ {density:.0%}")
@@ -495,7 +495,7 @@ def closed_form_overview(b5, b6, density):
                  .style.format({**{m: "{:.4f}" for m in metrics}, "Checkpoint (MB)": "{:,.1f}",
                                 "Train (phút)": "{:.1f}"})
                  .highlight_max(subset=metrics, props="font-weight:700; background-color:#e6f5ee")
-                 .apply(lambda row: ["background-color:#e8f0fc" if row["Mô hình"].startswith("SGKR") else ""]
+                 .apply(lambda row: ["background-color:#e8f0fc" if row["Mô hình"].startswith("GRNR") else ""]
                         * len(row), axis=1), hide_index=True, width="stretch")
     st.caption("Như bảng B5 của báo cáo. Cả 4 mô hình chạy CPU; EASE đầy đủ là ma trận float32 không lưu được.")
 
@@ -533,13 +533,13 @@ def closed_form_charts(density, metric):
 
 def closed_form_tests(b6, density):
     """Table B6 of the closed-form part at this density."""
-    st.markdown(f"##### SGKR so với từng mô hình nghiệm đóng · mật độ {density:.0%}")
+    st.markdown(f"##### GRNR so với từng mô hình nghiệm đóng · mật độ {density:.0%}")
     view = b6.assign(**{"KTC 95%": [f"[{low:+.4f}, {high:+.4f}]"
                                      for low, high in zip(b6["KTC 95% dưới"], b6["KTC 95% trên"])]})
     st.dataframe(view[["So sánh", "Delta NDCG@20", "KTC 95%", "p một phía", "p Holm", "Kết luận", "Số user"]].style
                  .format({"Delta NDCG@20": "{:+.5f}", "p một phía": "{:.4f}", "p Holm": "{:.4f}"})
                  .map(verdict_style, subset=["Kết luận"]), hide_index=True, width="stretch")
-    st.caption("Như bảng B6: paired bootstrap 10.000 lần, một phía (SGKR tốt hơn), Holm trên 3 so sánh mỗi mật độ. "
+    st.caption("Như bảng B6: paired bootstrap 10.000 lần, một phía (GRNR tốt hơn), Holm trên 3 so sánh mỗi mật độ. "
                "Phân tích bổ sung, mang tính khám phá. EASE top-128 là bản checkpoint mà demo dùng.")
 
 
@@ -577,7 +577,8 @@ def tab_benchmark(data):
     metric = pick_metric.selectbox("Chỉ số cho biểu đồ và hình", METRICS)
     summary = RESULTS / "summary.csv"
     if summary.exists():
-        download.download_button("Tải bảng kết quả (CSV)", summary.read_bytes(), "summary.csv", "text/csv",
+        download.download_button("Tải bảng kết quả (CSV)", read_summary(summary).to_csv(index=False).encode("utf-8-sig"),
+                                 "summary.csv", "text/csv",
                                  icon=":material/download:", width="stretch")
     table = leaderboard(density)
     if table.empty:
@@ -586,7 +587,7 @@ def tab_benchmark(data):
     tests = cached_significance(density)
     trained, closed = st.tabs(["Nhóm cần huấn luyện", "Nhóm giải trực tiếp"])
     with trained:
-        st.caption("SGKR so với SPHR, LightGCN, XSimGCL, DirectAU: các mô hình học tham số qua nhiều vòng train (GPU).")
+        st.caption("GRNR so với DFHF, LightGCN, XSimGCL, DirectAU: các mô hình học tham số qua nhiều vòng train (GPU).")
         overview, trend, stats, figures = st.tabs(["Tổng quan", "Biểu đồ", "Kiểm định", "Hình"])
         with overview:
             findings_main(table, tests, density)
@@ -600,8 +601,8 @@ def tab_benchmark(data):
         with figures:
             figure_gallery(metric)
     with closed:
-        st.caption("SGKR so với EASE, EASE top-128, GF-CF: các mô hình giải bằng công thức toán, không cần vòng train, "
-                   "cùng kiểu với SGKR.")
+        st.caption("GRNR so với EASE, EASE top-128, GF-CF: các mô hình giải bằng công thức toán, không cần vòng train, "
+                   "cùng kiểu với GRNR.")
         b5, b6 = closed_form(density)
         if b5 is None or b5.empty:
             st.info("Chưa có bảng B5/B6. Chạy `python scripts\\make_closed_form_report.py`.")

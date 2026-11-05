@@ -1,4 +1,4 @@
-"""Exact identities supporting the SGKR proposal, not a baseline-win proof."""
+"""Exact identities supporting the GRNR proposal, not a baseline-win proof."""
 import argparse
 import json
 import sys
@@ -93,7 +93,7 @@ def main():
                          "Risk reduction is integrated under a specified prior, not uniform over fixed p.",
                          "Convexity and spectral contraction condition on fixed features, graph and confidence.",
                          "Reconstruction probabilities need not equal chronological next-item probabilities.",
-                         "No empirical SGKR training or proof of superiority over the three baselines."]}
+                         "No empirical GRNR training or proof of superiority over the three baselines."]}
     args.output.parent.mkdir(parents=True, exist_ok=True)
     with args.output.open("x", encoding="utf-8") as handle:
         json.dump(report, handle, indent=2)

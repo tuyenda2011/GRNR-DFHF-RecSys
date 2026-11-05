@@ -1,6 +1,6 @@
 """Benchmark tab back end, split as in the report.
 
-Main comparison (report B2/B3): the five original models; paired tests of each proposed model (SGKR, SPHR)
+Main comparison (report B2/B3): the five original models; paired tests of each proposed model (GRNR, DFHF)
 against each graph baseline, Holm over those six, recomputed per density with the report's method
 (scripts/compare_val_runs.py: per-user metrics from val_predictions.npy, paired user bootstrap, one-sided p).
 Closed-form supplement (report B5/B6): read from the tables scripts/make_closed_form_report.py writes, so the
@@ -12,21 +12,40 @@ import numpy as np
 import pandas as pd
 
 from app.recommender import KINDS, LABELS, RESULTS, ROOT, run_dir
+from src.utils.model_names import canonical_model_name
 
-MAIN = ("sgkr", "sphr", "lightgcn", "xsimgcl", "directau")
-PROPOSED, GRAPH = ("sgkr", "sphr"), ("lightgcn", "xsimgcl", "directau")
+MAIN = ("grnr", "dfhf", "lightgcn", "xsimgcl", "directau")
+PROPOSED, GRAPH = ("grnr", "dfhf"), ("lightgcn", "xsimgcl", "directau")
 METRICS = ("NDCG@20", "NDCG@10", "Recall@20", "Recall@10", "MRR@20")
 TABLES = ROOT / "reports/tables"
 
 
-def leaderboard(density, summary_path=None):
-    """The five main models at this density, ranked by NDCG@20, with the gap to SGKR in percent."""
+def read_summary(summary_path=None):
+    """Normalize model IDs for display/download without rewriting stored results."""
     summary = pd.read_csv(summary_path or RESULTS / "summary.csv")
+    summary["model"] = summary.model.map(canonical_model_name)
+    return summary
+
+
+def current_report_labels(frame):
+    """Translate legacy display labels while preserving all numerical columns."""
+    frame = frame.copy()
+    for column in ("Mô hình", "So sánh"):
+        if column in frame:
+            frame[column] = frame[column].str.replace(
+                r"\bSGKR\b", "GRNR", regex=True
+            ).str.replace(r"\bSPHR\b", "DFHF", regex=True)
+    return frame
+
+
+def leaderboard(density, summary_path=None):
+    """The five main models at this density, ranked by NDCG@20, with the gap to GRNR in percent."""
+    summary = read_summary(summary_path)
     rows = summary[(summary.density == density) & summary.model.isin(MAIN)]
     rows = rows.groupby("model", sort=False)[[*METRICS, "train_seconds", "inference_ms_per_user"]].mean()
     table = rows.reindex([m for m in MAIN if m in rows.index]).reset_index()
-    reference = table.loc[table.model == "sgkr", "NDCG@20"]
-    table["vs SGKR"] = (table["NDCG@20"] / reference.iloc[0] - 1) * 100 if len(reference) else np.nan
+    reference = table.loc[table.model == "grnr", "NDCG@20"]
+    table["vs GRNR"] = (table["NDCG@20"] / reference.iloc[0] - 1) * 100 if len(reference) else np.nan
     table = table.sort_values("NDCG@20", ascending=False).reset_index(drop=True)
     table.insert(0, "Hạng", range(1, len(table) + 1))
     table.insert(2, "Nhóm", table.model.map(KINDS))
@@ -35,7 +54,7 @@ def leaderboard(density, summary_path=None):
 
 
 def by_density(summary_path=None):
-    summary = pd.read_csv(summary_path or RESULTS / "summary.csv")
+    summary = read_summary(summary_path)
     summary = summary[summary.model.isin(MAIN)]
     return summary.groupby(["model", "density"], as_index=False)[[*METRICS, "train_seconds"]].mean()
 
@@ -78,18 +97,18 @@ def significance(density, targets, metric="NDCG@20", repeats=10_000):
 def closed_form_all():
     """Report table B5 for every density (for the closed-form charts), or None before the report has run."""
     path = TABLES / "B5_closed_form.csv"
-    return pd.read_csv(path, encoding="utf-8-sig") if path.exists() else None
+    return current_report_labels(pd.read_csv(path, encoding="utf-8-sig")) if path.exists() else None
 
 
 def closed_form(density):
-    """Report tables B5 (metrics, size, time) and B6 (SGKR minus each closed-form model) at one density."""
+    """Report tables B5 (metrics, size, time) and B6 (GRNR minus each closed-form model) at one density."""
     metrics, tests = TABLES / "B5_closed_form.csv", TABLES / "B6_closed_form_significance.csv"
     if not metrics.exists() or not tests.exists():
         return None, None
-    b5 = pd.read_csv(metrics, encoding="utf-8-sig")
-    b6 = pd.read_csv(tests, encoding="utf-8-sig")
+    b5 = current_report_labels(pd.read_csv(metrics, encoding="utf-8-sig"))
+    b6 = current_report_labels(pd.read_csv(tests, encoding="utf-8-sig"))
     b5, b6 = b5[np.isclose(b5["Mật độ"], density)], b6[np.isclose(b6["Mật độ"], density)]
     b6 = b6.assign(**{"Kết luận": [
-        "SGKR tốt hơn" if p < .05 else "Mô hình này tốt hơn" if high < 0 else "Chưa khác biệt có ý nghĩa"
+        "GRNR tốt hơn" if p < .05 else "Mô hình này tốt hơn" if high < 0 else "Chưa khác biệt có ý nghĩa"
         for p, high in zip(b6["p Holm"], b6["KTC 95% trên"])]})
     return b5.reset_index(drop=True), b6.reset_index(drop=True)

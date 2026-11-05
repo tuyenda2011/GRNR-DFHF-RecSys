@@ -1,7 +1,9 @@
-"""SGKR: item-item graph-regularised ridge regression with exact target-excluded fitting.
+"""Graph-Regularized Neighborhood Regression (GRNR).
+
+Item-item graph-regularised ridge regression with exact target-excluded fitting.
 
 No trainable user IDs or gradient optimizer. Every statistic is built from the supplied
-retained train. The defaults are the locked configuration (configs/sgkr.yaml).
+retained train. The defaults are the locked configuration (configs/grnr.yaml).
 """
 from __future__ import annotations
 
@@ -29,7 +31,7 @@ IGNORED_OPTIONS = ("bandwidth", "eta_kernel", "feature_map", "seed")
 
 
 @dataclass(frozen=True)
-class SGKRConfig:
+class GRNRConfig:
     neighbors: int = 128
     alpha: float = 10.0
     positive_weight: float = 10.0
@@ -45,7 +47,7 @@ class SGKRConfig:
     boundary_weight: float = 0.5
     support_alpha: float | None = 2.0
     # Inference-only ranking tilt s * (1 + c_i)^popularity_tilt, c_i = retained train count.
-    # Fitting uses the untilted SGKR.score; 0 keeps the original ranking.
+    # Fitting uses the untilted GRNR.score; 0 keeps the original ranking.
     popularity_tilt: float = -0.1
 
     @classmethod
@@ -58,7 +60,7 @@ class SGKRConfig:
         for key, required in RETIRED_OPTIONS.items():
             found = values.pop(key, "lift" if legacy and key == "neighbor_rule" else required)
             if found != required:
-                raise ValueError(f"{key}={found!r} belongs to a retired SGKR variant; only {required!r} is supported")
+                raise ValueError(f"{key}={found!r} belongs to a retired GRNR variant; only {required!r} is supported")
         for key in IGNORED_OPTIONS:
             values.pop(key, None)
         return cls(**values)
@@ -95,15 +97,15 @@ class SGKRConfig:
             raise ValueError("support_alpha must be finite and nonnegative, or None")
 
 
-class SGKR:
+class GRNR:
     """Sparse item-local linear coefficients plus an item bias.
 
     CPU float64 fitting. No dense user-by-item or item-by-item allocation.
     Inference also excludes a candidate from its own context if it was seen.
     """
 
-    def __init__(self, config: SGKRConfig | None = None):
-        self.config = config or SGKRConfig()
+    def __init__(self, config: GRNRConfig | None = None):
+        self.config = config or GRNRConfig()
         self.fitted = False
 
     @staticmethod
@@ -311,7 +313,7 @@ class SGKR:
         score matrix. Branches sum to score() on the same candidate entries.
         """
         if not self.fitted:
-            raise RuntimeError("Fit or load SGKR before scoring")
+            raise RuntimeError("Fit or load GRNR before scoring")
         users, candidates = np.asarray(users), np.asarray(candidates)
         for indices, size in ((users, self.num_users), (candidates, self.num_items)):
             if indices.ndim != 1 or indices.dtype.kind not in "iu" or (
@@ -326,12 +328,12 @@ class SGKR:
             parts["linear"][:, column] = design[:, :local] @ coefficients
             parts["bias"][:, column] = self.bias[item]
         if any(not np.isfinite(value).all() for value in parts.values()):
-            raise FloatingPointError("Nonfinite SGKR score parts")
+            raise FloatingPointError("Nonfinite GRNR score parts")
         return parts
 
     def score(self, users, *, exclude_seen: bool = True):
         if not self.fitted:
-            raise RuntimeError("Fit or load SGKR before scoring")
+            raise RuntimeError("Fit or load GRNR before scoring")
         users = np.asarray(users)
         if users.ndim != 1 or users.dtype.kind not in "iu" or (len(users) and (users.min() < 0 or users.max() >= self.num_users)):
             raise ValueError("Invalid user indices")
@@ -345,7 +347,7 @@ class SGKR:
                                     [self.bias[candidate]]))
             scores[selected, candidate] = self.design_rows(users[selected], int(candidate)) @ theta
         if not np.isfinite(scores).all():
-            raise FloatingPointError("Nonfinite SGKR scores")
+            raise FloatingPointError("Nonfinite GRNR scores")
         return scores
 
     def get_user_rating_scores(self, users, all_users=None, all_items=None):
@@ -376,11 +378,11 @@ class SGKR:
         with np.load(path, allow_pickle=False) as state:
             schema = int(state["schema"])
             if schema not in (1, 2):
-                raise ValueError("Unsupported SGKR checkpoint schema")
+                raise ValueError("Unsupported GRNR checkpoint schema")
             # Schema 1 also stored a kernel block; only an empty one is compatible with this model.
             if schema == 1 and state["kernel"].size:
-                raise ValueError("Checkpoint uses the retired SGKR kernel branch")
-            model = cls(SGKRConfig.from_dict(json.loads(str(state["config"]))))
+                raise ValueError("Checkpoint uses the retired GRNR kernel branch")
+            model = cls(GRNRConfig.from_dict(json.loads(str(state["config"]))))
             shape = tuple(int(n) for n in state["shape"])
             interactions = sparse.csr_matrix((np.ones(len(state["train_indices"])), state["train_indices"],
                                               state["train_indptr"]), shape=shape)

@@ -159,7 +159,7 @@ def figure_curves(summary, metric, folder, notes, seed=42):
             if row.empty:
                 continue
             spec = STYLE[model]
-            if model == "sgkr":
+            if model == "grnr":
                 line = ax.axhline(row[metric].iloc[0], color=spec["color"], linestyle=":", linewidth=1.3)
                 handles.setdefault(model, (line, f"{spec['label']} – nghiệm đóng"))
                 drawn += 1
@@ -197,7 +197,7 @@ def shade(color, density):
 def figure_loss(summary, folder, notes, seed=42):
     """Training loss per epoch, one panel per gradient-trained model (own y-axis: the losses differ in kind
     and scale), one line per density."""
-    models = [m for m in ORDER if m != "sgkr"]
+    models = [m for m in ORDER if m != "grnr"]
     fig, axes = plt.subplots(2, 2, figsize=SIZE, layout="constrained", sharex=True)
     for ax, model in zip(axes.flat, models):
         style_axes(ax)
@@ -346,11 +346,11 @@ def draw_all(summary, scores, full_train, num_items, folder, notes):
     figure_popularity(popularity, folder, notes)
     bar_figure(lambda m, d: popularity[(m, d)]["coverage"] if (m, d) in popularity else None,
                "Coverage@20 (% item được gợi ý ít nhất một lần)", "H6b_coverage", folder, notes, fmt="{:.1f}")
-    # Log scale for both: SGKR (CPU) is one to two orders of magnitude away from the GPU models.
+    # Log scale for both: GRNR (CPU) is one to two orders of magnitude away from the GPU models.
     for name, column, label, fmt in (
             ("H7a_train_time", "train_seconds", "Thời gian huấn luyện (giây, thang log)", "{:,.0f}"),
             ("H7b_inference_latency", "inference_ms_per_user", "Thời gian suy luận (ms/user, thang log)",
              "{:.3f}")):
         bar_figure(lambda m, d: float(first.at[(m, d), column]) if (m, d) in first.index else None,
-                   f"{label}\nSGKR chạy trên CPU, các mô hình khác trên GPU", name, folder, notes, fmt=fmt, log=True)
+                   f"{label}\nGRNR chạy trên CPU, các mô hình khác trên GPU", name, folder, notes, fmt=fmt, log=True)
     figure_ndcg_at_k(scores, folder, notes)

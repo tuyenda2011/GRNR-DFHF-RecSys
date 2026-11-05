@@ -1,7 +1,7 @@
 """Rebuild the validation top-20 of the five reported models from their saved artifacts and compare.
 
 Validation only: never reads the test split. No training. For each model the saved artifact
-(SGKR model.npz, SPHR best.pt, baseline checkpoints) is reloaded, the validation cohort is
+(GRNR model.npz, DFHF best.pt, baseline checkpoints) is reloaded, the validation cohort is
 re-ranked, and the result is compared with the run's stored val_predictions.npy and NDCG@20.
 Writes a JSON report with a sha256 of every rebuilt prediction array, so two reports (for example
 before and after a refactor, on the same device) can be compared exactly.
@@ -31,12 +31,13 @@ from src.data.quality_report import warm_cohort
 from src.data.sparsity import create_sparse_train_set
 from src.evaluation.evaluator import Evaluator
 from src.evaluation.metrics import compute_topk_metrics
-from src.models.sgkr import SGKR
-from src.models.sphr import SPHR, SPHRConfig
+from src.models.grnr import GRNR
+from src.models.dfhf import DFHF, DFHFConfig
+from src.utils.model_names import resolve_model_run
 
 # The density-1.0, seed-42 run of each model in the unified layout (scripts/train_model.py).
 RUNS = {name: {"kind": kind, "run": f"results/{kind}/d100/seed42"} for name, kind in (
-    ("SGKR", "sgkr"), ("SPHR", "sphr"), ("LightGCN", "lightgcn"), ("XSimGCL", "xsimgcl"), ("DirectAU", "directau"))}
+    ("GRNR", "grnr"), ("DFHF", "dfhf"), ("LightGCN", "lightgcn"), ("XSimGCL", "xsimgcl"), ("DirectAU", "directau"))}
 
 
 def stored_ndcg(run):
@@ -45,15 +46,15 @@ def stored_ndcg(run):
 
 def predict(spec, run, train, full_train, validation, warm, stats, device, batch):
     candidates = set(train.i_idx.unique())
-    if spec["kind"] == "sgkr":
-        model = SGKR.load(run / "checkpoint.npz")
+    if spec["kind"] == "grnr":
+        model = GRNR.load(run / "checkpoint.npz")
         evaluator = Evaluator(full_train, warm, model.num_users, model.num_items, [10, 20], batch,
                               candidate_items=candidates, popularity_df=train, score_fn=model.get_user_rating_scores)
         predictions, _ = evaluator.get_predictions(torch.empty(0), torch.empty(0), torch.device("cpu"))
         return evaluator, predictions
-    if spec["kind"] == "sphr":
+    if spec["kind"] == "dfhf":
         state = torch.load(run / "checkpoint.pt", map_location="cpu", weights_only=True)
-        model = SPHR(stats["num_users"], stats["num_items"], SPHRConfig.from_dict(state["config"]))
+        model = DFHF(stats["num_users"], stats["num_items"], DFHFConfig.from_dict(state["config"]))
         model.set_history(train.u_idx.to_numpy(), train.i_idx.to_numpy())
         model.load_state_dict(state["model_state_dict"])
         model.to(device).eval()
@@ -91,7 +92,8 @@ def main(argv=None):
     warm, _ = warm_cohort(train, validation)
     report = {"device": args.device, "validation_only": True, "models": {}}
     for name in args.models:
-        spec, run = RUNS[name], ROOT / RUNS[name]["run"]
+        spec = RUNS[name]
+        run = resolve_model_run(ROOT / "results", spec["kind"], 1.0, 42)
         started = time.perf_counter()
         evaluator, predictions = predict(spec, run, train, full_train, validation, warm, stats, device,
                                          args.eval_batch_size)
@@ -101,7 +103,7 @@ def main(argv=None):
         same_users = np.array_equal(np.load(run / "val_users.npy").astype(np.int64),
                                     np.asarray(evaluator.eval_users, dtype=np.int64))
         reference = stored_ndcg(run)
-        row = {"run": spec["run"], "NDCG@20": metrics["NDCG@20"], "Recall@20": metrics["Recall@20"],
+        row = {"run": run.relative_to(ROOT).as_posix(), "NDCG@20": metrics["NDCG@20"], "Recall@20": metrics["Recall@20"],
                "stored_NDCG@20": reference, "same_users": same_users,
                "rows_identical_to_stored": float((predictions == stored).all(1).mean()) if same_users else None,
                "prediction_sha256": hashlib.sha256(predictions.tobytes()).hexdigest(),

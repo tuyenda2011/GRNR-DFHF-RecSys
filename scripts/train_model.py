@@ -10,7 +10,7 @@ Every run goes to results/<model>/d<density%>/seed<seed>/ with the same top-leve
   checkpoint.pt / checkpoint.npz
   logs/                 the model runner's own outputs (provenance, source archive, budgets)
 Validation only; the test split is never read. A finished run (metrics.json present) is not repeated.
-The model runners are unchanged: train_suite.py (baselines), run_sgkr.py, tune_sphr.py.
+The model runners are unchanged: train_suite.py (baselines), run_grnr.py, tune_dfhf.py.
 """
 from __future__ import annotations
 
@@ -30,9 +30,11 @@ import numpy as np
 import pandas as pd
 import torch
 
+from src.utils.model_names import canonical_model_name, resolve_model_run
+
 BASELINES = ("lightgcn", "xsimgcl", "directau")
-CLOSED_FORM = ("sgkr", "ease", "gfcf")  # no epochs; ease (extra baseline) needs ~9 GB free RAM
-MODELS = (*BASELINES, "sgkr", "sphr", "ease", "gfcf")
+CLOSED_FORM = ("grnr", "ease", "gfcf")  # no epochs; ease (extra baseline) needs ~9 GB free RAM
+MODELS = (*BASELINES, "grnr", "dfhf", "ease", "gfcf")
 DENSITIES = (1.0, 0.75, 0.5, 0.25)
 
 
@@ -63,7 +65,7 @@ def environment():
 
 
 def run_dir(results, model, density, seed):
-    return Path(results) / model / f"d{round(density * 100)}" / f"seed{seed}"
+    return resolve_model_run(results, model, density, seed)
 
 
 def link(source, target):
@@ -120,17 +122,17 @@ def finish_baseline(model, density, seed, logs, out, device):
             "checkpoint": "checkpoint.pt", "config": raw["effective_config"]}
 
 
-def run_sgkr_model(density, folder):
-    from scripts import run_sgkr
-    run_sgkr.run(run_sgkr.parser().parse_args(["--sparsity", str(density), "--density-seed", "42", "--output", str(folder)]))
+def run_grnr_model(density, folder):
+    from scripts import run_grnr
+    run_grnr.run(run_grnr.parser().parse_args(["--sparsity", str(density), "--density-seed", "42", "--output", str(folder)]))
 
 
-def finish_sgkr(logs, out):
-    result = json.loads((logs / "sgkr" / "result.json").read_text(encoding="utf-8"))
-    plan = json.loads((logs / "sgkr" / "plan.json").read_text(encoding="utf-8"))
+def finish_grnr(logs, out):
+    result = json.loads((logs / "grnr" / "result.json").read_text(encoding="utf-8"))
+    plan = json.loads((logs / "grnr" / "plan.json").read_text(encoding="utf-8"))
     for name in ("val_predictions.npy", "val_users.npy"):
-        link(logs / "sgkr" / name, out / name)
-    link(logs / "sgkr" / "model.npz", out / "checkpoint.npz")
+        link(logs / "grnr" / name, out / name)
+    link(logs / "grnr" / "model.npz", out / "checkpoint.npz")
     return {"val_metrics": result["val_metrics"], "best_epoch": None, "epochs_run": 0,
             "train_seconds": result["fit_report"]["seconds"], "inference_ms_per_user": result["inference_latency_ms_per_user"],
             "checkpoint": "checkpoint.npz", "config": plan["config"]}
@@ -168,16 +170,16 @@ def finish_gfcf(logs, out):
             "checkpoint": "checkpoint.npz", "config": result["config"]}
 
 
-def run_sphr_model(density, seed, epochs, patience, device, folder):
-    from scripts import tune_sphr
-    args = tune_sphr.make_parser().parse_args(["--output", str(folder), "--sparsity", str(density), "--seed", str(seed),
+def run_dfhf_model(density, seed, epochs, patience, device, folder):
+    from scripts import tune_dfhf
+    args = tune_dfhf.make_parser().parse_args(["--output", str(folder), "--sparsity", str(density), "--seed", str(seed),
                                                "--epochs", str(epochs), "--patience", str(patience), "--device", device])
-    tune_sphr.execute(args, tune_sphr.prepare(args))
+    tune_dfhf.execute(args, tune_dfhf.prepare(args))
 
 
-def finish_sphr(seed, logs, out):
-    result = json.loads((logs / "sphr" / f"seed{seed}" / "completed.json").read_text(encoding="utf-8"))
-    attempt = (logs / "sphr" / result["checkpoint"]).parent
+def finish_dfhf(seed, logs, out):
+    result = json.loads((logs / "dfhf" / f"seed{seed}" / "completed.json").read_text(encoding="utf-8"))
+    attempt = (logs / "dfhf" / result["checkpoint"]).parent
     for name in ("val_predictions.npy", "val_users.npy"):
         link(attempt / name, out / name)
     link(attempt / "best.pt", out / "checkpoint.pt")
@@ -188,12 +190,14 @@ def finish_sphr(seed, logs, out):
 
 
 def train_model(model, density, seed, epochs=200, patience=None, device="auto", results=ROOT / "results"):
-    # No early stopping by default: SPHR patience equals the epoch budget (baselines: configs/common.yaml).
+    model = canonical_model_name(model)
+    # No early stopping by default: DFHF patience equals the epoch budget (baselines: configs/common.yaml).
     patience = epochs if patience is None else patience
     out = run_dir(results, model, density, seed).resolve()
     if (out / "metrics.json").exists():
         print(f"{model} d{round(density * 100)} seed{seed}: already complete -> {out}", flush=True)
-        return json.loads((out / "metrics.json").read_text(encoding="utf-8"))
+        saved = json.loads((out / "metrics.json").read_text(encoding="utf-8"))
+        return {**saved, "model": canonical_model_name(saved["model"])}
     logs = out / "logs"
     logs.mkdir(parents=True, exist_ok=True)
     torch_device = torch.device("cuda" if device == "auto" and torch.cuda.is_available() else
@@ -204,12 +208,12 @@ def train_model(model, density, seed, epochs=200, patience=None, device="auto", 
         if (logs / "rescore").exists():
             shutil.rmtree(logs / "rescore")  # a partial scoring pass is recomputed
         summary = finish_baseline(model, density, seed, logs, out, torch_device)
-    elif model == "sgkr":
-        if not (logs / "sgkr" / "result.json").exists():
-            if (logs / "sgkr").exists():
-                shutil.rmtree(logs / "sgkr")  # an interrupted closed-form fit restarts from scratch
-            run_sgkr_model(density, logs / "sgkr")
-        summary = finish_sgkr(logs, out)
+    elif model == "grnr":
+        if not (logs / "grnr" / "result.json").exists():
+            if (logs / "grnr").exists():
+                shutil.rmtree(logs / "grnr")  # an interrupted closed-form fit restarts from scratch
+            run_grnr_model(density, logs / "grnr")
+        summary = finish_grnr(logs, out)
     elif model == "ease":
         if not (logs / "ease" / "result.json").exists():
             if (logs / "ease").exists():
@@ -223,8 +227,8 @@ def train_model(model, density, seed, epochs=200, patience=None, device="auto", 
             run_gfcf_model(density, logs / "gfcf")
         summary = finish_gfcf(logs, out)
     else:
-        run_sphr_model(density, seed, epochs, patience, device, logs / "sphr")
-        summary = finish_sphr(seed, logs, out)
+        run_dfhf_model(density, seed, epochs, patience, device, logs / "dfhf")
+        summary = finish_dfhf(seed, logs, out)
     metrics = {"model": model, "density": density, "seed": seed, "split": "validation",
                "max_epochs": None if model in CLOSED_FORM else epochs, **summary, "env": environment()}
     users, predictions = np.load(out / "val_users.npy"), np.load(out / "val_predictions.npy")
@@ -242,9 +246,9 @@ def main(argv=None):
     parser.add_argument("--model", choices=MODELS, required=True)
     parser.add_argument("--density", type=float, choices=DENSITIES, default=1.0)
     parser.add_argument("--seed", type=int, default=42)
-    parser.add_argument("--epochs", type=int, default=200, help="Epochs to train (ignored by the closed-form SGKR/EASE/GF-CF)")
+    parser.add_argument("--epochs", type=int, default=200, help="Epochs to train (ignored by the closed-form GRNR/EASE/GF-CF)")
     parser.add_argument("--patience", type=int, default=None,
-                        help="SPHR early-stopping patience; default = --epochs (no early stopping). "
+                        help="DFHF early-stopping patience; default = --epochs (no early stopping). "
                              "Baselines read theirs from configs/common.yaml")
     parser.add_argument("--device", choices=("auto", "cpu", "cuda"), default="auto")
     parser.add_argument("--results", type=Path, default=ROOT / "results")

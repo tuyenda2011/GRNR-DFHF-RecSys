@@ -1,8 +1,10 @@
-"""SPHR: users are their normalized retained history over diffusion-filtered item tables.
+"""Diffusion-Filtered History Factorization (DFHF).
+
+Users are their normalized retained history over diffusion-filtered item tables.
 
 score(u, i) = q_u . V~_i + b_i, with q_u = n_u^(-1/2) sum_{j in H_u} S~_j and X~ = (I/2 + T/4 + T^2/4) X,
 T = D_I^-1 X^T D_U^-1 X. Trained with Adam on a full-catalog softmax over leave-one-out contexts.
-The defaults are the locked configuration (configs/sphr.yaml, arm D2).
+The defaults are the locked configuration (configs/dfhf.yaml, arm D2).
 """
 import math
 from dataclasses import dataclass
@@ -27,7 +29,7 @@ IGNORED_OPTIONS = ("tau", "residual_mode", "user_regularization", "user_radius",
 
 
 @dataclass(frozen=True)
-class SPHRConfig:
+class DFHFConfig:
     embedding_dim: int = 64
     learning_rate: float = 0.0003
     # Ridge 0.5*lambda*sum_i p_i (|V_i|^2 + |S_i|^2)/2 with positive-exposure mass p (sum p = 1).
@@ -44,7 +46,7 @@ class SPHRConfig:
         values = dict(values)
         for key, required in RETIRED_OPTIONS.items():
             if key in values and values.pop(key) != required:
-                raise ValueError(f"{key} belongs to a retired SPHR variant; only {required!r} is supported")
+                raise ValueError(f"{key} belongs to a retired DFHF variant; only {required!r} is supported")
         for key in IGNORED_OPTIONS:
             values.pop(key, None)
         return cls(**values)
@@ -65,15 +67,15 @@ class SPHRConfig:
             raise ValueError("history_normalization must be finite and in [0, 1]")
 
 
-class SPHR(nn.Module):
-    scoring_metric = "sphr_context_dot_product"
+class DFHF(nn.Module):
+    scoring_metric = "dfhf_context_dot_product"
 
-    def __init__(self, num_users: int, num_items: int, config: SPHRConfig | None = None):
+    def __init__(self, num_users: int, num_items: int, config: DFHFConfig | None = None):
         super().__init__()
         if num_users < 1 or num_items < 1:
             raise ValueError("Catalog dimensions must be positive")
         self.num_users, self.num_items = num_users, num_items
-        self.config = config or SPHRConfig()
+        self.config = config or DFHFConfig()
         # Target table V and source (history) table S, both filtered before use; item bias b.
         self.item_embedding = nn.Embedding(num_items, self.config.embedding_dim)
         nn.init.normal_(self.item_embedding.weight, std=1 / math.sqrt(self.config.embedding_dim))
@@ -153,7 +155,7 @@ class SPHR(nn.Module):
 
     def filtered_items(self):
         if not self.edge_keys.numel():
-            raise RuntimeError("Set retained history before forwarding SPHR")
+            raise RuntimeError("Set retained history before forwarding DFHF")
         return self._filter(self.item_embedding.weight)
 
     def history_vectors(self):

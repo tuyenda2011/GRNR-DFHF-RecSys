@@ -1,6 +1,6 @@
-# SGKR (proposed model 1): item-item ridge regression, closed form. Read by scripts/run_sgkr.py.
+# Graph-Regularized Neighborhood Regression (GRNR), closed form. Read by scripts/run_grnr.py.
 # Locked at Gate B (25/10, selection half; task_codex/KE_HOACH_V2_20261024.md §14.4, row 25):
-# results/experiments/sgkr_default_s100, validation NDCG@20 0.03829.
+# results/experiments/grnr_default_s100, validation NDCG@20 0.03829.
 # Neighbors are ranked by excess cooccurrence; the retired kernel branch and lift/cosine rules were removed.
 neighbors: 128
 alpha: 10.0

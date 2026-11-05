@@ -1,22 +1,23 @@
-# SGKR & SPHR — Hệ thống khuyến nghị sản phẩm điện tử
+# Hệ thống khuyến nghị sản phẩm điện tử
 
 **Tiếng Việt** · [English](README.en.md)
 
-Bài tập lớn cá nhân môn *Học máy nâng cao*. Tôi đề xuất hai mô hình khuyến nghị: **SGKR** (hồi quy giữa các sản
-phẩm, giải trực tiếp bằng công thức) và **SPHR** (mô hình dựa trên lịch sử mua, huấn luyện bằng gradient), rồi
+Bài tập lớn cá nhân môn *Học máy nâng cao*. Tôi đề xuất hai mô hình khuyến nghị:
+**Graph-Regularized Neighborhood Regression (GRNR)** (hồi quy giữa các sản phẩm, giải trực tiếp bằng công thức)
+và **Diffusion-Filtered History Factorization (DFHF)** (mô hình dựa trên lịch sử mua, huấn luyện bằng gradient), rồi
 so sánh với năm mô hình đối chứng đã công bố trên bộ dữ liệu Amazon Electronics. Mọi mô hình dùng chung dữ liệu,
 cách chia dữ liệu, bộ đánh giá xếp hạng trên toàn bộ danh mục sản phẩm và các chỉ số; mọi con số trong tài liệu
 này đều tính lại được từ các tệp kết quả đã lưu.
 
 ## Điểm chính
 
-- **SGKR có NDCG@20 cao nhất khi dùng toàn bộ dữ liệu huấn luyện (0,0383)** và tốt hơn LightGCN, XSimGCL,
+- **GRNR có NDCG@20 cao nhất khi dùng toàn bộ dữ liệu huấn luyện (0,0383)** và tốt hơn LightGCN, XSimGCL,
   DirectAU một cách có ý nghĩa thống kê (p sau hiệu chỉnh Holm = 0,0006), trong khi chỉ mất **2,5 phút trên
   CPU** để huấn luyện, nhanh hơn khoảng 17 lần so với mạng nơ-ron đồ thị nhanh nhất.
-- **SPHR mạnh nhất khi dữ liệu thưa:** NDCG@20 cao nhất khi chỉ dùng 25 % và 50 % dữ liệu huấn luyện.
-- **So với các mô hình giải trực tiếp cùng kiểu**, SGKR ngang EASE bản đầy đủ khi dùng toàn bộ dữ liệu (EASE
+- **DFHF mạnh nhất khi dữ liệu thưa:** NDCG@20 cao nhất khi chỉ dùng 25 % và 50 % dữ liệu huấn luyện.
+- **So với các mô hình giải trực tiếp cùng kiểu**, GRNR ngang EASE bản đầy đủ khi dùng toàn bộ dữ liệu (EASE
   cần một ma trận 7,5 GB, không lưu được), và tốt hơn bản EASE rút gọn về cỡ lưu được cũng như GF-CF.
-- **Hạn chế:** SGKR không phải tốt nhất ở mức 50 % dữ liệu, và mọi kết quả đến từ một lần chạy với một hạt giống
+- **Hạn chế:** GRNR không phải tốt nhất ở mức 50 % dữ liệu, và mọi kết quả đến từ một lần chạy với một hạt giống
   ngẫu nhiên duy nhất trên tập kiểm định (xem [Hạn chế](#hạn-chế)).
 
 ## Mục lục
@@ -27,6 +28,13 @@ này đều tính lại được từ các tệp kết quả đã lưu.
 
 ## Tái lập kết quả
 
+**Tên mô hình.** GRNR và DFHF thay thế các nhãn cũ SGKR và SPHR trong mã nguồn/cấu hình hiện tại.
+Checkpoint, dự đoán, metadata và log đã lưu được giữ ở các thư mục gốc *results/sgkr/* và *results/sphr/*.
+Bộ nạp ánh xạ tên mới tới kết quả cũ; một run hoàn tất được nhận diện và không cần huấn luyện lại.
+Run mới chưa tồn tại dùng thư mục *grnr* hoặc *dfhf*. Snapshot mã nguồn giữ nguyên tên lúc huấn luyện.
+Repository GitHub hiện là
+[GRNR-DFHF-RecSys](https://github.com/tuyenda2011/GRNR-DFHF-RecSys).
+
 ```bash
 conda create -n AML python=3.11 && conda activate AML
 pip install -r requirements.txt
@@ -34,8 +42,8 @@ pip install -r requirements.txt
 python scripts/prepare_data.py                         # tải dữ liệu từ SNAP và dựng bộ dữ liệu
 python scripts/audit_data.py                           # kiểm tra dữ liệu
 
-python scripts/train_model.py --model sgkr --density 1.0
-#   --model    sgkr | sphr | lightgcn | xsimgcl | directau | ease | gfcf
+python scripts/train_model.py --model grnr --density 1.0
+#   --model    grnr | dfhf | lightgcn | xsimgcl | directau | ease | gfcf
 #   --density  1.0 | 0.75 | 0.5 | 0.25   (tỉ lệ dữ liệu huấn luyện được giữ lại)
 
 python scripts/summarize_results.py                    # bảng tổng hợp results/summary.csv
@@ -49,10 +57,10 @@ Mỗi lần chạy ghi kết quả vào `results/<mô hình>/d<tỉ lệ>/seed42
 kiểm định, trọng số mô hình đã lưu (checkpoint), lịch sử huấn luyện `history.csv` (với mô hình huấn luyện lặp)
 và thư mục `logs/` (kế hoạch chạy, bản lưu mã nguồn, tiến độ, tài nguyên đã dùng). Lần chạy nào đã xong sẽ được
 bỏ qua. Các mô hình huấn luyện lặp chạy đủ 200 vòng (epoch), không dừng sớm, và giữ lại trọng số có NDCG@20 trên
-tập kiểm định cao nhất. Lệnh `python scripts/run_experiments.py` chạy toàn bộ thực nghiệm chính: SGKR, SPHR và
+tập kiểm định cao nhất. Lệnh `python scripts/run_experiments.py` chạy toàn bộ thực nghiệm chính: GRNR, DFHF và
 3 mạng nơ-ron đồ thị ở cả 4 tỉ lệ dữ liệu.
 
-**Phần cứng.** SGKR và GF-CF chạy được trên CPU máy tính cá nhân. SPHR và các mạng nơ-ron đồ thị được huấn luyện
+**Phần cứng.** GRNR và GF-CF chạy được trên CPU máy tính cá nhân. DFHF và các mạng nơ-ron đồ thị được huấn luyện
 trên GPU của Kaggle (`kaggle/kaggle_train.ipynb`). EASE phải nghịch đảo một ma trận dày 44.843 × 44.843 nên cần
 **khoảng 9,1 GB RAM trống**; mô hình này được chạy trên CPU của Kaggle (`kaggle/kaggle_ease.ipynb`).
 
@@ -65,8 +73,8 @@ python -m streamlit run app/streamlit_app.py
 Giao diện bố trí cho màn hình 1920 × 1080, gồm ba thẻ:
 
 - **Gợi ý cho khách:** 10 gợi ý hàng đầu của cả 7 mô hình đặt cạnh nhau, đánh dấu sản phẩm khách mua tiếp theo,
-  kèm lời giải thích của SGKR cho gợi ý thứ nhất.
-- **Khách mới:** tự tạo lịch sử mua bằng cách tìm sản phẩm. SGKR, SPHR, EASE và GF-CF gợi ý được ngay; các mạng
+  kèm lời giải thích của GRNR cho gợi ý thứ nhất.
+- **Khách mới:** tự tạo lịch sử mua bằng cách tìm sản phẩm. GRNR, DFHF, EASE và GF-CF gợi ý được ngay; các mạng
   nơ-ron đồ thị chỉ phục vụ được người dùng đã có trong dữ liệu huấn luyện.
 - **Đánh giá mô hình:** bảng xếp hạng, biểu đồ, kiểm định thống kê và hình trong báo cáo, chia thành nhóm cần
   huấn luyện và nhóm giải trực tiếp.
@@ -77,22 +85,22 @@ Demo nạp các trọng số mô hình đã lưu và chỉ đọc tập huấn l
 
 | Mô hình | Loại | Cách tạo ra | Phần cứng |
 |---|---|---|---|
-| **SGKR** (đề xuất) | Hồi quy giữa các sản phẩm | Giải trực tiếp bằng công thức | CPU |
-| **SPHR** (đề xuất) | Phân rã dựa trên lịch sử mua | Tối ưu bằng Adam, hàm softmax trên toàn danh mục | GPU |
+| **GRNR** (đề xuất) | Hồi quy giữa các sản phẩm | Giải trực tiếp bằng công thức | CPU |
+| **DFHF** (đề xuất) | Phân rã dựa trên lịch sử mua | Tối ưu bằng Adam, hàm softmax trên toàn danh mục | GPU |
 | LightGCN [1] | Mạng nơ-ron đồ thị | Huấn luyện bằng gradient, tối đa 200 vòng | GPU |
 | XSimGCL [2] | Mạng nơ-ron đồ thị kết hợp học tương phản | Huấn luyện bằng gradient, tối đa 200 vòng | GPU |
 | DirectAU [3] | Tối ưu trực tiếp độ khớp và độ phân tán | Huấn luyện bằng gradient, tối đa 200 vòng | GPU |
 | EASE [4] | Hồi quy giữa các sản phẩm | Giải trực tiếp bằng công thức | CPU |
 | GF-CF [5] | Lọc tín hiệu trên đồ thị | Giải trực tiếp (phân tích SVD) | CPU |
 
-**SGKR** là hồi quy ridge giữa các sản phẩm, có thêm ràng buộc theo đồ thị. Mỗi sản phẩm được dự đoán từ 128
+**GRNR** là hồi quy ridge giữa các sản phẩm, có thêm ràng buộc theo đồ thị. Mỗi sản phẩm được dự đoán từ 128
 sản phẩm liên quan nhất với mức phạt điều chỉnh theo từng sản phẩm; hệ phương trình được giải chính xác bằng
-phân tích Cholesky, trong đó chính sản phẩm cần dự đoán được loại khỏi dữ liệu đầu vào của nó. SGKR không có
+phân tích Cholesky, trong đó chính sản phẩm cần dự đoán được loại khỏi dữ liệu đầu vào của nó. GRNR không có
 tham số riêng cho từng người dùng và không cần thuật toán tối ưu, nên chấm điểm được ngay cho bất kỳ lịch sử mua
 nào, kể cả người dùng chưa từng xuất hiện khi huấn luyện. Mô hình còn giải thích được mỗi gợi ý bằng những sản
 phẩm trong lịch sử đóng góp nhiều nhất.
 
-**SPHR** biểu diễn mỗi người dùng bằng lịch sử mua đã chuẩn hóa, trên các bảng véc-tơ sản phẩm đã được lọc
+**DFHF** biểu diễn mỗi người dùng bằng lịch sử mua đã chuẩn hóa, trên các bảng véc-tơ sản phẩm đã được lọc
 khuếch tán qua đồ thị:
 
 ```math
@@ -103,7 +111,7 @@ khuếch tán qua đồ thị:
 trong đó $`H_u`$ là tập sản phẩm người dùng $`u`$ đã mua, $`\tilde{\mathbf{s}}_j`$ và $`\tilde{\mathbf{v}}_i`$
 là véc-tơ nguồn và véc-tơ đích đã lọc của sản phẩm, còn $`b_i`$ là độ lệch riêng của sản phẩm $`i`$. Mô hình
 được tối ưu bằng Adam với hàm softmax trên toàn danh mục, mỗi lần che một sản phẩm trong lịch sử để dự đoán.
-Giống SGKR, SPHR phục vụ được người dùng mới chỉ từ lịch sử mua.
+Giống GRNR, DFHF phục vụ được người dùng mới chỉ từ lịch sử mua.
 
 Ba mạng nơ-ron đồ thị học một véc-tơ riêng cho từng người dùng khi huấn luyện, nên không gợi ý được cho người
 dùng mới nếu không huấn luyện lại.
@@ -134,8 +142,8 @@ NDCG@20 trên tập kiểm định: mỗi mô hình xếp hạng toàn bộ danh
 
 | Mô hình | 25 % | 50 % | 75 % | 100 % | Thời gian huấn luyện ở 100 % |
 |---|---:|---:|---:|---:|---:|
-| **SGKR** | 0,0080 | 0,0171 | 0,0293 | **0,0383** | 2,5 phút (CPU) |
-| **SPHR** | **0,0177** | **0,0227** | 0,0290 | 0,0352 | 127 phút (GPU) |
+| **GRNR** | 0,0080 | 0,0171 | 0,0293 | **0,0383** | 2,5 phút (CPU) |
+| **DFHF** | **0,0177** | **0,0227** | 0,0290 | 0,0352 | 127 phút (GPU) |
 | XSimGCL | 0,0112 | 0,0193 | 0,0276 | 0,0329 | 63 phút (GPU) |
 | DirectAU | 0,0103 | 0,0205 | 0,0270 | 0,0321 | 85 phút (GPU) |
 | LightGCN | 0,0084 | 0,0184 | 0,0226 | 0,0265 | 43 phút (GPU) |
@@ -148,8 +156,8 @@ Thời gian huấn luyện đo trên phần cứng khác nhau (CPU và GPU), nê
   <img src="reports/figures/H1_density_ndcg20.png" width="49%" alt="NDCG@20 theo tỉ lệ dữ liệu, nhóm cần huấn luyện">
   <img src="reports/figures/H1_closed_form_density_ndcg20.png" width="49%" alt="NDCG@20 theo tỉ lệ dữ liệu, nhóm giải trực tiếp">
 </p>
-<p align="center"><sub>NDCG@20 theo tỉ lệ dữ liệu huấn luyện. Trái: SGKR, SPHR và các mạng nơ-ron đồ thị.
-Phải: SGKR và các mô hình giải trực tiếp.</sub></p>
+<p align="center"><sub>NDCG@20 theo tỉ lệ dữ liệu huấn luyện. Trái: GRNR, DFHF và các mạng nơ-ron đồ thị.
+Phải: GRNR và các mô hình giải trực tiếp.</sub></p>
 
 ### So sánh thống kê
 
@@ -160,26 +168,26 @@ người dùng (10.000 lần lấy mẫu lại), một phía, theo hướng mô 
 
 | So sánh | Chênh lệch NDCG@20 | Khoảng tin cậy 95 % | p Holm |
 |---|---:|---|---:|
-| SGKR − LightGCN | +0,0117 | [+0,0109; +0,0126] | 0,0006 |
-| SGKR − XSimGCL | +0,0054 | [+0,0046; +0,0061] | 0,0006 |
-| SGKR − DirectAU | +0,0062 | [+0,0055; +0,0070] | 0,0006 |
-| SPHR − LightGCN | +0,0086 | [+0,0080; +0,0093] | 0,0006 |
-| SPHR − XSimGCL | +0,0023 | [+0,0017; +0,0028] | 0,0006 |
-| SPHR − DirectAU | +0,0031 | [+0,0025; +0,0038] | 0,0006 |
+| GRNR − LightGCN | +0,0117 | [+0,0109; +0,0126] | 0,0006 |
+| GRNR − XSimGCL | +0,0054 | [+0,0046; +0,0061] | 0,0006 |
+| GRNR − DirectAU | +0,0062 | [+0,0055; +0,0070] | 0,0006 |
+| DFHF − LightGCN | +0,0086 | [+0,0080; +0,0093] | 0,0006 |
+| DFHF − XSimGCL | +0,0023 | [+0,0017; +0,0028] | 0,0006 |
+| DFHF − DirectAU | +0,0031 | [+0,0025; +0,0038] | 0,0006 |
 
-**So sánh bổ sung: SGKR với các mô hình giải trực tiếp** (bảng B5–B6, hiệu chỉnh Holm trên 3 phép so sánh ở mỗi
+**So sánh bổ sung: GRNR với các mô hình giải trực tiếp** (bảng B5–B6, hiệu chỉnh Holm trên 3 phép so sánh ở mỗi
 tỉ lệ dữ liệu). Nhóm so sánh này được lập sau khi đã xem kết quả nên chỉ mang tính khám phá.
 
-| SGKR so với | 25 % | 50 % | 75 % | 100 % |
+| GRNR so với | 25 % | 50 % | 75 % | 100 % |
 |---|---|---|---|---|
-| EASE bản đầy đủ (7,5 GB) | SGKR hơn | EASE hơn | ngang (p = 0,72) | ngang (p = 0,051) |
-| EASE rút gọn 128 trọng số (25–32 MB) | SGKR hơn | EASE hơn | SGKR hơn | SGKR hơn |
-| GF-CF | SGKR hơn | SGKR hơn | SGKR hơn | SGKR hơn |
+| EASE bản đầy đủ (7,5 GB) | GRNR hơn | EASE hơn | ngang (p = 0,72) | ngang (p = 0,051) |
+| EASE rút gọn 128 trọng số (25–32 MB) | GRNR hơn | EASE hơn | GRNR hơn | GRNR hơn |
+| GF-CF | GRNR hơn | GRNR hơn | GRNR hơn | GRNR hơn |
 
-Trọng số đã lưu của SGKR chiếm 6–41 MB tùy tỉ lệ dữ liệu, cỡ tương đương bản EASE rút gọn.
+Trọng số đã lưu của GRNR chiếm 6–41 MB tùy tỉ lệ dữ liệu, cỡ tương đương bản EASE rút gọn.
 
-**Chỗ SGKR không thắng.** Ở mức 50 % dữ liệu, SGKR thấp hơn cả 3 mạng nơ-ron đồ thị và cả hai bản EASE. Ở mức
-25 % và 50 %, SPHR là mô hình mạnh nhất. GF-CF yếu trên dữ liệu rất thưa này vì cách chuẩn hóa của nó ưu tiên
+**Chỗ GRNR không thắng.** Ở mức 50 % dữ liệu, GRNR thấp hơn cả 3 mạng nơ-ron đồ thị và cả hai bản EASE. Ở mức
+25 % và 50 %, DFHF là mô hình mạnh nhất. GF-CF yếu trên dữ liệu rất thưa này vì cách chuẩn hóa của nó ưu tiên
 những sản phẩm ít người mua.
 
 ## Giao thức đánh giá
@@ -210,7 +218,7 @@ những sản phẩm ít người mua.
 ## Cấu trúc thư mục
 
 ```
-configs/   cấu hình đã chốt: sgkr, sphr, lightgcn, xsimgcl, directau, ease, gfcf, common
+configs/   cấu hình đã chốt: grnr, dfhf, lightgcn, xsimgcl, directau, ease, gfcf, common
 src/       xử lý dữ liệu, bộ đánh giá, hàm mất mát, vòng huấn luyện, các mô hình (src/models/*.py)
 scripts/   các lệnh chạy; scripts/verify/ kiểm chứng bằng SymPy các công thức giải trực tiếp
 app/       demo Streamlit: streamlit_app.py (giao diện), recommender.py (nạp mô hình), benchmark.py (thống kê)

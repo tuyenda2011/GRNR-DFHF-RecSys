@@ -1,4 +1,4 @@
-"""Shared provenance for the closed-form extra baselines (run_ease.py, run_gfcf.py), mirroring run_sgkr.py.
+"""Shared provenance for the closed-form extra baselines (run_ease.py, run_gfcf.py), mirroring run_grnr.py.
 
 Each run folder gets: plan.json (status, data/cohort/mask hashes, versions, source hashes), source/ (archived
 code + config), progress.jsonl (stage timings), budget.json (CPU/wall time), result.json, model.npz and the
@@ -21,7 +21,7 @@ from src.data.quality_report import warm_cohort
 from src.data.sparsity import create_sparse_train_set
 from src.evaluation.evaluator import EVALUATION_PROTOCOL, Evaluator
 from src.evaluation.metrics import compute_topk_metrics
-from src.models.sgkr import SGKR
+from src.models.grnr import GRNR
 from src.utils.run_budget import RunBudget
 from src.utils.source_identity import SourceGuard, capture_sources
 
@@ -35,7 +35,7 @@ def write_json(path, value):
 
 
 class Run:
-    """One fit + validation evaluation in `output`, with the same records as an SGKR run."""
+    """One fit + validation evaluation in `output`, with the same records as an GRNR run."""
 
     def __init__(self, model, args, config, script, solver):
         self.model, self.started = model, time.perf_counter()
@@ -48,7 +48,7 @@ class Run:
         self.validation, cohort = warm_cohort(self.train, validation)
         if self.validation.empty:
             raise ValueError("No warm validation targets")
-        self.x = SGKR.interaction_matrix(self.train.u_idx.to_numpy(), self.train.i_idx.to_numpy(),
+        self.x = GRNR.interaction_matrix(self.train.u_idx.to_numpy(), self.train.i_idx.to_numpy(),
                                          stats["num_users"], stats["num_items"])
         sources = dict(capture_sources(ROOT, [Path(script), Path(__file__), Path(args.config),
                                               ROOT / "scripts/config_io.py", ROOT / "scripts/validation_io.py",

@@ -24,7 +24,7 @@ def geometry_diagnostics(vectors, limit=256):
             "geometry_cosine_offdiag_mean": float(cosine[off].mean()) if len(sample) > 1 else None}
 
 
-def sgkr_graph_diagnostics(model):
+def grnr_graph_diagnostics(model):
     """Principal-block energy and normalized boundary MASS, not boundary energy."""
     diagonal, energy, boundary_mass, pure_ridge, internal_edges = 0., 0., 0., 0, 0
     inside_energy, boundary_energy = 0., 0.

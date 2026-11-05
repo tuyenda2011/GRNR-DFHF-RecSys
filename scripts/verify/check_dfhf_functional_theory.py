@@ -1,4 +1,4 @@
-"""Exact SPHR functional-design checks and finite counterexamples, without training."""
+"""Exact DFHF functional-design checks and finite counterexamples, without training."""
 import argparse
 import hashlib
 import itertools
@@ -121,7 +121,7 @@ def check():
                   "rank_before": 1, "rank_after": 21,
                   "topk_logistic_before": float(logistic(mh).subs({theta: start, temperature: 1}).evalf(40)),
                   "topk_logistic_after": float(logistic(mh).subs({theta: stop, temperature: 1}).evalf(40))}
-    groups.append("feasible SPHR-MF two-dimensional counterexample: BPR and BPR+lambda_r=.1 penalty decline while the positive rank changes from1 to21")
+    groups.append("feasible DFHF-MF two-dimensional counterexample: BPR and BPR+lambda_r=.1 penalty decline while the positive rank changes from1 to21")
 
     losses = [s.Rational(i, 3) for i in (1, 2, 3, 4)]
     k = 2

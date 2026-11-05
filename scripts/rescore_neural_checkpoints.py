@@ -2,7 +2,7 @@
 
 Writes val_predictions.npy/val_users.npy under the same warm cohort, train mask
 and candidate catalog as run_item_baselines.py, so compare_val_runs.py can pair
-them with item baselines and SGKR. No training step and no test labels.
+them with item baselines and GRNR. No training step and no test labels.
 """
 from __future__ import annotations
 

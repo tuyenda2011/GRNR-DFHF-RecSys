@@ -1,4 +1,4 @@
-"""Toy-only independent correctness checks for SGKR support penalty controls."""
+"""Toy-only independent correctness checks for GRNR support penalty controls."""
 from __future__ import annotations
 
 import json
@@ -14,8 +14,8 @@ sys.path.insert(0, str(ROOT))
 import numpy as np
 import pandas as pd  # noqa: F401  # Import before scipy on this Windows runtime.
 
-from scripts.run_sgkr import branch_diagnostics, parser, run
-from src.models.sgkr import SGKR, SGKRConfig
+from scripts.run_grnr import branch_diagnostics, parser, run
+from src.models.grnr import GRNR, GRNRConfig
 
 
 def explicit_design(model, item):
@@ -28,7 +28,7 @@ def explicit_design(model, item):
 
 
 def check_fit(config, users, items):
-    model = SGKR(config).fit(users, items, 5, 6)
+    model = GRNR(config).fit(users, items, 5, 6)
     raw = model.interactions.toarray()
     all_users = np.arange(5)
     seen_replacement_changed = False
@@ -77,7 +77,7 @@ def main():
     users = np.array([0, 0, 0, 1, 1, 2, 2, 3, 4, 4])
     items = np.array([0, 1, 2, 0, 3, 1, 4, 2, 3, 4])
     # Full graph block and support shrinkage tied to alpha: the penalty forms derived below.
-    base = SGKRConfig(neighbors=4, alpha=10, correction_batch_size=1, boundary_weight=1., support_alpha=None)
+    base = GRNRConfig(neighbors=4, alpha=10, correction_batch_size=1, boundary_weight=1., support_alpha=None)
     checks, maximum_gap = 0, 0.
     models = []
     for power in (0., 1., 2.):
@@ -109,12 +109,12 @@ def main():
     legacy_dict = asdict(base)
     legacy_dict.pop("adaptive_power")
     legacy_dict.pop("adaptive_cap")
-    assert SGKRConfig(**legacy_dict) == base
+    assert GRNRConfig(**legacy_dict) == base
     with tempfile.TemporaryDirectory() as temporary:
         for index, model in enumerate((legacy, models[-1])):
             path = Path(temporary) / f"model{index}.npz"
             model.save(path)
-            restored = SGKR.load(path)
+            restored = GRNR.load(path)
             assert restored.config == model.config
             np.testing.assert_array_equal(restored.score(np.arange(5)), model.score(np.arange(5)))
         path = Path(temporary) / "legacy.npz"
@@ -123,7 +123,7 @@ def main():
             payload = {key: state[key].copy() for key in state.files}
         payload["config"] = np.array(json.dumps(legacy_dict))
         np.savez_compressed(path, **payload)
-        restored = SGKR.load(path)
+        restored = GRNR.load(path)
         np.testing.assert_array_equal(restored.score(np.arange(5)), legacy.score(np.arange(5)))
     # Changing the penalty must not change neighbors or support.
     for model in models:
@@ -136,7 +136,7 @@ def main():
     for invalid in ({"adaptive_power": -1}, {"adaptive_power": float("inf")},
                     {"adaptive_cap": .9}, {"adaptive_cap": True}, {"adaptive_cap": float("nan")}):
         try:
-            SGKRConfig(**invalid)
+            GRNRConfig(**invalid)
         except ValueError:
             pass
         else:

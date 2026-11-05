@@ -15,6 +15,7 @@ sys.path.insert(0, str(ROOT))
 import pandas as pd
 
 from scripts.train_model import MODELS
+from src.utils.model_names import canonical_model_name, iter_model_metrics
 
 METRICS = ("Recall@10", "NDCG@10", "MRR@10", "Recall@20", "NDCG@20", "MRR@20")
 
@@ -22,9 +23,9 @@ METRICS = ("Recall@10", "NDCG@10", "MRR@10", "Recall@20", "NDCG@20", "MRR@20")
 def collect(results=ROOT / "results"):
     rows = []
     for model in MODELS:
-        for path in sorted((Path(results) / model).glob("d*/seed*/metrics.json")):
+        for path in iter_model_metrics(results, model):
             run = json.loads(path.read_text(encoding="utf-8"))
-            rows.append({"model": run["model"], "density": run["density"], "seed": run["seed"], "split": run["split"],
+            rows.append({"model": canonical_model_name(run["model"]), "density": run["density"], "seed": run["seed"], "split": run["split"],
                          **{metric: run["val_metrics"].get(metric) for metric in METRICS},
                          "best_epoch": run.get("best_epoch"), "epochs_run": run.get("epochs_run"),
                          "max_epochs": run.get("max_epochs"), "train_seconds": run.get("train_seconds"),

@@ -23,8 +23,8 @@ sys.path.insert(0, str(ROOT))
 
 from scripts.train_model import DENSITIES, MODELS, run_dir
 
-# Short, closed-form SGKR first; within a density the GPU models follow.
-ORDER = ("sgkr", "sphr", "lightgcn", "xsimgcl", "directau")
+# Short, closed-form GRNR first; within a density the GPU models follow.
+ORDER = ("grnr", "dfhf", "lightgcn", "xsimgcl", "directau")
 
 
 def log(path, message):
@@ -41,7 +41,7 @@ def main(argv=None):
     parser.add_argument("--seeds", type=int, nargs="+", default=[42])
     parser.add_argument("--epochs", type=int, default=200)
     parser.add_argument("--patience", type=int, default=None,
-                        help="SPHR patience; default = --epochs (no early stopping). Baselines use configs/common.yaml")
+                        help="DFHF patience; default = --epochs (no early stopping). Baselines use configs/common.yaml")
     parser.add_argument("--device", choices=("auto", "cpu", "cuda"), default="auto")
     parser.add_argument("--results", type=Path, default=ROOT / "results")
     parser.add_argument("--stop-on-error", action="store_true", help="Stop the batch at the first failed run")

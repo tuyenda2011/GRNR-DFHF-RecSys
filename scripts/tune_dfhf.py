@@ -1,4 +1,4 @@
-"""Prepare or execute validation-only SPHR training with the locked configuration (configs/sphr.yaml).
+"""Prepare or execute validation-only DFHF training with the locked configuration (configs/dfhf.yaml).
 
 No training occurs without --run. One run per seed (--seed plus --confirm-seeds); each keeps the
 best validation-NDCG@20 checkpoint. Completed runs resume only under identical
@@ -31,8 +31,8 @@ from src.data.sparsity import create_sparse_train_set
 from src.evaluation.evaluator import EVALUATION_PROTOCOL, Evaluator
 from src.evaluation.metrics import compute_topk_metrics
 from src.models.projected_optimizer import project_adam_parameter
-from src.models.sphr import SOURCE_SHA256 as SPHR_SOURCE_SHA256
-from src.models.sphr import SPHR, SPHRConfig
+from src.models.dfhf import SOURCE_SHA256 as DFHF_SOURCE_SHA256
+from src.models.dfhf import DFHF, DFHFConfig
 from src.utils.run_budget import RunBudget
 from src.utils.seed import set_seed
 from src.utils.source_identity import (
@@ -47,8 +47,8 @@ from src.utils.source_identity import (
 from src.utils.training_progress import TrainingProgress
 
 SOURCE_SHA256 = source_identity(__file__)
-_IMPORTED_SOURCES = {"src/models/sphr.py": SPHR_SOURCE_SHA256,
-                     "scripts/tune_sphr.py": SOURCE_SHA256,
+_IMPORTED_SOURCES = {"src/models/dfhf.py": DFHF_SOURCE_SHA256,
+                     "scripts/tune_dfhf.py": SOURCE_SHA256,
                      "src/utils/source_identity.py": GUARD_SOURCE_SHA256}
 _RUNTIME_SOURCES = capture_sources(ROOT, [Path(__file__), ROOT/"scripts/config_io.py",
     *sorted((ROOT/"src").rglob("*.py"))], _IMPORTED_SOURCES)
@@ -120,14 +120,14 @@ def run_job(config, seed, output, train, evaluator, dimensions, args, device, pr
     resumable = bool(attempts) and (attempts[-1] / "latest.pt").is_file()
     attempt = attempts[-1] if resumable else job_root / f"attempt{len(attempts) + 1:03d}"
     attempt.mkdir(exist_ok=resumable)
-    budget = RunBudget("sphr", device)
+    budget = RunBudget("dfhf", device)
     budget.configs_tried = 1
     if parent_budget is not None:
         parent_budget.configs_tried += 1
     if progress is not None:
         progress.stage(f"seed{seed}: initializing model on {device}; output={attempt}")
     set_seed(seed)
-    model = SPHR(*dimensions, config)
+    model = DFHF(*dimensions, config)
     model.set_history(train.u_idx.to_numpy(), train.i_idx.to_numpy())
     model.to(device)
     print(f"[seed{seed}] normalization alpha={config.history_normalization:g}"
@@ -148,7 +148,7 @@ def run_job(config, seed, output, train, evaluator, dimensions, args, device, pr
         state = torch.load(latest, map_location="cpu", weights_only=True)
         if (state.get("source_provenance") != "plan-and-import-pinned-v1" or state.get("source_hashes") != dict(guard.hashes)
                 or state.get("seed") != seed or state.get("config") != asdict(config)):
-            raise ValueError("SPHR latest.pt belongs to a different source/config/seed; use a fresh output")
+            raise ValueError("DFHF latest.pt belongs to a different source/config/seed; use a fresh output")
         meta = json.loads(state["state_json"])
         if meta["epoch"] > args.epochs:
             raise ValueError("Requested epochs precede the resume checkpoint")
@@ -186,7 +186,7 @@ def run_job(config, seed, output, train, evaluator, dimensions, args, device, pr
                 optimizer.zero_grad(set_to_none=True)
                 loss, parts = model.ranking_loss(*tensors)
                 if not torch.isfinite(loss):
-                    raise FloatingPointError("Nonfinite SPHR loss")
+                    raise FloatingPointError("Nonfinite DFHF loss")
                 loss.backward()
                 # Infinity cap checks gradient finiteness without modifying the gradient.
                 gradient_norm = float(torch.nn.utils.clip_grad_norm_(
@@ -259,7 +259,7 @@ def run_job(config, seed, output, train, evaluator, dimensions, args, device, pr
         guard.check()
         saved = torch.load(checkpoint, map_location=device, weights_only=True)
         if saved.get("source_provenance") != "plan-and-import-pinned-v1" or saved.get("source_hashes") != dict(guard.hashes):
-            raise ValueError("SPHR checkpoint source provenance differs from this run")
+            raise ValueError("DFHF checkpoint source provenance differs from this run")
         if progress is not None:
             progress.stage("Replaying best checkpoint and validation metrics")
         model.load_state_dict(saved["model_state_dict"])
@@ -305,7 +305,7 @@ def run_job(config, seed, output, train, evaluator, dimensions, args, device, pr
 def make_parser():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output", type=Path, required=True)
-    parser.add_argument("--config", type=Path, default=ROOT / "configs/sphr.yaml")
+    parser.add_argument("--config", type=Path, default=ROOT / "configs/dfhf.yaml")
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--confirm-seeds", type=int, nargs="*", default=[], help="Additional training seeds")
     parser.add_argument("--density-seed", type=int, default=42)
@@ -340,9 +340,9 @@ def prepare(args):
         raise ValueError("Invalid density or seed")
     if len(set(args.confirm_seeds)) != len(args.confirm_seeds) or args.seed in args.confirm_seeds:
         raise ValueError("Additional seeds must be distinct and differ from --seed")
-    config = SPHRConfig.from_dict(read_model_config(args.config, "sphr"))
+    config = DFHFConfig.from_dict(read_model_config(args.config, "dfhf"))
     parameters = {key: value for key, value in vars(args).items() if key not in {"run", "dry_run", "output", "config"}}
-    plan = {"status": "prepared", "model": "sphr", "parameters": parameters, "config": asdict(config),
+    plan = {"status": "prepared", "model": "dfhf", "parameters": parameters, "config": asdict(config),
             "seeds": [args.seed, *args.confirm_seeds], "optimization_scope": "Adam on resampled epoch queries",
             "criterion": "validation NDCG@20 selects the checkpoint within each seed", "validation_only": True}
     if args.dry_run:
@@ -371,10 +371,10 @@ def prepare(args):
 
 
 def execute(args, plan):
-    budget = RunBudget("sphr")
+    budget = RunBudget("dfhf")
     if args.max_hours is not None:
         args._deadline = budget.started+args.max_hours*3600
-    with TrainingProgress("SPHR", getattr(args, "log_interval", 10.), args.output.resolve()/"progress.log") as progress:
+    with TrainingProgress("DFHF", getattr(args, "log_interval", 10.), args.output.resolve()/"progress.log") as progress:
         try:
             plan["status"] = "loading"
             plan.pop("error", None)
@@ -421,7 +421,7 @@ def _execute(args, plan, progress, budget):
     progress.stage(f"Train={len(train):,} edges; validation={len(warm):,} targets; building evaluator")
     evaluator = Evaluator(full, warm, *identities["dimensions"], [10, 20], args.eval_batch_size,
                           candidate_items=set(train.i_idx.unique()), popularity_df=train)
-    config = SPHRConfig(**plan["config"])
+    config = DFHFConfig(**plan["config"])
     runs = []
     try:
         for seed in plan["seeds"]:
@@ -459,6 +459,6 @@ if __name__ == "__main__":
     arguments = make_parser().parse_args()
     prepared = prepare(arguments)
     if prepared is not None:
-        print(f"Prepared SPHR run with seeds {prepared['seeds']}: {arguments.output.resolve()}", flush=True)
+        print(f"Prepared DFHF run with seeds {prepared['seeds']}: {arguments.output.resolve()}", flush=True)
         if arguments.run:
             execute(arguments, prepared)

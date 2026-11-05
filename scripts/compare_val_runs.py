@@ -20,9 +20,10 @@ from scripts.validation_io import edge_hash, load_validation_inputs
 from src.data.quality_report import warm_cohort
 from src.data.sparsity import create_sparse_train_set
 from src.evaluation.metrics import compute_topk_metrics
-from src.models.sgkr import SGKR, SGKRConfig
+from src.models.grnr import GRNR, GRNRConfig
 
 METRICS = ("NDCG@20", "Recall@20", "NDCG@10")
+# Frozen protocol identity: changing the model display names must not repartition users.
 SPLIT_SALT = "sgkr-sphr-split-20261024"
 
 
@@ -123,14 +124,14 @@ def target_reachability(run, users, targets, retained):
     """Reconstruct only neighborhoods from the checkpoint's train/config; no fit or scoring."""
     with np.load(run / "model.npz", allow_pickle=False) as state:
         if int(state["schema"]) not in (1, 2):
-            raise ValueError("Reachability requires an SGKR schema-1 or schema-2 model.npz")
-        config = SGKRConfig.from_dict(json.loads(str(state["config"])))
+            raise ValueError("Reachability requires an GRNR schema-1 or schema-2 model.npz")
+        config = GRNRConfig.from_dict(json.loads(str(state["config"])))
         shape = tuple(int(n) for n in state["shape"])
         x = sparse.csr_matrix((np.ones(len(state["train_indices"])), state["train_indices"],
                                state["train_indptr"]), shape=shape)
     if x.shape != retained.shape or (x != retained).nnz:
         raise ValueError(f"Checkpoint retained train differs from comparison protocol: {run}")
-    model = SGKR(config)
+    model = GRNR(config)
     model._initialize(x)
     return np.asarray([np.intersect1d(x[int(user)].indices, model.neighborhoods[int(item)]).size > 0
                        for user, item in zip(users, targets)])
@@ -211,7 +212,7 @@ def main(argv=None):
     parser.add_argument("--bundle", default=None)
     parser.add_argument("--sparsity", type=float, default=1.)
     parser.add_argument("--density-seed", type=int, default=42)
-    parser.add_argument("--groups", action="store_true", help="Time, degree and available SGKR target reachability")
+    parser.add_argument("--groups", action="store_true", help="Time, degree and available GRNR target reachability")
     parser.add_argument("--half", choices=("all", "selection", "confirmation"), default="all")
     parser.add_argument("--holm", action="store_true", help="Holm on overall NDCG@20 for all arms vs reference")
     parser.add_argument("--bootstrap", type=int, default=10_000)
@@ -248,7 +249,7 @@ def main(argv=None):
     counts = popularity_counts(train, stats["num_items"])
     retained = None
     if args.groups:
-        retained = SGKR.interaction_matrix(train.u_idx.to_numpy(), train.i_idx.to_numpy(),
+        retained = GRNR.interaction_matrix(train.u_idx.to_numpy(), train.i_idx.to_numpy(),
                                            stats["num_users"], stats["num_items"])
     for index, run in enumerate(runs):
         verify_run_protocol(run, identity)

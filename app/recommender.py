@@ -4,7 +4,7 @@ Reads only train + validation (scripts/validation_io.py) and the item metadata; 
 Rankings follow the Evaluator: candidates are the items of the density's training graph and the user's
 full-train history is masked, so a demo top-20 equals the run's stored val_predictions.npy row
 (except EASE, whose checkpoint keeps only the top-128 weights per item of the full matrix).
-SGKR, SPHR, EASE and GF-CF score any item history directly (no user table), which is what the "new user" tab shows.
+GRNR, DFHF, EASE and GF-CF score any item history directly (no user table), which is what the "new user" tab shows.
 """
 from __future__ import annotations
 
@@ -21,16 +21,16 @@ import torch
 
 ROOT = Path(__file__).resolve().parents[1]
 
-MODELS = ("sgkr", "sphr", "lightgcn", "xsimgcl", "directau", "ease", "gfcf")
-PROPOSED = ("sgkr", "sphr")
-LABELS = {"sgkr": "SGKR", "sphr": "SPHR", "lightgcn": "LightGCN", "xsimgcl": "XSimGCL", "directau": "DirectAU",
+MODELS = ("grnr", "dfhf", "lightgcn", "xsimgcl", "directau", "ease", "gfcf")
+PROPOSED = ("grnr", "dfhf")
+LABELS = {"grnr": "GRNR", "dfhf": "DFHF", "lightgcn": "LightGCN", "xsimgcl": "XSimGCL", "directau": "DirectAU",
           "ease": "EASE (top-128)", "gfcf": "GF-CF"}
-COLORS = {"sgkr": "#2a78d6", "sphr": "#eb6834", "lightgcn": "#1baf7a", "xsimgcl": "#eda100", "directau": "#e87ba4",
+COLORS = {"grnr": "#2a78d6", "dfhf": "#eb6834", "lightgcn": "#1baf7a", "xsimgcl": "#eda100", "directau": "#e87ba4",
           "ease": "#7a5cc7", "gfcf": "#8c6d46"}
 # Display rows of the demo: (heading, card subtitle, models).
-GROUPS = (("Mô hình đề xuất", "Đề xuất", ("sgkr", "sphr")),
+GROUPS = (("Mô hình đề xuất", "Đề xuất", ("grnr", "dfhf")),
           ("Baseline đồ thị · học embedding", "Baseline · GNN", ("lightgcn", "xsimgcl", "directau")),
-          ("Baseline closed-form · cùng họ SGKR", "Baseline · closed-form", ("ease", "gfcf")))
+          ("Baseline closed-form · cùng họ GRNR", "Baseline · closed-form", ("ease", "gfcf")))
 KINDS = {model: kind for _, kind, models in GROUPS for model in models}
 # Accent per family (badges, table text) with a light tint for backgrounds.
 FAMILY_COLORS = {"Đề xuất": ("#1d63c2", "#e8f0fc"), "Baseline · GNN": ("#13865d", "#e6f5ee"),
@@ -43,7 +43,8 @@ RESULTS = Path(PREVIEW) if PREVIEW else ROOT / "results"
 
 
 def run_dir(model, density, results=None, seed=SEED):
-    return Path(results or RESULTS) / model / f"d{round(density * 100)}" / f"seed{seed}"
+    from src.utils.model_names import resolve_model_run
+    return resolve_model_run(results or RESULTS, model, density, seed)
 
 
 def checkpoint_ndcg(model, density, results=None):
@@ -106,12 +107,12 @@ def sample_users(data, per_group=3, seed=SEED):
 
 
 class Ranker:
-    """One trained model at one density: scores existing users and, for SGKR/SPHR, any item history."""
+    """One trained model at one density: scores existing users and, for GRNR/DFHF, any item history."""
 
     def __init__(self, model, candidates, score_users, score_history=None, explain=None, train_items=None):
         self.model, self.candidates = model, candidates
         self._score_users, self._score_history, self._explain = score_users, score_history, explain
-        # The user's history inside this density's training graph (what SGKR's features see).
+        # The user's history inside this density's training graph (what GRNR's features see).
         self.train_items = train_items
 
     @property
@@ -127,7 +128,7 @@ class Ranker:
         return self._score_history(np.unique(np.asarray(items, dtype=np.int64)))
 
     def explain(self, items, target, k=3):
-        """SGKR only: the history items with the largest contribution x_j * W[j, target]."""
+        """GRNR only: the history items with the largest contribution x_j * W[j, target]."""
         if self._explain is None:
             return []
         return self._explain(np.unique(np.asarray(items, dtype=np.int64)), int(target))[:k]
@@ -144,7 +145,7 @@ class Ranker:
         return items[torch.isfinite(values)].numpy()
 
 
-def sgkr_ranker(model, candidates):
+def grnr_ranker(model, candidates):
     weights = model.linear_coefficients.tocsc()
     tilt = (1. + model.counts) ** model.config.popularity_tilt if model.config.popularity_tilt else None
 
@@ -167,11 +168,11 @@ def sgkr_ranker(model, candidates):
     def train_items(user):
         return model.interactions[user].indices.astype(np.int64)
 
-    return Ranker("sgkr", candidates, users, history, explain, train_items)
+    return Ranker("grnr", candidates, users, history, explain, train_items)
 
 
 @torch.no_grad()
-def sphr_ranker(model, candidates):
+def dfhf_ranker(model, candidates):
     user_table, items = model()
     sources, bias = model.history_vectors(), model.item_bias.detach()
 
@@ -184,7 +185,7 @@ def sphr_ranker(model, candidates):
         scale = model.config.singleton_history_weight if len(ids) == 1 else 1.
         return ((scale * pooled) @ items.T + bias).double().numpy()
 
-    return Ranker("sphr", candidates, users, history)
+    return Ranker("dfhf", candidates, users, history)
 
 
 def ease_ranker(weights, interactions, candidates):
@@ -241,7 +242,7 @@ def load_ranker(model, density, data, results=None):
     """The run's checkpoint at this density, or None when it has not been trained yet."""
     from src.data.sparsity import create_sparse_train_set
     folder = run_dir(model, density, results)
-    checkpoint = folder / ("checkpoint.npz" if model in ("sgkr", "ease", "gfcf") else "checkpoint.pt")
+    checkpoint = folder / ("checkpoint.npz" if model in ("grnr", "ease", "gfcf") else "checkpoint.pt")
     if not checkpoint.exists():
         return None
     train = create_sparse_train_set(data.full_train, density, SEED)
@@ -251,20 +252,20 @@ def load_ranker(model, density, data, results=None):
         return gfcf_ranker(GFCF.load(checkpoint), candidates)
     if model == "ease":
         from scipy import sparse
-        from src.models.sgkr import SGKR
-        interactions = SGKR.interaction_matrix(train.u_idx.to_numpy(), train.i_idx.to_numpy(),
+        from src.models.grnr import GRNR
+        interactions = GRNR.interaction_matrix(train.u_idx.to_numpy(), train.i_idx.to_numpy(),
                                                data.num_users, data.num_items)
         return ease_ranker(sparse.load_npz(checkpoint), interactions, candidates)
-    if model == "sgkr":
-        from src.models.sgkr import SGKR
-        return sgkr_ranker(SGKR.load(checkpoint), candidates)
-    if model == "sphr":
-        from src.models.sphr import SPHR, SPHRConfig
+    if model == "grnr":
+        from src.models.grnr import GRNR
+        return grnr_ranker(GRNR.load(checkpoint), candidates)
+    if model == "dfhf":
+        from src.models.dfhf import DFHF, DFHFConfig
         state = torch.load(checkpoint, map_location="cpu", weights_only=True)
-        network = SPHR(data.num_users, data.num_items, SPHRConfig.from_dict(state["config"]))
+        network = DFHF(data.num_users, data.num_items, DFHFConfig.from_dict(state["config"]))
         network.set_history(train.u_idx.to_numpy(), train.i_idx.to_numpy())
         network.load_state_dict(state["model_state_dict"])
-        return sphr_ranker(network.eval(), candidates)
+        return dfhf_ranker(network.eval(), candidates)
     from scripts.rescore_neural_checkpoints import build_model
     from src.data.graph import get_norm_adj_tensor
     state = torch.load(checkpoint, map_location="cpu", weights_only=False)
