@@ -1,0 +1,25 @@
+\section{Kết luận và hướng phát triển}
+\label{sec:conclusion}
+
+\subsection{Kết luận}
+
+Báo cáo đã trình bày và đánh giá hai mô hình khuyến nghị biểu diễn người dùng bằng lịch sử tương tác, mỗi mô hình trong nhóm phương pháp của nó, trên bộ dữ liệu Amazon Electronics.
+
+\textbf{Nhóm giải trực tiếp.} Graph-Regularized Neighborhood Regression có NDCG@20 cao nhất nhóm ở $d=1$ (0,03829) và hơn EASE top-128 và GF-CF với khoảng tin cậy không chứa 0. Tuy nhiên chưa đủ bằng chứng để nói GRNR tốt hơn EASE đầy đủ ở $d=1$, và EASE đầy đủ tốt hơn GRNR rõ ràng ở $d=0{,}5$. Ưu điểm nổi bật của GRNR là chi phí: thời gian fit và dung lượng lưu trữ nhỏ hơn nhiều so với EASE đầy đủ, với chất lượng gần tương đương ở phần lớn các mức $d$ (RQ1--RQ3).
+
+\textbf{Nhóm cần huấn luyện.} Diffusion-Filtered History Factorization có NDCG@20 cao nhất nhóm ở cả bốn mức $d$, với khoảng tin cậy không chứa 0 so với LightGCN, XSimGCL và DirectAU. Đổi lại, DFHF có thời gian mỗi epoch dài nhất nhóm và kết quả phụ thuộc mạnh vào việc chọn checkpoint trên validation. Ở mức thưa nhất ($d=0{,}25$), ưu thế của DFHF chủ yếu đến từ việc rơi về thứ tự độ phổ biến cho người dùng chỉ còn một tương tác: ở mức này DFHF chỉ ngang một xếp hạng theo độ phổ biến, và không mô hình nào trong báo cáo vượt được mốc đó (RQ1--RQ3).
+
+\textbf{Hệ thống.} Cả hai mô hình đều chấm điểm được lịch sử mới mà không cần huấn luyện lại; hệ thống demo minh họa điều này và hiển thị phân rã đại số của điểm GRNR làm lời giải thích cho gợi ý (RQ4).
+
+Các kết luận trên chỉ đúng trong phạm vi một bộ dữ liệu, một seed, kết quả trên validation đã dùng để chọn checkpoint và cấu hình, và ngân sách tinh chỉnh không cân bằng giữa mô hình đề xuất và baseline.
+
+\subsection{Hướng phát triển}
+
+Theo thứ tự ưu tiên:
+\begin{enumerate}
+\item \textbf{Xác nhận trên dữ liệu chưa dùng để chọn.} Đánh giá các cấu hình đã khóa trên tập test, hoặc trên một nửa validation chưa tham gia vào việc chọn, để có ước lượng không bị nâng lạc quan.
+\item \textbf{Nhiều seed.} Lặp lại việc huấn luyện và việc lấy mẫu train với nhiều seed để ước lượng biến động giữa các lần chạy.
+\item \textbf{Thí nghiệm loại bỏ thành phần.} Với DFHF: thay bộ lọc khuếch tán bằng $F=I$, và gán trọng số khác 0 cho lịch sử đơn. Với GRNR: bỏ điều chuẩn đồ thị, bỏ hệ số độ phổ biến khi xếp hạng. Mục tiêu là kiểm tra các giả thuyết cơ chế ở Mục~\ref{sec:discussion}.
+\item \textbf{Tinh chỉnh baseline cân bằng.} Cho các baseline cùng ngân sách tinh chỉnh với mô hình đề xuất và đủ số epoch để hội tụ, đặc biệt với DirectAU.
+\item \textbf{Mở rộng dữ liệu.} Thêm bộ dữ liệu khác và thiết kế một đánh giá riêng cho người dùng mới, thay cho tab minh họa trong demo.
+\end{enumerate}

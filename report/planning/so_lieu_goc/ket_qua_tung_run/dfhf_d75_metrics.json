@@ -1,0 +1,40 @@
+{
+  "model": "sphr",
+  "density": 0.75,
+  "seed": 42,
+  "split": "validation",
+  "max_epochs": 200,
+  "val_metrics": {
+    "Recall@10": 0.04268992319703102,
+    "NDCG@10": 0.024003431564690675,
+    "MRR@10": 0.018331408703324947,
+    "Recall@20": 0.06261251121759415,
+    "NDCG@20": 0.029010948106012485,
+    "MRR@20": 0.01969029549158104
+  },
+  "best_epoch": 66,
+  "epochs_run": 200,
+  "train_seconds": 5569.933986597001,
+  "inference_ms_per_user": 0.011197267854312673,
+  "checkpoint": "checkpoint.pt",
+  "config": {
+    "embedding_dim": 64,
+    "learning_rate": 0.0003,
+    "item_regularization": 0.1,
+    "item_bias_regularization": 0.0001,
+    "item_radius": 100.0,
+    "history_normalization": 0.5,
+    "singleton_history_weight": 0.0,
+    "ranking_temperature": 1.0
+  },
+  "env": {
+    "created": "2026-10-27T09:34:30",
+    "python": "3.13.15",
+    "torch": "2.11.0+cu128",
+    "cuda": "12.8",
+    "gpu": "Tesla T4",
+    "cpu": "x86_64",
+    "os": "Linux-6.18.55+-x86_64-with-glibc2.39",
+    "git_commit": "0ed954f"
+  }
+}

@@ -1,0 +1,6 @@
+﻿Mô hình,Seed,NDCG@20 tốt nhất,Epoch tốt nhất,Số epoch đã chạy,NDCG@20 epoch cuối,Giây/epoch
+GRNR (đề xuất),42,0.02928,,,,
+DFHF (đề xuất),42,0.02901,66,200,0.01918,27.6
+LightGCN,42,0.02261,92,200,0.02096,7.7
+XSimGCL,42,0.02759,26,200,0.02032,12.7
+DirectAU,42,0.02698,113,200,0.02678,17.4

@@ -6,7 +6,7 @@ Quy ước ngôn ngữ theo yêu cầu người dùng: giữ nguyên tên gốc 
 
 Quy ước viết tắt: mục lục và các tiêu đề được đưa vào mục lục dùng tên đầy đủ, không dùng dạng viết tắt, kể cả dạng viết tắt trong ngoặc. Trong thân bài, lần đầu ghi tên đầy đủ kèm dạng viết tắt trong ngoặc; các lần sau mới dùng dạng viết tắt. Danh mục từ viết tắt là công cụ tra cứu bổ sung, không thay việc giới thiệu lần đầu. Với tên chưa xác minh được cách viết đầy đủ, nêu rõ đây là nhãn mã nguồn, không tạo một tên mở rộng để gán cho nó.
 
-Kết quả tra cứu tên mô hình: đã tìm trong README hiện tại/lịch sử, mã nguồn, cấu hình, notebook và các bản mã nguồn lưu cùng run. Chưa tìm thấy tên mở rộng chính thức của GRNR/DFHF trong phạm vi kiểm tra. Mô tả trong src/models/grnr.py là “item-item graph-regularised ridge regression”; README.en.md mô tả DFHF là “history-based factorisation” và mã nguồn dùng diffusion-filtered item tables. Đề cương vì vậy dùng hai tiêu đề mô tả **Item–Item Graph-Regularised Ridge Regression** và **History-Based Factorisation with Diffusion-Filtered Item Embeddings**. Đây là tên mô tả cho báo cáo, không phải tên đầy đủ lịch sử đã được xác nhận của các chữ viết tắt. Trong thân bài có thể giới thiệu “phương pháp …, được ký hiệu là GRNR/DFHF trong mã nguồn”.
+Kết quả tra cứu tên mô hình (đính chính 05/11/2026, xem planning/KE_HOACH_THUC_THI.md mục 0): docstring hiện tại ghi **Graph-Regularized Neighborhood Regression (GRNR)** trong src/models/grnr.py và **Diffusion-Filtered History Factorization (DFHF)** trong src/models/dfhf.py. Dùng hai tên này làm tiêu đề và khi giới thiệu lần đầu; tác giả cần xác nhận đây là tên chính thức.
 
 Phạm vi: báo cáo bài tập lớn bằng tiếng Việt cho repository này. Giữ khung trình bày trong [main.tex](main.tex), viết vào năm tệp hiện có trong *section/*, dùng hình từ [../reports/figures](../reports/figures) và số liệu từ [../reports/tables](../reports/tables). Độ dài dự kiến 35–45 trang nội dung, chỉ là ngân sách biên tập khi chưa có giới hạn của học phần.
 
@@ -88,7 +88,7 @@ Vì kết quả đã có trước kế hoạch này, các câu hỏi và diễn 
 |---|---|
 | 1. Giới thiệu | 1.1. Đặt vấn đề; 1.2. Mục tiêu và phạm vi nghiên cứu; 1.3. Đóng góp của dự án |
 | 2. Cơ sở lý thuyết và nghiên cứu liên quan | 2.1. Khuyến nghị từ phản hồi ngầm; 2.2. Mô hình dựa trên quan hệ sản phẩm và lịch sử tương tác; 2.3. Mô hình đồ thị và học biểu diễn; 2.4. Tổng hợp và định hướng đề xuất |
-| 3. Phương pháp và thuật toán đề xuất | 3.1. Mô hình bài toán và định hướng thiết kế; 3.2. Item–Item Graph-Regularised Ridge Regression; 3.3. History-Based Factorisation with Diffusion-Filtered Item Embeddings; 3.4. Phân tích tính chất và chi phí tính toán |
+| 3. Phương pháp và thuật toán đề xuất | 3.1. Mô hình bài toán và định hướng thiết kế; 3.2. Graph-Regularized Neighborhood Regression; 3.3. Diffusion-Filtered History Factorization; 3.4. Phân tích tính chất và chi phí tính toán |
 | 4. Thực nghiệm và phân tích kết quả | 4.1. Dữ liệu và tiền xử lý; 4.2. Thiết lập và giao thức đánh giá; 4.3. So sánh chất lượng xếp hạng; 4.4. Ảnh hưởng của mức độ thưa và nhóm người dùng; 4.5. Quá trình huấn luyện và chi phí tính toán; 4.6. Thảo luận và hạn chế |
 | 5. Kết luận và hướng phát triển | 5.1. Kết luận; 5.2. Hướng phát triển |
 
@@ -122,7 +122,7 @@ Tài liệu bắt buộc đọc trước khi nhận định tính mới: EASE, F
 
 **3.1. Mô hình bài toán và định hướng thiết kế.** Thống nhất X, số user/item, H_u, d, K, tập candidate và ma trận đồ thị. Phân biệt tỉ lệ giữ tương tác d với density tuyệt đối |E|/(|U||I|). Phân biệt đầu vào huấn luyện đã giảm với mask từ train gốc. Giải thích ngắn hai hướng thiết kế và các vấn đề chúng hướng đến.
 
-**3.2. Item–Item Graph-Regularised Ridge Regression.** Tiêu đề mô tả phương pháp có nhãn mã nguồn GRNR; chưa phải tên mở rộng chính thức của chữ viết tắt. Đối chiếu E03 và snapshot của run:
+**3.2. Graph-Regularized Neighborhood Regression.** Đối chiếu E03 và snapshot của run:
 
 **3.2.1. Biểu diễn lịch sử và lựa chọn láng giềng.** Trình bày tối đa 128 láng giềng theo excess co-occurrence, điều kiện lift dương, quy tắc hòa và vector lịch sử chuẩn hóa. Giải thích cách loại target trong các hàng positive khi fit.
 
@@ -130,7 +130,7 @@ Tài liệu bắt buộc đọc trước khi nhận định tính mới: EASE, F
 
 **3.2.3. Thuật toán huấn luyện và suy luận.** Cung cấp giả mã fit/score, fallback và phân rã đóng góp. Tách popularity tilt khi xếp hạng khỏi objective khi fit. Giải thích đóng góp là đại số, chưa phải quan hệ nhân quả.
 
-**3.3. History-Based Factorisation with Diffusion-Filtered Item Embeddings.** Tiêu đề mô tả phương pháp có nhãn mã nguồn DFHF; chưa phải tên mở rộng chính thức của chữ viết tắt. Đối chiếu E04 và snapshot:
+**3.3. Diffusion-Filtered History Factorization.** Đối chiếu E04 và snapshot:
 
 **3.3.1. Biểu diễn lịch sử và khuếch tán trên đồ thị.** Trình bày hai bảng embedding nguồn/đích không buộc bằng nhau, không học embedding riêng cho user; toán tử T = D_I^−1 X^T D_U^−1 X, bộ lọc 0,5I + 0,25T + 0,25T² và tổng hợp lịch sử chuẩn hóa.
 

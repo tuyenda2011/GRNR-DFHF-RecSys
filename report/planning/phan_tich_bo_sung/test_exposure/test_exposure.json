@@ -1,0 +1,19 @@
+{
+  "created_at": "2026-11-05T11:33:13.498552+00:00",
+  "active_bundle": "build_bed0f5b7efb9e7a0a148e2c071540e30",
+  "result_files": 12,
+  "saved_test_score_files": 0,
+  "same_active_bundle_test_score_files": 0,
+  "same_active_test_artifact_score_files": 0,
+  "unknown_bundle_test_score_files": 0,
+  "unknown_test_artifact_score_files": 0,
+  "mode_contradictions": 0,
+  "scored_models": {},
+  "unreadable_or_oversize_files": [],
+  "test_labels_loaded": false,
+  "test_metric_values_reported": false,
+  "untouched_holdout_established": false,
+  "test_used_for_tuning_established": false,
+  "interpretation": "Saved scores establish exposure, not whether they informed tuning. Absence of saved scores cannot prove absence of prior access.",
+  "scope": "Local saved JSON results and declared manifest hashes (bundle IDs alone cannot establish split independence); excludes source/config snapshots; does not inspect deleted files, terminal history, or human decisions."
+}

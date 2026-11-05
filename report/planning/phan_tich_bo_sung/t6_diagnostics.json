@@ -1,0 +1,860 @@
+{
+  "validation_only": true,
+  "a_degree_one": {
+    "1.0": {
+      "warm_users": 107215,
+      "degree_one": 0,
+      "degree_one_share": 0.0
+    },
+    "0.75": {
+      "warm_users": 107215,
+      "degree_one": 6657,
+      "degree_one_share": 0.06209019260364688
+    },
+    "0.5": {
+      "warm_users": 107215,
+      "degree_one": 28555,
+      "degree_one_share": 0.2663340017721401
+    },
+    "0.25": {
+      "warm_users": 107215,
+      "degree_one": 72944,
+      "degree_one_share": 0.680352562607844
+    }
+  },
+  "d_degrees": {
+    "1.0": {
+      "edges": 858192,
+      "users": 124895,
+      "items": 44803,
+      "user_degree_mean": 6.8713078986348535,
+      "user_degree_quantiles": {
+        "0.25": 3.0,
+        "0.5": 5.0,
+        "0.75": 7.0,
+        "0.9": 12.0,
+        "0.99": 36.0
+      },
+      "user_degree_max": 354,
+      "item_degree_mean": 19.154788741825325,
+      "item_degree_quantiles": {
+        "0.25": 5.0,
+        "0.5": 8.0,
+        "0.75": 17.0,
+        "0.9": 36.0,
+        "0.99": 188.0
+      },
+      "item_degree_one_share": 0.004865745597393032
+    },
+    "0.75": {
+      "edges": 643644,
+      "users": 124895,
+      "items": 44803,
+      "user_degree_mean": 5.15348092397614,
+      "user_degree_quantiles": {
+        "0.25": 3.0,
+        "0.5": 4.0,
+        "0.75": 6.0,
+        "0.9": 9.0,
+        "0.99": 27.0
+      },
+      "user_degree_max": 276,
+      "item_degree_mean": 14.366091556368993,
+      "item_degree_quantiles": {
+        "0.25": 4.0,
+        "0.5": 6.0,
+        "0.75": 13.0,
+        "0.9": 28.0,
+        "0.99": 139.0
+      },
+      "item_degree_one_share": 0.026493761578465728
+    },
+    "0.5": {
+      "edges": 429096,
+      "users": 124895,
+      "items": 44803,
+      "user_degree_mean": 3.4356539493174267,
+      "user_degree_quantiles": {
+        "0.25": 2.0,
+        "0.5": 2.0,
+        "0.75": 4.0,
+        "0.9": 6.0,
+        "0.99": 18.0
+      },
+      "user_degree_max": 181,
+      "item_degree_mean": 9.577394370912662,
+      "item_degree_quantiles": {
+        "0.25": 3.0,
+        "0.5": 4.0,
+        "0.75": 9.0,
+        "0.9": 18.0,
+        "0.99": 94.0
+      },
+      "item_degree_one_share": 0.10789456063210053
+    },
+    "0.25": {
+      "edges": 214548,
+      "users": 124895,
+      "items": 44803,
+      "user_degree_mean": 1.7178269746587134,
+      "user_degree_quantiles": {
+        "0.25": 1.0,
+        "0.5": 1.0,
+        "0.75": 2.0,
+        "0.9": 3.0,
+        "0.99": 8.0
+      },
+      "user_degree_max": 86,
+      "item_degree_mean": 4.788697185456331,
+      "item_degree_quantiles": {
+        "0.25": 1.0,
+        "0.5": 2.0,
+        "0.75": 4.0,
+        "0.9": 9.0,
+        "0.99": 46.0
+      },
+      "item_degree_one_share": 0.34336986362520366
+    }
+  },
+  "c_runs": [
+    {
+      "model": "grnr",
+      "density": 1.0,
+      "gpu": "Tesla T4",
+      "torch": "2.11.0+cu128",
+      "git_commit": "0ed954f",
+      "train_seconds": 147.90161023999997,
+      "inference_ms_per_user": 0.3753250419810667,
+      "best_epoch": null,
+      "epochs_run": 0,
+      "config": {
+        "neighbors": 128,
+        "alpha": 10.0,
+        "positive_weight": 10.0,
+        "eta_linear": 1e-05,
+        "eta_bias": 0.001,
+        "graph_weight": 0.001,
+        "adaptive_regularization": true,
+        "adaptive_power": 2.0,
+        "adaptive_cap": 10.0,
+        "correction_batch_size": 1024,
+        "threads": 1,
+        "max_cooccurrence_entries": 50000000,
+        "boundary_weight": 0.5,
+        "support_alpha": 2.0,
+        "popularity_tilt": -0.1
+      }
+    },
+    {
+      "model": "grnr",
+      "density": 0.75,
+      "gpu": "Tesla T4",
+      "torch": "2.11.0+cu128",
+      "git_commit": "0ed954f",
+      "train_seconds": 123.75249032600004,
+      "inference_ms_per_user": 0.8982639045282856,
+      "best_epoch": null,
+      "epochs_run": 0,
+      "config": {
+        "neighbors": 128,
+        "alpha": 10.0,
+        "positive_weight": 10.0,
+        "eta_linear": 1e-05,
+        "eta_bias": 0.001,
+        "graph_weight": 0.001,
+        "adaptive_regularization": true,
+        "adaptive_power": 2.0,
+        "adaptive_cap": 10.0,
+        "correction_batch_size": 1024,
+        "threads": 1,
+        "max_cooccurrence_entries": 50000000,
+        "boundary_weight": 0.5,
+        "support_alpha": 2.0,
+        "popularity_tilt": -0.1
+      }
+    },
+    {
+      "model": "grnr",
+      "density": 0.5,
+      "gpu": "Tesla T4",
+      "torch": "2.11.0+cu128",
+      "git_commit": "0ed954f",
+      "train_seconds": 98.73095795200061,
+      "inference_ms_per_user": 0.894696333927169,
+      "best_epoch": null,
+      "epochs_run": 0,
+      "config": {
+        "neighbors": 128,
+        "alpha": 10.0,
+        "positive_weight": 10.0,
+        "eta_linear": 1e-05,
+        "eta_bias": 0.001,
+        "graph_weight": 0.001,
+        "adaptive_regularization": true,
+        "adaptive_power": 2.0,
+        "adaptive_cap": 10.0,
+        "correction_batch_size": 1024,
+        "threads": 1,
+        "max_cooccurrence_entries": 50000000,
+        "boundary_weight": 0.5,
+        "support_alpha": 2.0,
+        "popularity_tilt": -0.1
+      }
+    },
+    {
+      "model": "grnr",
+      "density": 0.25,
+      "gpu": "Tesla T4",
+      "torch": "2.11.0+cu128",
+      "git_commit": "0ed954f",
+      "train_seconds": 68.28656911799771,
+      "inference_ms_per_user": 0.878717031208323,
+      "best_epoch": null,
+      "epochs_run": 0,
+      "config": {
+        "neighbors": 128,
+        "alpha": 10.0,
+        "positive_weight": 10.0,
+        "eta_linear": 1e-05,
+        "eta_bias": 0.001,
+        "graph_weight": 0.001,
+        "adaptive_regularization": true,
+        "adaptive_power": 2.0,
+        "adaptive_cap": 10.0,
+        "correction_batch_size": 1024,
+        "threads": 1,
+        "max_cooccurrence_entries": 50000000,
+        "boundary_weight": 0.5,
+        "support_alpha": 2.0,
+        "popularity_tilt": -0.1
+      }
+    },
+    {
+      "model": "dfhf",
+      "density": 1.0,
+      "gpu": "Tesla T4",
+      "torch": "2.11.0+cu128",
+      "git_commit": "0ed954f",
+      "train_seconds": 7627.752646068,
+      "inference_ms_per_user": 0.011158359324715596,
+      "best_epoch": 71,
+      "epochs_run": 200,
+      "config": {
+        "embedding_dim": 64,
+        "learning_rate": 0.0003,
+        "item_regularization": 0.1,
+        "item_bias_regularization": 0.0001,
+        "item_radius": 100.0,
+        "history_normalization": 0.5,
+        "singleton_history_weight": 0.0,
+        "ranking_temperature": 1.0
+      }
+    },
+    {
+      "model": "dfhf",
+      "density": 0.75,
+      "gpu": "Tesla T4",
+      "torch": "2.11.0+cu128",
+      "git_commit": "0ed954f",
+      "train_seconds": 5569.933986597001,
+      "inference_ms_per_user": 0.011197267854312673,
+      "best_epoch": 66,
+      "epochs_run": 200,
+      "config": {
+        "embedding_dim": 64,
+        "learning_rate": 0.0003,
+        "item_regularization": 0.1,
+        "item_bias_regularization": 0.0001,
+        "item_radius": 100.0,
+        "history_normalization": 0.5,
+        "singleton_history_weight": 0.0,
+        "ranking_temperature": 1.0
+      }
+    },
+    {
+      "model": "dfhf",
+      "density": 0.5,
+      "gpu": "Tesla T4",
+      "torch": "2.11.0+cu128",
+      "git_commit": "0ed954f",
+      "train_seconds": 3666.4796196009993,
+      "inference_ms_per_user": 0.011273104351052542,
+      "best_epoch": 54,
+      "epochs_run": 200,
+      "config": {
+        "embedding_dim": 64,
+        "learning_rate": 0.0003,
+        "item_regularization": 0.1,
+        "item_bias_regularization": 0.0001,
+        "item_radius": 100.0,
+        "history_normalization": 0.5,
+        "singleton_history_weight": 0.0,
+        "ranking_temperature": 1.0
+      }
+    },
+    {
+      "model": "dfhf",
+      "density": 0.25,
+      "gpu": "Tesla T4",
+      "torch": "2.11.0+cu128",
+      "git_commit": "0ed954f",
+      "train_seconds": 1882.1721629230015,
+      "inference_ms_per_user": 0.010804842895120313,
+      "best_epoch": 32,
+      "epochs_run": 200,
+      "config": {
+        "embedding_dim": 64,
+        "learning_rate": 0.0003,
+        "item_regularization": 0.1,
+        "item_bias_regularization": 0.0001,
+        "item_radius": 100.0,
+        "history_normalization": 0.5,
+        "singleton_history_weight": 0.0,
+        "ranking_temperature": 1.0
+      }
+    },
+    {
+      "model": "lightgcn",
+      "density": 1.0,
+      "gpu": "Tesla T4",
+      "torch": "2.11.0+cu128",
+      "git_commit": "0ed954f",
+      "train_seconds": 2551.0874254070004,
+      "inference_ms_per_user": 0.011190113277064843,
+      "best_epoch": 169,
+      "epochs_run": 200,
+      "config": {
+        "model": {
+          "embedding_dim": 64,
+          "num_layers": 3
+        },
+        "training": {
+          "batch_size": 2048,
+          "learning_rate": 0.0003,
+          "weight_decay": 0.0001,
+          "epochs": 200,
+          "early_stopping_patience": 100000,
+          "seed": 42,
+          "num_workers": 0
+        },
+        "model_name": "lightgcn",
+        "experiment_fingerprint": "632ff5888b2c0623c25f88125af29139abc8d98fe71f29e2ef523cc7982becc1",
+        "validation_only": true
+      }
+    },
+    {
+      "model": "lightgcn",
+      "density": 0.75,
+      "gpu": "Tesla T4",
+      "torch": "2.11.0+cu128",
+      "git_commit": "0ed954f",
+      "train_seconds": 1843.3632358539999,
+      "inference_ms_per_user": 0.011306057669177316,
+      "best_epoch": 92,
+      "epochs_run": 200,
+      "config": {
+        "model": {
+          "embedding_dim": 64,
+          "num_layers": 3
+        },
+        "training": {
+          "batch_size": 2048,
+          "learning_rate": 0.0003,
+          "weight_decay": 0.0001,
+          "epochs": 200,
+          "early_stopping_patience": 100000,
+          "seed": 42,
+          "num_workers": 0
+        },
+        "model_name": "lightgcn",
+        "experiment_fingerprint": "3af615adb35be9a6dda28f3c0140dc81512e66140b19c8d594122ea161295cfa",
+        "validation_only": true
+      }
+    },
+    {
+      "model": "lightgcn",
+      "density": 0.5,
+      "gpu": "Tesla T4",
+      "torch": "2.11.0+cu128",
+      "git_commit": "0ed954f",
+      "train_seconds": 1235.288911664,
+      "inference_ms_per_user": 0.011017395215220308,
+      "best_epoch": 38,
+      "epochs_run": 200,
+      "config": {
+        "model": {
+          "embedding_dim": 64,
+          "num_layers": 3
+        },
+        "training": {
+          "batch_size": 2048,
+          "learning_rate": 0.0003,
+          "weight_decay": 0.0001,
+          "epochs": 200,
+          "early_stopping_patience": 100000,
+          "seed": 42,
+          "num_workers": 0
+        },
+        "model_name": "lightgcn",
+        "experiment_fingerprint": "36459f88d4ebcb4fa9f8b44b20911a49226c5661ab7cf137ab1362b1a0093fcd",
+        "validation_only": true
+      }
+    },
+    {
+      "model": "lightgcn",
+      "density": 0.25,
+      "gpu": "Tesla T4",
+      "torch": "2.11.0+cu128",
+      "git_commit": "0ed954f",
+      "train_seconds": 710.8425366240008,
+      "inference_ms_per_user": 0.011048089194625972,
+      "best_epoch": 10,
+      "epochs_run": 200,
+      "config": {
+        "model": {
+          "embedding_dim": 64,
+          "num_layers": 3
+        },
+        "training": {
+          "batch_size": 2048,
+          "learning_rate": 0.0003,
+          "weight_decay": 0.0001,
+          "epochs": 200,
+          "early_stopping_patience": 100000,
+          "seed": 42,
+          "num_workers": 0
+        },
+        "model_name": "lightgcn",
+        "experiment_fingerprint": "fcd4f5109994a0b0b0efb6c65ebe9a89dd3eeb0a162ece18d649a453dd0ad24e",
+        "validation_only": true
+      }
+    },
+    {
+      "model": "xsimgcl",
+      "density": 1.0,
+      "gpu": "Tesla T4",
+      "torch": "2.11.0+cu128",
+      "git_commit": "0ed954f",
+      "train_seconds": 3807.5178828989997,
+      "inference_ms_per_user": 0.010477747003681193,
+      "best_epoch": 25,
+      "epochs_run": 200,
+      "config": {
+        "model": {
+          "embedding_dim": 64,
+          "num_layers": 3
+        },
+        "training": {
+          "batch_size": 2048,
+          "learning_rate": 0.0003,
+          "weight_decay": 0.0001,
+          "epochs": 200,
+          "early_stopping_patience": 100000,
+          "seed": 42,
+          "num_workers": 0
+        },
+        "model_name": "xsimgcl",
+        "xsimgcl": {
+          "contrastive_weight": 0.1,
+          "temperature": 0.2,
+          "epsilon": 0.1,
+          "contrastive_layer": 1
+        },
+        "experiment_fingerprint": "d61f4164c2e3668a2d62e25a2c08522ffc8c1befcebac62ded554b403e1a89a0",
+        "validation_only": true
+      }
+    },
+    {
+      "model": "xsimgcl",
+      "density": 0.75,
+      "gpu": "Tesla T4",
+      "torch": "2.11.0+cu128",
+      "git_commit": "0ed954f",
+      "train_seconds": 2804.3650612409983,
+      "inference_ms_per_user": 0.01049043696310667,
+      "best_epoch": 26,
+      "epochs_run": 200,
+      "config": {
+        "model": {
+          "embedding_dim": 64,
+          "num_layers": 3
+        },
+        "training": {
+          "batch_size": 2048,
+          "learning_rate": 0.0003,
+          "weight_decay": 0.0001,
+          "epochs": 200,
+          "early_stopping_patience": 100000,
+          "seed": 42,
+          "num_workers": 0
+        },
+        "model_name": "xsimgcl",
+        "xsimgcl": {
+          "contrastive_weight": 0.1,
+          "temperature": 0.2,
+          "epsilon": 0.1,
+          "contrastive_layer": 1
+        },
+        "experiment_fingerprint": "dbc2ef2241815cce1353f7112a6a5c2da6f6f390ec8839cb80636cc560a07911",
+        "validation_only": true
+      }
+    },
+    {
+      "model": "xsimgcl",
+      "density": 0.5,
+      "gpu": "Tesla T4",
+      "torch": "2.11.0+cu128",
+      "git_commit": "0ed954f",
+      "train_seconds": 1871.5735432610018,
+      "inference_ms_per_user": 0.010390907382347036,
+      "best_epoch": 24,
+      "epochs_run": 200,
+      "config": {
+        "model": {
+          "embedding_dim": 64,
+          "num_layers": 3
+        },
+        "training": {
+          "batch_size": 2048,
+          "learning_rate": 0.0003,
+          "weight_decay": 0.0001,
+          "epochs": 200,
+          "early_stopping_patience": 100000,
+          "seed": 42,
+          "num_workers": 0
+        },
+        "model_name": "xsimgcl",
+        "xsimgcl": {
+          "contrastive_weight": 0.1,
+          "temperature": 0.2,
+          "epsilon": 0.1,
+          "contrastive_layer": 1
+        },
+        "experiment_fingerprint": "7f65b22aa7700c6f57f17479f073d923629257dacab91e98e482e4c673511630",
+        "validation_only": true
+      }
+    },
+    {
+      "model": "xsimgcl",
+      "density": 0.25,
+      "gpu": "Tesla T4",
+      "torch": "2.11.0+cu128",
+      "git_commit": "0ed954f",
+      "train_seconds": 1027.255830373997,
+      "inference_ms_per_user": 0.010565620948537212,
+      "best_epoch": 6,
+      "epochs_run": 200,
+      "config": {
+        "model": {
+          "embedding_dim": 64,
+          "num_layers": 3
+        },
+        "training": {
+          "batch_size": 2048,
+          "learning_rate": 0.0003,
+          "weight_decay": 0.0001,
+          "epochs": 200,
+          "early_stopping_patience": 100000,
+          "seed": 42,
+          "num_workers": 0
+        },
+        "model_name": "xsimgcl",
+        "xsimgcl": {
+          "contrastive_weight": 0.1,
+          "temperature": 0.2,
+          "epsilon": 0.1,
+          "contrastive_layer": 1
+        },
+        "experiment_fingerprint": "a8e49fd1e879f54b917e17842e005cb4607b363aa1c3cc1a27b67d6f69ae725e",
+        "validation_only": true
+      }
+    },
+    {
+      "model": "directau",
+      "density": 1.0,
+      "gpu": "Tesla T4",
+      "torch": "2.11.0+cu128",
+      "git_commit": "0ed954f",
+      "train_seconds": 5086.72608344,
+      "inference_ms_per_user": 0.010541647512010043,
+      "best_epoch": 200,
+      "epochs_run": 200,
+      "config": {
+        "model": {
+          "embedding_dim": 64,
+          "num_layers": 3
+        },
+        "training": {
+          "batch_size": 2048,
+          "learning_rate": 0.0003,
+          "weight_decay": 0.0001,
+          "epochs": 200,
+          "early_stopping_patience": 100000,
+          "seed": 42,
+          "num_workers": 0
+        },
+        "model_name": "directau",
+        "directau": {
+          "profile": "reference_lgcn",
+          "optimizer_weight_decay": 1e-06,
+          "gamma": 1.0,
+          "t": 2.0
+        },
+        "experiment_fingerprint": "be3af36ea2a5558fd22e8bfa55922b10e13fa8fedc24379d01ebb4b20264c4a1",
+        "validation_only": true
+      }
+    },
+    {
+      "model": "directau",
+      "density": 0.75,
+      "gpu": "Tesla T4",
+      "torch": "2.11.0+cu128",
+      "git_commit": "0ed954f",
+      "train_seconds": 3745.573315937998,
+      "inference_ms_per_user": 0.01055382360675936,
+      "best_epoch": 113,
+      "epochs_run": 200,
+      "config": {
+        "model": {
+          "embedding_dim": 64,
+          "num_layers": 3
+        },
+        "training": {
+          "batch_size": 2048,
+          "learning_rate": 0.0003,
+          "weight_decay": 0.0001,
+          "epochs": 200,
+          "early_stopping_patience": 100000,
+          "seed": 42,
+          "num_workers": 0
+        },
+        "model_name": "directau",
+        "directau": {
+          "profile": "reference_lgcn",
+          "optimizer_weight_decay": 1e-06,
+          "gamma": 1.0,
+          "t": 2.0
+        },
+        "experiment_fingerprint": "c30767e3e5cef20ace5cdaa67189e1bee457ea26c0fede315bb3a466381571d0",
+        "validation_only": true
+      }
+    },
+    {
+      "model": "directau",
+      "density": 0.5,
+      "gpu": "Tesla T4",
+      "torch": "2.11.0+cu128",
+      "git_commit": "0ed954f",
+      "train_seconds": 2499.598345052,
+      "inference_ms_per_user": 0.010518569500539556,
+      "best_epoch": 195,
+      "epochs_run": 200,
+      "config": {
+        "model": {
+          "embedding_dim": 64,
+          "num_layers": 3
+        },
+        "training": {
+          "batch_size": 2048,
+          "learning_rate": 0.0003,
+          "weight_decay": 0.0001,
+          "epochs": 200,
+          "early_stopping_patience": 100000,
+          "seed": 42,
+          "num_workers": 0
+        },
+        "model_name": "directau",
+        "directau": {
+          "profile": "reference_lgcn",
+          "optimizer_weight_decay": 1e-06,
+          "gamma": 1.0,
+          "t": 2.0
+        },
+        "experiment_fingerprint": "6896bc9c560e1fbc5b5f2bfe0075d4512727d2d01b5c7916aae2be7c3bc82f14",
+        "validation_only": true
+      }
+    },
+    {
+      "model": "directau",
+      "density": 0.25,
+      "gpu": "Tesla T4",
+      "torch": "2.11.0+cu128",
+      "git_commit": "0ed954f",
+      "train_seconds": 1331.0313905700023,
+      "inference_ms_per_user": 0.010549621442876422,
+      "best_epoch": 181,
+      "epochs_run": 200,
+      "config": {
+        "model": {
+          "embedding_dim": 64,
+          "num_layers": 3
+        },
+        "training": {
+          "batch_size": 2048,
+          "learning_rate": 0.0003,
+          "weight_decay": 0.0001,
+          "epochs": 200,
+          "early_stopping_patience": 100000,
+          "seed": 42,
+          "num_workers": 0
+        },
+        "model_name": "directau",
+        "directau": {
+          "profile": "reference_lgcn",
+          "optimizer_weight_decay": 1e-06,
+          "gamma": 1.0,
+          "t": 2.0
+        },
+        "experiment_fingerprint": "e2b239b1ef0811acc624429dd3fe473f15485503b4f017def277c8f0adb5fd6c",
+        "validation_only": true
+      }
+    },
+    {
+      "model": "ease",
+      "density": 1.0,
+      "gpu": null,
+      "torch": "2.11.0+cpu",
+      "git_commit": "442cd72",
+      "train_seconds": 673.0669659999999,
+      "inference_ms_per_user": 0.2685097600802156,
+      "best_epoch": null,
+      "epochs_run": 0,
+      "config": {
+        "l2": 300.0,
+        "checkpoint_neighbors": 128
+      }
+    },
+    {
+      "model": "ease",
+      "density": 0.75,
+      "gpu": null,
+      "torch": "2.11.0+cpu",
+      "git_commit": "442cd72",
+      "train_seconds": 675.94362323,
+      "inference_ms_per_user": 0.23028337596418186,
+      "best_epoch": null,
+      "epochs_run": 0,
+      "config": {
+        "l2": 300.0,
+        "checkpoint_neighbors": 128
+      }
+    },
+    {
+      "model": "ease",
+      "density": 0.5,
+      "gpu": null,
+      "torch": "2.11.0+cpu",
+      "git_commit": "442cd72",
+      "train_seconds": 670.7445714320002,
+      "inference_ms_per_user": 0.19305233293848809,
+      "best_epoch": null,
+      "epochs_run": 0,
+      "config": {
+        "l2": 300.0,
+        "checkpoint_neighbors": 128
+      }
+    },
+    {
+      "model": "ease",
+      "density": 0.25,
+      "gpu": null,
+      "torch": "2.11.0+cpu",
+      "git_commit": "442cd72",
+      "train_seconds": 675.4762231979998,
+      "inference_ms_per_user": 0.15469169819521422,
+      "best_epoch": null,
+      "epochs_run": 0,
+      "config": {
+        "l2": 300.0,
+        "checkpoint_neighbors": 128
+      }
+    },
+    {
+      "model": "gfcf",
+      "density": 1.0,
+      "gpu": null,
+      "torch": "2.11.0+cpu",
+      "git_commit": "52053ee",
+      "train_seconds": 2714.3355936889993,
+      "inference_ms_per_user": 2.949574955827075,
+      "best_epoch": null,
+      "epochs_run": 0,
+      "config": {
+        "singular_vectors": 256,
+        "ideal_weight": 0.3,
+        "svd_seed": 0,
+        "svd_backend": "subspace"
+      }
+    },
+    {
+      "model": "gfcf",
+      "density": 0.75,
+      "gpu": null,
+      "torch": "2.11.0+cpu",
+      "git_commit": "52053ee",
+      "train_seconds": 1560.510860237,
+      "inference_ms_per_user": 2.6868687825490816,
+      "best_epoch": null,
+      "epochs_run": 0,
+      "config": {
+        "singular_vectors": 256,
+        "ideal_weight": 0.3,
+        "svd_seed": 0,
+        "svd_backend": "subspace"
+      }
+    },
+    {
+      "model": "gfcf",
+      "density": 0.5,
+      "gpu": null,
+      "torch": "2.11.0+cpu",
+      "git_commit": "52053ee",
+      "train_seconds": 350.3642723480002,
+      "inference_ms_per_user": 2.3896265903371745,
+      "best_epoch": null,
+      "epochs_run": 0,
+      "config": {
+        "singular_vectors": 256,
+        "ideal_weight": 0.3,
+        "svd_seed": 0,
+        "svd_backend": "subspace"
+      }
+    },
+    {
+      "model": "gfcf",
+      "density": 0.25,
+      "gpu": null,
+      "torch": "2.11.0+cpu",
+      "git_commit": "52053ee",
+      "train_seconds": 1087.146992887,
+      "inference_ms_per_user": 2.3058568215828004,
+      "best_epoch": null,
+      "epochs_run": 0,
+      "config": {
+        "singular_vectors": 256,
+        "ideal_weight": 0.3,
+        "svd_seed": 0,
+        "svd_backend": "subspace"
+      }
+    }
+  ],
+  "e_hard_negatives": {
+    "lightgcn": {
+      "mentions_hard": false,
+      "mentions_disliked": false
+    },
+    "xsimgcl": {
+      "mentions_hard": false,
+      "mentions_disliked": false
+    },
+    "directau": {
+      "mentions_hard": false,
+      "mentions_disliked": false
+    }
+  },
+  "b_grnr_negative_top20": {
+    "sampled_users": 3000,
+    "negative_share": 0.0,
+    "users_with_any_negative_share": 0.0
+  }
+}

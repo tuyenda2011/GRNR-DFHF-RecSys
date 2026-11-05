@@ -1,0 +1,98 @@
+\section{Cơ sở lý thuyết và nghiên cứu liên quan}
+\label{sec:background}
+
+Chương này trình bày bài toán khuyến nghị từ phản hồi ngầm và hai nhóm phương pháp làm nền cho hai mô hình đề xuất. Mỗi phương pháp được trình bày theo thứ tự: nguyên lý, liên hệ với mô hình đề xuất cùng nhóm, điểm khác biệt và giới hạn.
+
+\subsection{Khuyến nghị từ phản hồi ngầm}
+\label{sec:implicit}
+
+Trong nhiều hệ thống, người dùng không cho điểm số rõ ràng cho mọi sản phẩm. Dữ liệu chỉ ghi nhận những gì người dùng đã làm, chẳng hạn đã mua, đã xem hay đã đánh giá tốt. Loại dữ liệu này gọi là \emph{phản hồi ngầm} (implicit feedback) và được biểu diễn bằng ma trận nhị phân $X\in\{0,1\}^{|\mathcal{U}|\times|\mathcal{I}|}$. Một ô bằng 1 cho biết có tương tác; một ô bằng 0 không có nghĩa người dùng không thích sản phẩm, mà có thể họ chỉ chưa biết đến nó. Ma trận thường cực kỳ thưa: trong dữ liệu của dự án, chỉ khoảng 0,02\% ô khác 0.
+
+Hu, Koren và Volinsky~\cite{hu2008wmf} xử lý tính bất định này bằng cách coi mọi ô là quan sát nhưng gán độ tin cậy khác nhau: ô bằng 1 có trọng số lớn, ô bằng 0 có trọng số nhỏ, rồi khớp mô hình bằng bình phương tối thiểu có trọng số trên toàn bộ ma trận. GRNR dùng đúng nguyên tắc này cho bài toán hồi quy của từng sản phẩm (Mục~\ref{sec:grnr-objective}).
+
+Một hướng khác là học thứ tự. Bayesian Personalized Ranking (BPR)~\cite{rendle2009bpr} tối ưu xác suất một sản phẩm đã tương tác được xếp trên một sản phẩm chưa tương tác lấy mẫu ngẫu nhiên. BPR là hàm mất mát mặc định của nhiều mô hình đồ thị, trong đó có LightGCN.
+
+Nhiệm vụ trong báo cáo là \emph{top-$K$}: với mỗi người dùng, chọn $K$ sản phẩm chưa tương tác có điểm cao nhất. Chất lượng được đo bằng việc sản phẩm người dùng thực sự tương tác tiếp theo có nằm trong danh sách hay không và nằm ở vị trí nào (Mục~\ref{sec:protocol}).
+
+\subsection{Nhóm mô hình giải trực tiếp}
+\label{sec:closed-form-models}
+
+Các mô hình trong nhóm này tính tham số bằng một công thức đóng hoặc một phép lọc tuyến tính, không có vòng lặp tối ưu bằng gradient. Ưu điểm chung là không có siêu tham số về số epoch hay tốc độ học, và kết quả xác định cho mỗi tập dữ liệu.
+
+\textbf{Mô hình láng giềng sản phẩm.} Cách đơn giản nhất là chấm điểm sản phẩm $i$ bằng tổng độ tương tự giữa $i$ và các sản phẩm trong lịch sử người dùng: $s(u,i)=\sum_{j\in H_u} w_{ji}$. Ma trận $w$ có thể là một độ đo cố định như cosine, hoặc được học từ dữ liệu.
+
+\textbf{SLIM.} Sparse Linear Methods (SLIM)~\cite{ning2011slim} học ma trận trọng số sản phẩm--sản phẩm $W$ bằng cách khớp $X\approx XW$ với phạt $\ell_1$ và $\ell_2$, ràng buộc $W\ge0$ và đường chéo bằng 0 để một sản phẩm không tự dự đoán chính nó. Bài toán tách được theo từng cột, mỗi cột là một hồi quy riêng. GRNR kế thừa cấu trúc ``một hồi quy cho mỗi sản phẩm'' này.
+
+\textbf{EASE.} Embarrassingly Shallow Autoencoders (EASE)~\cite{steck2019ease} bỏ ràng buộc không âm và phạt $\ell_1$ của SLIM, chỉ giữ phạt $\ell_2$ và ràng buộc đường chéo bằng 0:
+\begin{equation}
+\min_B \|X - XB\|_F^2 + \lambda\|B\|_F^2 \quad\text{với}\quad \mathrm{diag}(B)=0.
+\end{equation}
+Bài toán có nghiệm đóng $B = I - P\,\mathrm{diagMat}(\mathbf{1}\oslash\mathrm{diag}(P))$ với $P=(X^\top X+\lambda I)^{-1}$. EASE thường là một baseline rất mạnh, nhưng cần nghịch đảo một ma trận đầy đủ cỡ $|\mathcal{I}|\times|\mathcal{I}|$, nên chi phí bộ nhớ tăng theo bình phương số sản phẩm. GRNR giữ ý tưởng hồi quy giữa các sản phẩm của EASE, nhưng giới hạn mỗi sản phẩm vào tối đa 128 láng giềng, dùng trọng số khác nhau cho mẫu dương và mẫu âm, và thêm điều chuẩn theo đồ thị.
+
+\textbf{GF-CF.} Shen và cộng sự~\cite{shen2021gfcf} phân tích các mô hình tích chập đồ thị dưới góc nhìn xử lý tín hiệu và đề xuất GF-CF, một bộ lọc không cần huấn luyện. Với ma trận chuẩn hóa $\tilde R = D_U^{-1/2}XD_I^{-1/2}$, điểm của người dùng là
+\begin{equation}
+s_u = x_u\,\tilde R^\top\tilde R + \alpha\, x_u\, D_I^{-1/2} V_k V_k^\top D_I^{1/2},
+\end{equation}
+trong đó số hạng đầu là bộ lọc thông thấp tuyến tính, số hạng sau là bộ lọc thông thấp lý tưởng dựng từ $k$ vector kỳ dị phải lớn nhất $V_k$ của $\tilde R$. Dự án dùng $k=256$ và $\alpha=0{,}3$ theo bài gốc. GF-CF cùng nhóm với GRNR vì đều không có vòng lặp huấn luyện, nhưng GF-CF lọc tín hiệu trên toàn đồ thị, còn GRNR học hệ số riêng cho từng cặp sản phẩm láng giềng.
+
+\subsection{Nhóm mô hình cần huấn luyện}
+\label{sec:trained-models}
+
+Các mô hình trong nhóm này học embedding bằng tối ưu gradient qua nhiều epoch. Chúng linh hoạt hơn về hàm mất mát và kiến trúc, nhưng phụ thuộc vào số epoch, tốc độ học và cách chọn checkpoint.
+
+\textbf{Biểu diễn người dùng bằng lịch sử.} Phân rã ma trận chuẩn gán cho mỗi người dùng một vector riêng. Koren~\cite{koren2008factorization} đề xuất biểu diễn người dùng thêm bằng tổng các vector sản phẩm trong lịch sử, chuẩn hóa theo $|H_u|^{-1/2}$. FISM~\cite{kabbur2013fism} đi xa hơn: bỏ hẳn vector người dùng, học hai bảng embedding sản phẩm và chấm điểm
+\begin{equation}
+s(u,i) = b_i + \frac{1}{(n_u - 1)^{\alpha}}\sum_{j\in H_u\setminus\{i\}} p_j^\top q_i,
+\end{equation}
+trong đó sản phẩm đích $i$ được loại khỏi tổng khi huấn luyện. DFHF kế thừa trực tiếp ba ý tưởng từ hướng này: không có vector người dùng, hai bảng embedding nguồn và đích tách biệt, và ngữ cảnh loại bỏ sản phẩm dương. Ưu điểm chung của hướng này là mô hình chấm điểm được một lịch sử mới mà không cần huấn luyện lại.
+
+\textbf{Softmax trên toàn danh mục.} Mult-VAE~\cite{liang2018multvae} mô hình hóa lịch sử của người dùng bằng phân phối đa thức trên toàn bộ danh mục và cho thấy likelihood dạng softmax phù hợp với thước đo xếp hạng top-$K$ hơn likelihood Gauss hay logistic. DFHF dùng hàm mất mát cùng dạng: cross-entropy của softmax trên toàn bộ sản phẩm ứng viên.
+
+\textbf{LightGCN.} LightGCN~\cite{he2020lightgcn} học embedding $e_u^{(0)}, e_i^{(0)}$ cho mọi người dùng và sản phẩm, rồi lan truyền trên đồ thị hai phía bằng phép trung bình chuẩn hóa, bỏ biến đổi phi tuyến và ma trận trọng số:
+\begin{equation}
+e_u^{(l+1)} = \sum_{i\in H_u}\frac{1}{\sqrt{|H_u|}\sqrt{|\mathcal{N}_i|}}\,e_i^{(l)}, \qquad e_u = \frac{1}{L+1}\sum_{l=0}^{L}e_u^{(l)},
+\end{equation}
+và tương tự cho sản phẩm; điểm là $e_u^\top e_i$, huấn luyện bằng BPR. Cả LightGCN và DFHF đều làm trơn embedding trên đồ thị, nhưng LightGCN lan truyền trên đồ thị người dùng--sản phẩm với vector người dùng riêng, còn DFHF chỉ lọc bảng sản phẩm bằng bước đi hai bước sản phẩm $\to$ người dùng $\to$ sản phẩm.
+
+\textbf{XSimGCL.} XSimGCL~\cite{yu2023xsimgcl} thêm học tương phản vào LightGCN. Thay vì tạo hai đồ thị tăng cường, mô hình cộng nhiễu ngẫu nhiên có độ lớn $\epsilon$ vào embedding ở các lớp trung gian, rồi kéo hai biểu diễn có nhiễu của cùng một nút lại gần nhau bằng hàm InfoNCE với nhiệt độ $\tau$. Hàm mục tiêu là BPR cộng số hạng tương phản nhân với một trọng số.
+
+\textbf{DirectAU.} Wang và cộng sự~\cite{wang2022directau} cho rằng chất lượng biểu diễn trong lọc cộng tác phụ thuộc vào hai tính chất: \emph{căn chỉnh} (cặp người dùng--sản phẩm có tương tác nằm gần nhau) và \emph{đồng đều} (các embedding phân bố đều trên mặt cầu). DirectAU tối ưu trực tiếp hai đại lượng này thay cho BPR. Trong dự án, DirectAU dùng encoder LightGCN, nên khác LightGCN chủ yếu ở hàm mục tiêu chứ không ở kiến trúc.
+
+\subsection{Tổng hợp và định hướng đề xuất}
+\label{sec:positioning}
+
+\tabref{tab:closed-form-family} và \tabref{tab:trained-family} tổng hợp các phương pháp trong từng nhóm và vị trí của mô hình đề xuất.
+
+\begin{table}[htbp]
+\centering
+\caption[So sánh các phương pháp trong nhóm giải trực tiếp]{So sánh các phương pháp trong nhóm giải trực tiếp.}
+\label{tab:closed-form-family}
+\begin{tabularx}{\textwidth}{@{}lXXX@{}}
+\toprule
+ & SLIM~\cite{ning2011slim} & EASE~\cite{steck2019ease} & GRNR \\
+\midrule
+Biểu diễn người dùng & Lịch sử & Lịch sử & Lịch sử chuẩn hóa $n_u^{-1/2}$ \\
+Tham số & $W$ thưa, $\ge0$ & $B$ đầy đủ $|\mathcal{I}|^2$ & $\le128$ láng giềng mỗi sản phẩm \\
+Mục tiêu & Bình phương, $\ell_1+\ell_2$ & Bình phương, $\ell_2$ & Bình phương có trọng số, ridge thích nghi và điều chuẩn đồ thị \\
+Cách giải & Tối ưu theo cột & Một phép nghịch đảo & $|\mathcal{I}|$ hệ Cholesky nhỏ \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\begin{table}[htbp]
+\centering
+\caption[So sánh các phương pháp trong nhóm cần huấn luyện]{So sánh các phương pháp trong nhóm cần huấn luyện.}
+\label{tab:trained-family}
+\begin{tabularx}{\textwidth}{@{}lXXXX@{}}
+\toprule
+ & FISM~\cite{kabbur2013fism} & LightGCN~\cite{he2020lightgcn} & DirectAU~\cite{wang2022directau} & DFHF \\
+\midrule
+Vector người dùng & Không & Có & Có & Không \\
+Lan truyền đồ thị & Không & Người dùng--sản phẩm & Người dùng--sản phẩm & Lọc bảng sản phẩm bằng $T$, $T^2$ \\
+Hàm mất mát & Bình phương hoặc BPR & BPR & Căn chỉnh và đồng đều & Softmax toàn danh mục \\
+Lịch sử mới & Chấm ngay & Huấn luyện lại & Huấn luyện lại & Chấm ngay \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+Từ hai bảng có thể thấy mỗi mô hình đề xuất là một tổ hợp có chủ đích của các thành phần đã biết. GRNR lấy cấu trúc hồi quy từng sản phẩm của SLIM và EASE, trọng số cho dữ liệu ngầm của Hu và cộng sự, rồi thêm giới hạn láng giềng theo đồng xuất hiện vượt kỳ vọng và điều chuẩn theo Laplacian của đồ thị sản phẩm. DFHF lấy cách biểu diễn người dùng bằng lịch sử của FISM, hàm mất mát softmax toàn danh mục của Mult-VAE, và thêm bộ lọc khuếch tán đa thức lên bảng embedding. Trong phạm vi tài liệu đã đọc, nhóm thực hiện chưa thấy công trình nào kết hợp đồng thời đúng các thành phần như hai mô hình này. Tuy vậy, việc tìm kiếm tài liệu chưa đầy đủ, nên báo cáo không khẳng định đây là những đóng góp hoàn toàn mới. Đóng góp chính của dự án nằm ở việc cài đặt, đánh giá có kiểm soát và phân tích trung thực hai tổ hợp này trên cùng một giao thức.

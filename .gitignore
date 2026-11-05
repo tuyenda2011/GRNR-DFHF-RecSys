@@ -95,7 +95,10 @@ reports/**
 # Documentation
 *.md
 !README.en.md
-!report/KE_HOACH_BAO_CAO.md
+!report/README.md
+!report/planning/KE_HOACH_BAO_CAO.md
+!report/log/*.md
+!report/planning/phan_tich_bo_sung/*.md
 !report/planning/LITERATURE_LOG.md
 
 # Tests stay local only (not pushed to git)
