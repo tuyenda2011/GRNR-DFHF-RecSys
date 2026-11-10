@@ -110,6 +110,9 @@ research_20261025/
 third_party/
 RecFlow/
 
-# Report: only the compiled PDF is pushed; sources, images and notes stay local
+# Report: publish the compiled PDF and PNG figures; keep sources and notes local
 report/*
 !report/main.pdf
+!report/image/
+report/image/*
+!report/image/*.png
