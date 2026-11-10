@@ -1,245 +1,107 @@
-# Hệ thống khuyến nghị sản phẩm điện tử
+# Hệ thống khuyến nghị sản phẩm điện tử bằng hồi quy lân cận và khuếch tán trên đồ thị
 
-**Tiếng Việt** · [English](README.en.md)
+**Tiếng Việt** · [English](README.en.md) · [Báo cáo đầy đủ (PDF)](report/main.pdf)
 
-Bài tập lớn cá nhân môn *Học máy nâng cao*. Tôi đề xuất hai mô hình khuyến nghị:
-**Graph-Regularized Neighborhood Regression (GRNR)** (hồi quy giữa các sản phẩm, giải trực tiếp bằng công thức)
-và **Diffusion-Filtered History Factorization (DFHF)** (mô hình dựa trên lịch sử mua, huấn luyện bằng gradient), rồi
-so sánh với năm mô hình đối chứng đã công bố trên bộ dữ liệu Amazon Electronics. Mọi mô hình dùng chung dữ liệu,
-cách chia dữ liệu, bộ đánh giá xếp hạng trên toàn bộ danh mục sản phẩm và các chỉ số; mọi con số trong tài liệu
-này đều tính lại được từ các tệp kết quả đã lưu.
+Dự án Học máy nâng cao xây dựng hai mô hình khuyến nghị top-K từ lịch sử tương tác và đánh giá chúng trên Amazon Electronics. Nghiên cứu xem xét sự đánh đổi giữa chất lượng xếp hạng, dung lượng mô hình và lượng dữ liệu huấn luyện.
 
-## Điểm chính
+- **GRNR** đạt NDCG@20 **0,03829** khi giữ toàn bộ dữ liệu huấn luyện, với checkpoint **40,5 MiB**. Chênh lệch so với EASE đầy đủ là +0,00033, với khoảng tin cậy 95% từ −0,00007 đến +0,00073.
+- **DFHF** có NDCG@20 cao nhất trong nhóm mô hình huấn luyện lặp ở cả bốn mức dữ liệu. Khi chỉ giữ 25%, DFHF đạt **0,01766**, thấp hơn nhẹ so với mốc xếp hạng theo độ phổ biến **MostPop** (0,01771).
 
-- **GRNR có NDCG@20 cao nhất khi dùng toàn bộ dữ liệu huấn luyện (0,0383)** và tốt hơn LightGCN, XSimGCL,
-  DirectAU một cách có ý nghĩa thống kê (p sau hiệu chỉnh Holm = 0,0006), trong khi chỉ mất **2,5 phút trên
-  CPU** để huấn luyện, nhanh hơn khoảng 17 lần so với mạng nơ-ron đồ thị nhanh nhất.
-- **DFHF mạnh nhất khi dữ liệu thưa:** NDCG@20 cao nhất khi chỉ dùng 25 % và 50 % dữ liệu huấn luyện.
-- **So với các mô hình giải trực tiếp cùng kiểu**, GRNR ngang EASE bản đầy đủ khi dùng toàn bộ dữ liệu (EASE
-  cần một ma trận 7,5 GB, không lưu được), và tốt hơn bản EASE rút gọn về cỡ lưu được cũng như GF-CF.
-- **Hạn chế:** GRNR không phải tốt nhất ở mức 50 % dữ liệu, và mọi kết quả đến từ một lần chạy với một hạt giống
-  ngẫu nhiên duy nhất trên tập kiểm định (xem [Hạn chế](#hạn-chế)).
+## Chạy demo
 
-## Mục lục
-
-[Tái lập kết quả](#tái-lập-kết-quả) · [Demo](#demo) · [Mô hình](#mô-hình) · [Dữ liệu](#dữ-liệu) ·
-[Kết quả](#kết-quả) · [Giao thức đánh giá](#giao-thức-đánh-giá) · [Hạn chế](#hạn-chế) ·
-[Cấu trúc thư mục](#cấu-trúc-thư-mục) · [Tài liệu tham khảo](#tài-liệu-tham-khảo)
-
-## Tái lập kết quả
-
-**Tên mô hình.** GRNR và DFHF thay thế các nhãn cũ SGKR và SPHR trong mã nguồn/cấu hình hiện tại.
-Checkpoint, dự đoán, metadata và log đã lưu được giữ ở các thư mục gốc *results/sgkr/* và *results/sphr/*.
-Bộ nạp ánh xạ tên mới tới kết quả cũ; một run hoàn tất được nhận diện và không cần huấn luyện lại.
-Run mới chưa tồn tại dùng thư mục *grnr* hoặc *dfhf*. Snapshot mã nguồn giữ nguyên tên lúc huấn luyện.
-Repository GitHub hiện là
-[GRNR-DFHF-RecSys](https://github.com/tuyenda2011/GRNR-DFHF-RecSys).
+Từ thư mục gốc của repo, tạo môi trường Python 3.11 và chạy Streamlit. Bản clone đã có dữ liệu xử lý và checkpoint để thử gợi ý.
 
 ```bash
-conda create -n AML python=3.11 && conda activate AML
-pip install -r requirements.txt
-
-python scripts/prepare_data.py                         # tải dữ liệu từ SNAP và dựng bộ dữ liệu
-python scripts/audit_data.py                           # kiểm tra dữ liệu
-
-python scripts/train_model.py --model grnr --density 1.0
-#   --model    grnr | dfhf | lightgcn | xsimgcl | directau | ease | gfcf
-#   --density  1.0 | 0.75 | 0.5 | 0.25   (tỉ lệ dữ liệu huấn luyện được giữ lại)
-
-python scripts/summarize_results.py                    # bảng tổng hợp results/summary.csv
-python scripts/make_report.py                          # hình H1–H8, bảng B1–B4 (so sánh chính)
-python scripts/make_closed_form_report.py              # hình và bảng B5–B6 (so sánh bổ sung)
-python scripts/verify_results.py                       # tính lại mọi chỉ số từ các tệp đã lưu
-python -m pytest -q tests                              # chạy kiểm thử
-```
-
-Mỗi lần chạy ghi kết quả vào `results/<mô hình>/d<tỉ lệ>/seed42/`: chỉ số (`metrics.json`), dự đoán trên tập
-kiểm định, trọng số mô hình đã lưu (checkpoint), lịch sử huấn luyện `history.csv` (với mô hình huấn luyện lặp)
-và thư mục `logs/` (kế hoạch chạy, bản lưu mã nguồn, tiến độ, tài nguyên đã dùng). Lần chạy nào đã xong sẽ được
-bỏ qua. Các mô hình huấn luyện lặp chạy đủ 200 vòng (epoch), không dừng sớm, và giữ lại trọng số có NDCG@20 trên
-tập kiểm định cao nhất. Lệnh `python scripts/run_experiments.py` chạy toàn bộ thực nghiệm chính: GRNR, DFHF và
-3 mạng nơ-ron đồ thị ở cả 4 tỉ lệ dữ liệu.
-
-**Phần cứng.** GRNR và GF-CF chạy được trên CPU máy tính cá nhân. DFHF và các mạng nơ-ron đồ thị được huấn luyện
-trên GPU của Kaggle (`kaggle/kaggle_train.ipynb`). EASE phải nghịch đảo một ma trận dày 44.843 × 44.843 nên cần
-**khoảng 9,1 GB RAM trống**; mô hình này được chạy trên CPU của Kaggle (`kaggle/kaggle_ease.ipynb`).
-
-## Demo
-
-```bash
+conda create -n aml-recsys python=3.11
+conda activate aml-recsys
+python -m pip install -r requirements.txt
 python -m streamlit run app/streamlit_app.py
 ```
 
-Giao diện bố trí cho màn hình 1920 × 1080, gồm ba thẻ:
+- **Gợi ý cho khách** hiển thị top-10 cho người dùng có sẵn và đóng góp của từng sản phẩm trong lịch sử vào điểm gợi ý của GRNR.
+- **Khách mới** cho phép tạo lịch sử từ các sản phẩm trong danh mục rồi thử GRNR, DFHF, EASE top-128 và GF-CF.
+- **Đánh giá mô hình** trình bày hai nhóm so sánh. Trên bản clone mới, thẻ này báo thiếu bảng tổng hợp cho đến khi có tệp kết quả thực nghiệm.
 
-- **Gợi ý cho khách:** 10 gợi ý hàng đầu của cả 7 mô hình đặt cạnh nhau, đánh dấu sản phẩm khách mua tiếp theo,
-  kèm lời giải thích của GRNR cho gợi ý thứ nhất.
-- **Khách mới:** tự tạo lịch sử mua bằng cách tìm sản phẩm. GRNR, DFHF, EASE và GF-CF gợi ý được ngay; các mạng
-  nơ-ron đồ thị chỉ phục vụ được người dùng đã có trong dữ liệu huấn luyện.
-- **Đánh giá mô hình:** bảng xếp hạng, biểu đồ, kiểm định thống kê và hình trong báo cáo, chia thành nhóm cần
-  huấn luyện và nhóm giải trực tiếp.
+![Giao diện Streamlit hiển thị lịch sử tương tác và các gợi ý cho người dùng có sẵn](report/image/anh_1.png)
 
-Demo nạp các trọng số mô hình đã lưu và chỉ đọc tập huấn luyện và tập kiểm định.
+## Hai mô hình đề xuất
 
-## Mô hình
+| Mô hình | Cách tính điểm | Đối chứng |
+| --- | --- | --- |
+| **GRNR** · Graph-Regularized Neighborhood Regression | Hồi quy có điều chuẩn đồ thị trên tối đa 128 sản phẩm lân cận cho mỗi sản phẩm đích. Hệ phương trình được giải trực tiếp bằng Cholesky. | EASE đầy đủ, EASE top-128, GF-CF |
+| **DFHF** · Diffusion-Filtered History Factorization | Tổng hợp véc-tơ sản phẩm trong lịch sử sau khi lọc khuếch tán. Mô hình dùng Adam và softmax trên danh mục, với sản phẩm đích được giữ lại làm nhãn huấn luyện. | LightGCN, XSimGCL, DirectAU |
 
-| Mô hình | Loại | Cách tạo ra | Phần cứng |
-|---|---|---|---|
-| **GRNR** (đề xuất) | Hồi quy giữa các sản phẩm | Giải trực tiếp bằng công thức | CPU |
-| **DFHF** (đề xuất) | Phân rã dựa trên lịch sử mua | Tối ưu bằng Adam, hàm softmax trên toàn danh mục | GPU |
-| LightGCN [1] | Mạng nơ-ron đồ thị | Huấn luyện bằng gradient, tối đa 200 vòng | GPU |
-| XSimGCL [2] | Mạng nơ-ron đồ thị kết hợp học tương phản | Huấn luyện bằng gradient, tối đa 200 vòng | GPU |
-| DirectAU [3] | Tối ưu trực tiếp độ khớp và độ phân tán | Huấn luyện bằng gradient, tối đa 200 vòng | GPU |
-| EASE [4] | Hồi quy giữa các sản phẩm | Giải trực tiếp bằng công thức | CPU |
-| GF-CF [5] | Lọc tín hiệu trên đồ thị | Giải trực tiếp (phân tích SVD) | CPU |
+Cả hai mô hình có thể chấm điểm từ một lịch sử tương tác mới mà không cần học thêm véc-tơ riêng cho người dùng. Xem [sơ đồ GRNR](report/image/grnr_diagram.png) và [sơ đồ DFHF](report/image/dfhf_diagram.png).
 
-**GRNR** là hồi quy ridge giữa các sản phẩm, có thêm ràng buộc theo đồ thị. Mỗi sản phẩm được dự đoán từ 128
-sản phẩm liên quan nhất với mức phạt điều chỉnh theo từng sản phẩm; hệ phương trình được giải chính xác bằng
-phân tích Cholesky, trong đó chính sản phẩm cần dự đoán được loại khỏi dữ liệu đầu vào của nó. GRNR không có
-tham số riêng cho từng người dùng và không cần thuật toán tối ưu, nên chấm điểm được ngay cho bất kỳ lịch sử mua
-nào, kể cả người dùng chưa từng xuất hiện khi huấn luyện. Mô hình còn giải thích được mỗi gợi ý bằng những sản
-phẩm trong lịch sử đóng góp nhiều nhất.
+## Dữ liệu và giao thức đánh giá
 
-**DFHF** biểu diễn mỗi người dùng bằng lịch sử mua đã chuẩn hóa, trên các bảng véc-tơ sản phẩm đã được lọc
-khuếch tán qua đồ thị:
+Thực nghiệm dùng bản 5-core của Amazon Electronics. Đánh giá từ 4 sao trở lên được quy đổi thành phản hồi tích cực. Dữ liệu sau tiền xử lý có **124.895 người dùng**, **44.843 sản phẩm** và **858.192 tương tác huấn luyện**. [Nguồn dữ liệu Amazon Product Data](https://cseweb.ucsd.edu/~jmcauley/datasets/amazon/links.html) · [Manifest dữ liệu](data/manifest.json)
 
-```math
-\mathrm{score}(u, i) = \mathbf{q}_u^{\top} \tilde{\mathbf{v}}_i + b_i,
-\qquad \mathbf{q}_u = |H_u|^{-1/2} \sum_{j \in H_u} \tilde{\mathbf{s}}_j
+- **Chia dữ liệu theo thời gian.** Với mỗi người dùng được chọn để đánh giá, tương tác áp cuối vào tập xác thực (validation) và tương tác cuối vào tập kiểm tra (test). Tỉ lệ 80/10/10 được tính trên toàn bộ tương tác.
+- **Giảm dữ liệu huấn luyện.** Mọi mô hình dùng chung các tập giữ lại 25%, 50%, 75% hoặc 100% tương tác huấn luyện. Việc lấy mẫu dùng seed 42 và giữ ít nhất một tương tác cho mỗi người dùng và sản phẩm có trong tập huấn luyện gốc.
+- **Xếp hạng top-K.** Các mô hình được đánh giá trên cùng 107.215 người dùng có lịch sử và sản phẩm đích đã xuất hiện trong tập huấn luyện. Bộ đánh giá xếp hạng toàn bộ sản phẩm ứng viên trong tập huấn luyện, loại các mục trong lịch sử huấn luyện gốc và báo cáo NDCG, Recall ở K = 10 và 20, cùng MRR@20.
+
+## Kết quả thực nghiệm
+
+Các bảng dưới đây ghi **NDCG@20 trên tập xác thực**. Mỗi cột là tỉ lệ tương tác huấn luyện được giữ lại.
+
+### Nhóm giải trực tiếp
+
+| Mô hình | 25% | 50% | 75% | 100% |
+| --- | ---: | ---: | ---: | ---: |
+| **GRNR** | **0,00798** | 0,01715 | 0,02928 | **0,03829** |
+| EASE đầy đủ | 0,00674 | **0,01917** | **0,02939** | 0,03796 |
+| EASE top-128 | 0,00497 | 0,01766 | 0,02772 | 0,03679 |
+| GF-CF | 0,00385 | 0,00384 | 0,00839 | 0,01886 |
+
+GRNR cao hơn EASE top-128 ở ba trong bốn mức và thấp hơn cả hai bản EASE ở mức 50%. Ở mức 100%, GRNR mất khoảng 2,5 phút để khớp mô hình trên CPU. Ma trận trọng số float32 của EASE đầy đủ ước tính chiếm 7,49 GiB, so với checkpoint 40,5 MiB của GRNR. [Biểu đồ nhóm giải trực tiếp và MostPop](report/image/H9_mostpop_closed_ndcg20.png)
+
+### Nhóm huấn luyện lặp
+
+| Mô hình | 25% | 50% | 75% | 100% |
+| --- | ---: | ---: | ---: | ---: |
+| **DFHF** | **0,01766** | **0,02266** | **0,02901** | **0,03519** |
+| LightGCN | 0,00842 | 0,01839 | 0,02261 | 0,02655 |
+| XSimGCL | 0,01117 | 0,01933 | 0,02759 | 0,03292 |
+| DirectAU | 0,01029 | 0,02050 | 0,02698 | 0,03205 |
+
+Ở mức 25%, MostPop đạt 0,01771. Chênh lệch nhỏ giữa DFHF và MostPop chưa được kiểm định. Với lịch sử chỉ có một tương tác, DFHF xếp hạng bằng hệ số chặn đã học của từng sản phẩm. [Biểu đồ nhóm huấn luyện lặp và MostPop](report/image/H9_mostpop_trained_ndcg20.png)
+
+Các phép so sánh trong từng nhóm mang tính khám phá, dùng bootstrap ghép cặp theo người dùng với 10.000 lần lấy mẫu lại và hiệu chỉnh Holm. Kết quả đến từ một bộ dữ liệu, một seed và tập xác thực đã dùng để chọn checkpoint cho các mô hình huấn luyện lặp. Ngân sách tinh chỉnh chưa đồng đều và thời gian chạy được đo trên các phần cứng khác nhau. [Giao thức và kết quả chi tiết, Chương 4–6](report/main.pdf)
+
+## Tái tạo thực nghiệm
+
+**Khớp một mô hình GRNR trên CPU** và ghi kết quả vào thư mục riêng. Dữ liệu đã xử lý đi kèm repo. Khi cần dựng lại dữ liệu từ nguồn, chạy `python scripts/prepare_data.py`. Script tải dữ liệu theo [cấu hình chung](configs/common.yaml).
+
+```bash
+python scripts/train_model.py --model grnr --density 1.0 --seed 42 --device cpu --results results/reproduction
 ```
 
-trong đó $`H_u`$ là tập sản phẩm người dùng $`u`$ đã mua, $`\tilde{\mathbf{s}}_j`$ và $`\tilde{\mathbf{v}}_i`$
-là véc-tơ nguồn và véc-tơ đích đã lọc của sản phẩm, còn $`b_i`$ là độ lệch riêng của sản phẩm $`i`$. Mô hình
-được tối ưu bằng Adam với hàm softmax trên toàn danh mục, mỗi lần che một sản phẩm trong lịch sử để dự đoán.
-Giống GRNR, DFHF phục vụ được người dùng mới chỉ từ lịch sử mua.
+Thay `--model` bằng `dfhf`, `lightgcn`, `xsimgcl`, `directau`, `ease` hoặc `gfcf` và chọn `--density` từ `0.25`, `0.5`, `0.75`, `1.0`. Chạy lại mỗi mô hình ở cả bốn mức để tái tạo hai nhóm so sánh. DFHF và ba đối chứng huấn luyện lặp dùng 200 epoch, giữ checkpoint có NDCG@20 cao nhất trên tập xác thực. Các lần chạy gốc dùng [notebook GPU](kaggle/kaggle_train.ipynb) cho nhóm này và [notebook CPU](kaggle/kaggle_ease.ipynb) cho EASE đầy đủ do yêu cầu bộ nhớ của ma trận dày.
 
-Ba mạng nơ-ron đồ thị học một véc-tơ riêng cho từng người dùng khi huấn luyện, nên không gợi ý được cho người
-dùng mới nếu không huấn luyện lại.
+Sau khi có kết quả ở cả bốn mức, chạy các lệnh sau để tạo bảng tổng hợp, bảng và hình cho nhóm giải trực tiếp, cùng các hình cho nhóm huấn luyện lặp.
 
-## Dữ liệu
-
-Bộ đánh giá sản phẩm Amazon Electronics, phiên bản chỉ giữ người dùng và sản phẩm có ít nhất 5 đánh giá [6, 7].
-Đánh giá từ 4 sao trở lên được coi là một lượt mua phù hợp; lịch sử của mỗi người dùng được chia theo thời gian.
-
-| Thống kê | Giá trị |
-|---|---:|
-| Số người dùng | 124.895 |
-| Số sản phẩm | 44.843 |
-| Số tương tác huấn luyện | 858.192 |
-| Số tương tác kiểm định | 107.274 |
-| Độ thưa của dữ liệu huấn luyện | 99,98 % |
-| Độ dài lịch sử mua, trung bình / trung vị | 6,87 / 5 |
-
-Để đo độ bền khi dữ liệu khan hiếm, mọi mô hình còn được huấn luyện trên **75 %, 50 % và 25 %** số tương tác
-huấn luyện (lấy mẫu cố định với hạt giống 42).
-
-## Kết quả
-
-### Độ chính xác
-
-NDCG@20 trên tập kiểm định: mỗi mô hình xếp hạng toàn bộ danh mục, loại các sản phẩm người dùng đã mua; có
-107.215 người dùng được đánh giá.
-
-| Mô hình | 25 % | 50 % | 75 % | 100 % | Thời gian huấn luyện ở 100 % |
-|---|---:|---:|---:|---:|---:|
-| **GRNR** | 0,0080 | 0,0171 | 0,0293 | **0,0383** | 2,5 phút (CPU) |
-| **DFHF** | **0,0177** | **0,0227** | 0,0290 | 0,0352 | 127 phút (GPU) |
-| XSimGCL | 0,0112 | 0,0193 | 0,0276 | 0,0329 | 63 phút (GPU) |
-| DirectAU | 0,0103 | 0,0205 | 0,0270 | 0,0321 | 85 phút (GPU) |
-| LightGCN | 0,0084 | 0,0184 | 0,0226 | 0,0265 | 43 phút (GPU) |
-| EASE | 0,0067 | 0,0192 | **0,0294** | 0,0380 | 11 phút (CPU) |
-| GF-CF | 0,0039 | 0,0038 | 0,0084 | 0,0189 | 45 phút (CPU) |
-
-Thời gian huấn luyện đo trên phần cứng khác nhau (CPU và GPU), nên chỉ so được theo bậc độ lớn.
-
-<p align="center">
-  <img src="reports/figures/H1_density_ndcg20.png" width="49%" alt="NDCG@20 theo tỉ lệ dữ liệu, nhóm cần huấn luyện">
-  <img src="reports/figures/H1_closed_form_density_ndcg20.png" width="49%" alt="NDCG@20 theo tỉ lệ dữ liệu, nhóm giải trực tiếp">
-</p>
-<p align="center"><sub>NDCG@20 theo tỉ lệ dữ liệu huấn luyện. Trái: GRNR, DFHF và các mạng nơ-ron đồ thị.
-Phải: GRNR và các mô hình giải trực tiếp.</sub></p>
-
-### So sánh thống kê
-
-Các phép so sánh chia thành hai nhóm, mỗi nhóm hiệu chỉnh Holm riêng. Mọi kiểm định là bootstrap ghép cặp theo
-người dùng (10.000 lần lấy mẫu lại), một phía, theo hướng mô hình đề xuất tốt hơn.
-
-**So sánh chính: mô hình đề xuất với các mạng nơ-ron đồ thị** (bảng B3, toàn bộ dữ liệu).
-
-| So sánh | Chênh lệch NDCG@20 | Khoảng tin cậy 95 % | p Holm |
-|---|---:|---|---:|
-| GRNR − LightGCN | +0,0117 | [+0,0109; +0,0126] | 0,0006 |
-| GRNR − XSimGCL | +0,0054 | [+0,0046; +0,0061] | 0,0006 |
-| GRNR − DirectAU | +0,0062 | [+0,0055; +0,0070] | 0,0006 |
-| DFHF − LightGCN | +0,0086 | [+0,0080; +0,0093] | 0,0006 |
-| DFHF − XSimGCL | +0,0023 | [+0,0017; +0,0028] | 0,0006 |
-| DFHF − DirectAU | +0,0031 | [+0,0025; +0,0038] | 0,0006 |
-
-**So sánh bổ sung: GRNR với các mô hình giải trực tiếp** (bảng B5–B6, hiệu chỉnh Holm trên 3 phép so sánh ở mỗi
-tỉ lệ dữ liệu). Nhóm so sánh này được lập sau khi đã xem kết quả nên chỉ mang tính khám phá.
-
-| GRNR so với | 25 % | 50 % | 75 % | 100 % |
-|---|---|---|---|---|
-| EASE bản đầy đủ (7,5 GB) | GRNR hơn | EASE hơn | ngang (p = 0,72) | ngang (p = 0,051) |
-| EASE rút gọn 128 trọng số (25–32 MB) | GRNR hơn | EASE hơn | GRNR hơn | GRNR hơn |
-| GF-CF | GRNR hơn | GRNR hơn | GRNR hơn | GRNR hơn |
-
-Trọng số đã lưu của GRNR chiếm 6–41 MB tùy tỉ lệ dữ liệu, cỡ tương đương bản EASE rút gọn.
-
-**Chỗ GRNR không thắng.** Ở mức 50 % dữ liệu, GRNR thấp hơn cả 3 mạng nơ-ron đồ thị và cả hai bản EASE. Ở mức
-25 % và 50 %, DFHF là mô hình mạnh nhất. GF-CF yếu trên dữ liệu rất thưa này vì cách chuẩn hóa của nó ưu tiên
-những sản phẩm ít người mua.
-
-## Giao thức đánh giá
-
-- **Mục tiêu dự đoán:** sản phẩm mua tiếp theo của mỗi người dùng. Mọi mô hình xếp hạng toàn bộ 44.843 sản phẩm,
-  loại các sản phẩm người dùng đã mua, và được đánh giá trên cùng một nhóm người dùng.
-- **Chỉ số:** NDCG@10/20, Recall@10/20 và MRR@20.
-- **Chọn cấu hình:** chỉ so sánh trên một nửa số người dùng của tập kiểm định (chia theo mã băm); nửa còn lại
-  dành để xác nhận. Mọi quyết định được ghi vào nhật ký, chỉ thêm, không sửa.
-- **Kiểm định thống kê:** bootstrap ghép cặp theo người dùng, một phía, hiệu chỉnh Holm trong từng nhóm so sánh.
-- **Cấu hình mô hình đối chứng:** EASE và GF-CF mỗi mô hình dùng một cấu hình cố định, không tinh chỉnh trên dữ
-  liệu này: EASE với λ = 300 (giá trị giữa của lưới thường dùng 100/300/1000), GF-CF theo mặc định của tác giả
-  (k = 256, α = 0,3). Demo dùng bản EASE rút gọn, chỉ giữ 128 trọng số lớn nhất của mỗi sản phẩm; mọi số liệu EASE
-  ở trên là bản đầy đủ, trừ khi ghi rõ là bản rút gọn.
-
-## Hạn chế
-
-- **Một hạt giống ngẫu nhiên (42).** Chưa đo độ dao động giữa các lần chạy; khoảng tin cậy chỉ phản ánh sai số
-  do lấy mẫu người dùng.
-- **Chỉ trên tập kiểm định.** Tập kiểm tra cuối cùng (test) được giữ riêng; không con số nào ở đây là kết quả
-  kiểm tra cuối cùng.
-- **So sánh bổ sung mang tính khám phá.** Nhóm so sánh với các mô hình giải trực tiếp được thêm vào sau khi đã
-  biết kết quả.
-- **Mô hình giải trực tiếp chưa tinh chỉnh.** EASE và GF-CF không được tinh chỉnh trên dữ liệu này, nên điểm của
-  chúng có thể thấp hơn mức tốt nhất chúng đạt được.
-- **Một bộ dữ liệu.** Mọi kết luận chỉ áp dụng cho Amazon Electronics.
-
-## Cấu trúc thư mục
-
+```bash
+python scripts/summarize_results.py --results results/reproduction
+python scripts/make_closed_form_report.py --results results/reproduction --output results/reproduction/closed-form
+python scripts/make_trained_group_report.py --results results/reproduction --output results/reproduction/trained
 ```
-configs/   cấu hình đã chốt: grnr, dfhf, lightgcn, xsimgcl, directau, ease, gfcf, common
-src/       xử lý dữ liệu, bộ đánh giá, hàm mất mát, vòng huấn luyện, các mô hình (src/models/*.py)
-scripts/   các lệnh chạy; scripts/verify/ kiểm chứng bằng SymPy các công thức giải trực tiếp
-app/       demo Streamlit: streamlit_app.py (giao diện), recommender.py (nạp mô hình), benchmark.py (thống kê)
-kaggle/    sổ tay (notebook) dùng trên Kaggle
-results/   mỗi lần chạy một thư mục, cùng bảng summary.csv (git chỉ lưu trọng số và lịch sử huấn luyện)
-reports/   figures/ (hình PNG) và tables/ (bảng CSV)
-tests/     bộ kiểm thử pytest
-```
+
+**Tệp đi kèm repo.** Git lưu dữ liệu đã xử lý, checkpoint, lịch sử huấn luyện và hình báo cáo. `metrics.json`, `val_predictions.npy`, `val_users.npy` và các bảng CSV thực nghiệm được tạo khi chạy pipeline. Để bật đầy đủ thẻ đánh giá trong demo, đặt `summary.csv` và các tệp kết quả theo từng lần chạy vào cây `results/` mặc định của ứng dụng, rồi chép bảng B5/B6 vào `reports/tables/`. Các checkpoint lịch sử nằm trong `results/sgkr/` và `results/sphr/`, tương ứng với GRNR và DFHF.
+
+## Cấu trúc repo
+
+| Đường dẫn | Nội dung |
+| --- | --- |
+| [`src/`](src/) · [`configs/`](configs/) | Mô hình, xử lý dữ liệu, đánh giá và cấu hình thực nghiệm |
+| [`scripts/`](scripts/) · [`kaggle/`](kaggle/) | Lệnh huấn luyện, tổng hợp kết quả và notebook |
+| [`app/`](app/) | Demo Streamlit |
+| [`data/`](data/) · [`results/`](results/) | Dữ liệu đã xử lý và checkpoint |
+| [`report/`](report/) · [`reports/figures/`](reports/figures/) | Báo cáo PDF, hình minh họa và hình thực nghiệm |
 
 ## Tài liệu tham khảo
 
-1. X. He, K. Deng, X. Wang, Y. Li, Y. Zhang, M. Wang. *LightGCN: Simplifying and Powering Graph Convolution
-   Network for Recommendation.* SIGIR 2020.
-2. J. Yu, X. Xia, T. Chen, L. Cui, N. Q. V. Hung, H. Yin. *XSimGCL: Towards Extremely Simple Graph Contrastive
-   Learning for Recommendation.* IEEE TKDE 2023.
-3. C. Wang, Y. Yu, W. Ma, M. Zhang, C. Chen, Y. Liu, S. Ma. *Towards Representation Alignment and Uniformity in
-   Collaborative Filtering.* KDD 2022.
-4. H. Steck. *Embarrassingly Shallow Autoencoders for Sparse Data.* WWW 2019.
-5. Y. Shen, Y. Wu, Y. Zhang, C. Shan, J. Zhang, K. B. Letaief, D. Li. *How Powerful is Graph Convolution for
-   Recommendation?* CIKM 2021.
-6. R. He, J. McAuley. *Ups and Downs: Modeling the Visual Evolution of Fashion Trends with One-Class
-   Collaborative Filtering.* WWW 2016.
-7. J. McAuley, C. Targett, Q. Shi, A. van den Hengel. *Image-Based Recommendations on Styles and Substitutes.*
-   SIGIR 2015.
+- **Dữ liệu.** McAuley và cộng sự, SIGIR 2015. [Image-Based Recommendations on Styles and Substitutes](https://arxiv.org/abs/1506.04757). He và McAuley, WWW 2016. [Ups and Downs](https://arxiv.org/abs/1602.01585).
+- **Đối chứng giải trực tiếp.** Steck, WWW 2019. [EASE](https://arxiv.org/abs/1905.03375). Shen và cộng sự, CIKM 2021. [GF-CF](https://arxiv.org/abs/2108.07567).
+- **Đối chứng huấn luyện lặp.** He và cộng sự, SIGIR 2020. [LightGCN](https://arxiv.org/abs/2002.02126). Yu và cộng sự, IEEE TKDE. [XSimGCL](https://arxiv.org/abs/2209.02544). Wang và cộng sự, KDD 2022. [DirectAU](https://arxiv.org/abs/2206.12811).
+- **Biên tập README.** Kassis, Agarwal, He, Patel và Brueckner (2026). [Scientific Agent Skills](https://arxiv.org/abs/2609.00065).
