@@ -27,14 +27,13 @@ LABELS = {"grnr": "GRNR", "dfhf": "DFHF", "lightgcn": "LightGCN", "xsimgcl": "XS
           "ease": "EASE (top-128)", "gfcf": "GF-CF"}
 COLORS = {"grnr": "#2a78d6", "dfhf": "#eb6834", "lightgcn": "#1baf7a", "xsimgcl": "#eda100", "directau": "#e87ba4",
           "ease": "#7a5cc7", "gfcf": "#8c6d46"}
-# Display rows of the demo: (heading, card subtitle, models).
-GROUPS = (("Mô hình đề xuất", "Đề xuất", ("grnr", "dfhf")),
-          ("Baseline đồ thị · học embedding", "Baseline · GNN", ("lightgcn", "xsimgcl", "directau")),
-          ("Baseline closed-form · cùng họ GRNR", "Baseline · closed-form", ("ease", "gfcf")))
+# Display groups of the demo, as in the report: each proposed model sits with the baselines of its own group
+# and is compared only with them. (heading, card subtitle, models); the first model of a group is the proposed one.
+GROUPS = (("Nhóm giải trực tiếp", "Nhóm giải trực tiếp", ("grnr", "ease", "gfcf")),
+          ("Nhóm cần huấn luyện", "Nhóm cần huấn luyện", ("dfhf", "lightgcn", "xsimgcl", "directau")))
 KINDS = {model: kind for _, kind, models in GROUPS for model in models}
 # Accent per family (badges, table text) with a light tint for backgrounds.
-FAMILY_COLORS = {"Đề xuất": ("#1d63c2", "#e8f0fc"), "Baseline · GNN": ("#13865d", "#e6f5ee"),
-                 "Baseline · closed-form": ("#6a4bbd", "#f0ecfa")}
+FAMILY_COLORS = {"Nhóm giải trực tiếp": ("#1d63c2", "#e8f0fc"), "Nhóm cần huấn luyện": ("#c2551d", "#fcefe8")}
 DENSITIES = (1.0, 0.75, 0.5, 0.25)
 SEED = 42
 # DEMO_RESULTS points the demo at another results tree, e.g. results\preview (1-epoch checkpoints).

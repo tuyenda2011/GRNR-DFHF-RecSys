@@ -1,12 +1,14 @@
-"""Demo: Hệ thống khuyến nghị sản phẩm điện tử (GRNR, DFHF, three graph baselines and two closed-form baselines).
+"""Demo: Hệ thống khuyến nghị sản phẩm điện tử (GRNR and DFHF, each with the baselines of its own group).
 
   streamlit run app/streamlit_app.py
 
 Laid out for a 1920x1080 desktop. Three tabs:
-  Gợi ý cho khách     the top-10 of all seven models side by side (one column each, grouped by family) next to the
-                      customer's history and next purchase; hovering a product lights it up in every column.
+  Gợi ý cho khách     the top-10 of all seven models side by side (one column each, grouped as in the report:
+                      closed-form group, trained group) next to the user's history and validation target;
+                      hovering a product lights it up in every column.
   Khách mới           the same grid for a history built from a product search (graph baselines cannot serve it).
-  Đánh giá mô hình    key findings, leaderboard, charts, paired tests against GRNR, protocol and report figures.
+  Đánh giá mô hình    per group: findings, leaderboard, charts, paired tests of the proposed model against the
+                      baselines of its group, and the report figures. GRNR and DFHF are never compared directly.
 Validation data only; the test split is never opened.
 """
 from __future__ import annotations
@@ -26,10 +28,11 @@ import pandas as pd
 import streamlit as st
 
 from app.benchmark import METRICS, by_density, closed_form, closed_form_all, leaderboard, read_summary, significance
-from app.recommender import (COLORS, DENSITIES, FAMILY_COLORS, GROUPS, KINDS, LABELS, MODELS, PREVIEW, RESULTS,
+from app.recommender import (COLORS, DENSITIES, FAMILY_COLORS, GROUPS, LABELS, MODELS, PREVIEW, RESULTS,
                              checkpoint_ndcg, load_data, load_ranker, recommend, sample_users)
 
-FIGURES = ROOT / "reports/figures"
+FIGURES = ROOT / "report/image"  # the figures printed in the report, already split by group
+CHART_FONT = "Be Vietnam Pro"  # same face as the page CSS, so Vega measures labels with the font it draws
 CATEGORY_TINTS = ("#fdecea", "#e8f0fc", "#e6f5ee", "#fdf3e1", "#f0ecfa", "#e3f4f6", "#fbeaf2", "#eef1e4")
 
 CSS = """
@@ -135,7 +138,7 @@ def plain_label(model):
     return LABELS[model].replace(" (top-128)", "")
 
 
-@st.cache_resource(show_spinner="Đang nạp dữ liệu train và validation…")
+@st.cache_resource(show_spinner="Đang nạp tập huấn luyện và tập xác thực…")
 def get_data():
     data = load_data()
     samples, eligible = sample_users(data)
@@ -147,8 +150,18 @@ def get_ranker(model, density):
     return load_ranker(model, density, get_data()[0])
 
 
+def vn_int(number):
+    """Thousands separated by a dot, as in the report (124.895)."""
+    return f"{number:,}".replace(",", ".")
+
+
+def vn(number, spec):
+    """Format a number the Vietnamese way, as in the report: decimal comma, thousands dot (0,0383; 7.671,0)."""
+    return format(number, spec).replace(",", "\x00").replace(".", ",").replace("\x00", ".")
+
+
 def rankers(density):
-    with st.spinner(f"Đang nạp 7 mô hình ở mật độ {density:.0%}…"):
+    with st.spinner(f"Đang nạp 7 mô hình ở tỉ lệ dữ liệu {density:.0%}…"):
         return {model: get_ranker(model, density) for model in MODELS}
 
 
@@ -159,7 +172,8 @@ def model_ndcg(model, density):
 
 CHECK = ('<svg class="ic" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 8.5l3.2 3L13 4.5" fill="none" '
          'stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>')
-FAMILY_SHORT = {"Đề xuất": "Đề xuất", "Baseline · GNN": "GNN", "Baseline · closed-form": "Closed-form"}
+FAMILY_SHORT = {"Nhóm giải trực tiếp": "Giải trực tiếp", "Nhóm cần huấn luyện": "Cần huấn luyện"}
+PROPOSED_MODELS = ("grnr", "dfhf")
 
 
 def view_options(key):
@@ -173,7 +187,7 @@ def display_popover():
     with st.popover("Hiển thị", icon=":material/tune:", width="stretch"):
         hide = st.toggle("Ẩn sản phẩm không rõ tên", value=True, key="hide",
                          help="Chỉ lọc phần hiển thị. Tắt để top-10 trùng đúng với lúc đánh giá.")
-        st.markdown(f'<div class="legend"><span><i class="hitkey">{CHECK}</i>Trúng sản phẩm mua tiếp theo</span>'
+        st.markdown(f'<div class="legend"><span><i class="hitkey">{CHECK}</i>Trúng sản phẩm mục tiêu</span>'
                     '<span><b class="n">×k</b>Số mô hình cùng gợi ý</span>'
                     '<span><i style="background:#fff1bf;border:1px solid #e0a800"></i>Rê chuột: sáng ở mọi cột</span></div>',
                     unsafe_allow_html=True)
@@ -199,7 +213,8 @@ def matrix(data, tops, density, target=None, ms=None, off=None, kinds=None):
         families.append(f'<th class="fam" colspan="{len(models)}" style="color:{accent};background:{tint}">{kind}</th>')
         for model in models:
             ndcg = model_ndcg(model, density)
-            meta = " · ".join(filter(None, [f"NDCG@20 {ndcg:.4f}" if ndcg is not None else "",
+            meta = " · ".join(filter(None, ["Đề xuất" if model in PROPOSED_MODELS else "Baseline",
+                                            f"NDCG@20 {vn(ndcg, '.4f')}" if ndcg is not None else "",
                                             f"{ms[model]:.0f} ms" if model in ms else ""]))
             heads.append(f'<th class="m" style="border-top-color:{COLORS[model]};background:{COLORS[model]}12">'
                          f'<span class="name"><b style="color:{COLORS[model]}">{plain_label(model)}</b></span>'
@@ -239,11 +254,11 @@ def history_panel(data, user):
         title, brand, leaf = item_label(data, item)
         rows.append(f'<li><span class="code">{codes[int(item)]}</span><span>{html.escape(short(title, 70))}'
                     f'<span class="sub">{html.escape(brand)}</span>{category_chip(leaf)}</span></li>')
-    st.markdown(f'<div class="panel"><h4>Lịch sử mua ({len(history)})</h4>'
+    st.markdown(f'<div class="panel"><h4>Lịch sử tương tác ({len(history)})</h4>'
                 f'<ol class="hist">{"".join(rows)}</ol></div>', unsafe_allow_html=True)
     target = data.target[user]
     title, brand, leaf = item_label(data, target)
-    st.markdown(f'<div class="panel answer"><h4>Mua tiếp theo (đáp án)</h4>{html.escape(title)}'
+    st.markdown(f'<div class="panel answer"><h4>Sản phẩm mục tiêu (tập xác thực)</h4>{html.escape(title)}'
                 f'<span class="sub">{html.escape(brand)}</span>{category_chip(leaf)}</div>', unsafe_allow_html=True)
     return codes, target
 
@@ -257,13 +272,13 @@ def why_box(ranker, history, top, codes, data):
                     f'{html.escape(short(item_label(data, item)[0], 42))}</span><b>{value / total:.0%}</b></div>'
                     for item, value in parts)
     return (f'<div class="why"><b>Vì sao GRNR gợi ý #1?</b>'
-            f'{lines or "<div>Chỉ do độ phổ biến (bias) của sản phẩm.</div>"}</div>')
+            f'{lines or "<div>Chỉ do hệ số chặn (độ phổ biến) của sản phẩm.</div>"}</div>')
 
 
 def density_radio(key, collapsed=False):
-    return st.radio("Mật độ dữ liệu train", DENSITIES, horizontal=True, key=key, format_func=lambda d: f"{d:.0%}",
+    return st.radio("Tỉ lệ dữ liệu huấn luyện", DENSITIES, horizontal=True, key=key, format_func=lambda d: f"{d:.0%}",
                     label_visibility="collapsed" if collapsed else "visible",
-                    help="Tỷ lệ tương tác train được giữ lại; mỗi mật độ có checkpoint riêng của từng mô hình.")
+                    help="Tỉ lệ tương tác huấn luyện được giữ lại; mỗi tỉ lệ có checkpoint riêng của từng mô hình.")
 
 
 # ---------- tab 1: existing customer ----------
@@ -283,7 +298,7 @@ def tab_existing(data, samples, eligible):
     if shuffle.button("Ngẫu nhiên", icon=":material/shuffle:", width="stretch"):
         st.session_state.user = int(np.random.default_rng().choice(eligible))
         st.rerun()
-    dens_label.markdown("<div style='text-align:right;font-size:14px;color:#3a4052;margin-top:-14px'>Mật độ</div>",
+    dens_label.markdown("<div style='text-align:right;font-size:14px;color:#3a4052;margin-top:-14px'>Tỉ lệ dữ liệu</div>",
                         unsafe_allow_html=True)
     with dens:
         density = density_radio("density", collapsed=True)
@@ -300,7 +315,7 @@ def tab_existing(data, samples, eligible):
         if loaded[model] is not None:
             tops[model], ms[model] = recommend(loaded[model], data, user=user, hide_untitled=hide)
     with right:
-        off ={m: f"Chưa train ở mật độ {density:.0%}" for m in MODELS if loaded[m] is None}
+        off = {m: f"Chưa huấn luyện ở tỉ lệ {density:.0%}" for m in MODELS if loaded[m] is None}
         st.markdown(matrix(data, tops, density, target, ms, off, kinds), unsafe_allow_html=True)
     with left:
         if "grnr" in tops:
@@ -351,7 +366,7 @@ def tab_new(data):
             st.session_state.asked = list(picked)
     with right:
         asked = st.session_state.get("asked")
-        off = {m: "Chưa train ở mật độ này" for m in MODELS if loaded[m] is None}
+        off = {m: "Chưa huấn luyện ở tỉ lệ này" for m in MODELS if loaded[m] is None}
         off.update({m: "Không hỗ trợ khách mới" for m in MODELS
                     if loaded[m] is not None and not loaded[m].supports_new_users})
         tops, ms = {}, {}
@@ -368,7 +383,7 @@ def tab_new(data):
 
 # ---------- tab 3: benchmark ----------
 
-MAIN_MODELS = ("grnr", "dfhf", "lightgcn", "xsimgcl", "directau")
+MAIN_MODELS = ("dfhf", "lightgcn", "xsimgcl", "directau")  # the trained group
 GREEN, AMBER, RED = ("background-color:#e6f5ee;color:#13865d;font-weight:600",
                      "background-color:#fff8e6;color:#8a6d00;font-weight:600",
                      "background-color:#fdecea;color:#c0392b;font-weight:600")
@@ -390,47 +405,44 @@ def finding(color, text):
 
 
 def findings_main(table, tests, density):
-    """Plain-language conclusions of the main comparison (five models, tests as report B3)."""
+    """Plain-language conclusions of the trained group: DFHF against LightGCN, XSimGCL and DirectAU."""
     best = table.iloc[0]
-    finding(COLORS[best.model], f"<b>{best['Mô hình']}</b> có NDCG@20 cao nhất ở mật độ {density:.0%}: "
-                                f"<b>{best['NDCG@20']:.4f}</b>.")
-    for proposed in ("grnr", "dfhf"):
-        rows = tests[tests.proposed == proposed] if not tests.empty else tests
-        if rows.empty:
-            continue
+    finding(COLORS[best.model], f"<b>{best['Mô hình']}</b> có NDCG@20 cao nhất nhóm ở tỉ lệ dữ liệu {density:.0%}: "
+                                f"<b>{vn(best['NDCG@20'], '.4f')}</b>.")
+    rows = tests[tests.proposed == "dfhf"] if not tests.empty else tests
+    if not rows.empty:
         wins = rows[rows.p_holm < .05]
         ties = rows[(rows.p_holm >= .05) & rows.ci95.map(lambda c: c[1] >= 0)]
-        text = (f"{LABELS[proposed]} tốt hơn có ý nghĩa thống kê <b>{len(wins)}/{len(rows)}</b> baseline GNN "
-                f"(p Holm &lt; 0,05)")
         worse = rows[rows.ci95.map(lambda c: c[1] < 0)]  # whole 95% interval below zero
+        text = (f"DFHF cao hơn có ý nghĩa thống kê <b>{len(wins)}/{len(rows)}</b> baseline cùng nhóm "
+                f"(p Holm &lt; 0,05, khoảng tin cậy không chứa 0)")
         if len(ties):
-            text += "; chưa khác biệt có ý nghĩa với " + ", ".join(f"<b>{LABELS[m]}</b>" for m in ties.baseline)
+            text += "; chưa phát hiện khác biệt với " + ", ".join(f"<b>{LABELS[m]}</b>" for m in ties.baseline)
         if len(worse):
-            text += "; kém hơn " + ", ".join(f"<b>{LABELS[m]}</b>" for m in worse.baseline)
-        finding(COLORS[proposed], text + ".")
-    grnr, gnn = table[table.model == "grnr"], table[table.model.isin(["lightgcn", "xsimgcl", "directau"])]
-    if len(grnr) and len(gnn):
-        fastest = gnn.train_seconds.min()
-        finding("#13865d", f"GRNR train trong <b>{grnr.train_seconds.iloc[0] / 60:.1f} phút</b>, nhanh hơn khoảng "
-                           f"<b>{fastest / grnr.train_seconds.iloc[0]:.0f}×</b> so với GNN nhanh nhất "
-                           f"({fastest / 60:.0f} phút), và gợi ý được cho khách mới.")
+            text += "; thấp hơn " + ", ".join(f"<b>{LABELS[m]}</b>" for m in worse.baseline)
+        finding(COLORS["dfhf"], text + ".")
+    dfhf, others = table[table.model == "dfhf"], table[table.model != "dfhf"]
+    if len(dfhf) and len(others):
+        slowest = others.train_seconds.max()
+        finding("#13865d", f"DFHF huấn luyện 200 epoch trong <b>{dfhf.train_seconds.iloc[0] / 60:.0f} phút</b>, "
+                           f"gấp <b>{vn(dfhf.train_seconds.iloc[0] / slowest, '.1f')} lần</b> baseline chậm nhất "
+                           f"({slowest / 60:.0f} phút); đổi lại DFHF chấm điểm được lịch sử mới mà không cần huấn luyện lại.")
 
 
 def leaderboard_view(table):
-    table = table.assign(**{"Train (phút)": table.train_seconds / 60})
-    view = table[["Hạng", "Mô hình", "Nhóm", *METRICS, "vs GRNR", "Train (phút)", "inference_ms_per_user"]]
-    view = view.rename(columns={"vs GRNR": "NDCG@20 so với GRNR (%)", "inference_ms_per_user": "Suy luận (ms/user)"})
-    family = {kind: accent for kind, (accent, _) in FAMILY_COLORS.items()}
+    table = table.assign(**{"Huấn luyện (phút)": table.train_seconds / 60})
+    view = table[["Hạng", "Mô hình", *METRICS, "vs DFHF", "Huấn luyện (phút)", "inference_ms_per_user"]]
+    view = view.rename(columns={"vs DFHF": "NDCG@20 so với DFHF (%)",
+                                "inference_ms_per_user": "Suy luận (ms/người dùng)"})
     styler = (view.style
-              .format({**{m: "{:.4f}" for m in METRICS}, "NDCG@20 so với GRNR (%)": "{:+.1f}",
-                       "Train (phút)": "{:.1f}", "Suy luận (ms/user)": "{:.3f}"})
+              .format({**{m: "{:.4f}" for m in METRICS}, "NDCG@20 so với DFHF (%)": "{:+.1f}",
+                       "Huấn luyện (phút)": "{:.1f}", "Suy luận (ms/người dùng)": "{:.3f}"}, decimal=",", thousands=".")
               .highlight_max(subset=list(METRICS), props="font-weight:700; background-color:#e6f5ee")
-              .map(lambda kind: f"color:{family.get(kind, '#1c2030')}; font-weight:600", subset=["Nhóm"])
               .map(lambda v: "color:#13865d" if v > 0 else "color:#c0392b" if v < 0 else "",
-                   subset=["NDCG@20 so với GRNR (%)"])
-              .apply(lambda row: ["background-color:#e8f0fc" if row["Mô hình"] == "GRNR" else ""] * len(row), axis=1))
+                   subset=["NDCG@20 so với DFHF (%)"])
+              .apply(lambda row: ["background-color:#fcefe8" if row["Mô hình"] == "DFHF" else ""] * len(row), axis=1))
     st.dataframe(styler, hide_index=True, width="stretch")
-    st.caption("Như bảng B2 của báo cáo. Tô xanh: cao nhất cột. Thời gian train: GRNR chạy CPU, các mô hình khác GPU.")
+    st.caption("Tô xanh: cao nhất cột. Kết quả trên tập xác thực; cả bốn mô hình huấn luyện trên GPU Tesla T4.")
 
 
 def charts(density, metric):
@@ -438,35 +450,38 @@ def charts(density, metric):
     frame["Mô hình"] = frame.model.map(plain_label)
     colors = alt.Scale(domain=[plain_label(m) for m in MAIN_MODELS], range=[COLORS[m] for m in MAIN_MODELS])
     lines = (alt.Chart(frame).mark_line(point=True, strokeWidth=2.5)
-             .encode(x=alt.X("density:Q", title="Mật độ dữ liệu train", axis=alt.Axis(format="%", values=list(DENSITIES))),
+             .encode(x=alt.X("density:Q", title="Tỉ lệ dữ liệu huấn luyện giữ lại",
+                             axis=alt.Axis(format="%", values=list(DENSITIES))),
                      y=alt.Y(f"{metric}:Q", title=metric),
-                     color=alt.Color("Mô hình:N", scale=colors, legend=alt.Legend(orient="bottom", columns=5)),
-                     tooltip=["Mô hình", alt.Tooltip("density:Q", format="%"), alt.Tooltip(f"{metric}:Q", format=".4f")])
-             .properties(title=f"{metric} theo mật độ", height=380))
+                     color=alt.Color("Mô hình:N", scale=colors, legend=alt.Legend(orient="right", columns=1, labelLimit=260, title=None)),
+                     tooltip=["Mô hình", alt.Tooltip("density:Q", title="Tỉ lệ dữ liệu", format="%"), alt.Tooltip(f"{metric}:Q", format=".4f")])
+             .properties(title=f"{metric} theo tỉ lệ dữ liệu", height=380))
     current = frame[frame.density == density].assign(minutes=lambda f: f.train_seconds / 60)
     scatter = (alt.Chart(current).mark_circle(size=170)
-               .encode(x=alt.X("minutes:Q", scale=alt.Scale(type="log"), title="Thời gian train (phút, thang log)"),
+               .encode(x=alt.X("minutes:Q", scale=alt.Scale(type="log", padding=70), title="Thời gian huấn luyện (phút, thang log)"),
                        y=alt.Y(f"{metric}:Q", title=metric),
                        color=alt.Color("Mô hình:N", scale=colors, legend=None),
-                       tooltip=["Mô hình", alt.Tooltip("minutes:Q", format=".1f"), alt.Tooltip(f"{metric}:Q", format=".4f")])
-               .properties(title=f"Chất lượng và chi phí · mật độ {density:.0%}", height=380))
+                       tooltip=["Mô hình", alt.Tooltip("minutes:Q", title="Phút", format=".1f"), alt.Tooltip(f"{metric}:Q", format=".4f")])
+               .properties(title=f"Chất lượng và thời gian huấn luyện · tỉ lệ dữ liệu {density:.0%}", height=380))
     labels = scatter.mark_text(align="left", dx=10, fontSize=12).encode(text="Mô hình:N")
     left, right = st.columns(2, gap="large")
-    left.altair_chart(lines, width="stretch")
-    right.altair_chart(scatter + labels, width="stretch")
+    left.altair_chart(lines.configure(font=CHART_FONT), width="stretch")
+    right.altair_chart((scatter + labels).configure(font=CHART_FONT), width="stretch")
 
 
 def significance_view(tests):
     if tests.empty:
-        st.caption("Chưa đủ dự đoán validation để kiểm định ở mật độ này.")
+        st.caption("Chưa đủ dự đoán trên tập xác thực để kiểm định ở tỉ lệ dữ liệu này.")
         return
     view = pd.DataFrame({
         "So sánh": tests.proposed.map(LABELS) + " − " + tests.baseline.map(LABELS), "Hiệu NDCG@20": tests.delta,
-        "KTC 95%": [f"[{low:+.4f}, {high:+.4f}]" for low, high in tests.ci95],
-        "p một phía": tests.p_one_sided, "p Holm": tests.p_holm, "Kết luận": tests.verdict, "Số user": tests.n_users})
-    st.dataframe(view.style.format({"Hiệu NDCG@20": "{:+.5f}", "p một phía": "{:.4f}", "p Holm": "{:.4f}"})
+        "KTC 95%": [f"[{vn(low, '+.4f')}; {vn(high, '+.4f')}]" for low, high in tests.ci95],
+        "p một phía": tests.p_one_sided, "p Holm": tests.p_holm, "Kết luận": tests.verdict,
+        "Số người dùng": tests.n_users.map(vn_int)})
+    st.dataframe(view.style.format({"Hiệu NDCG@20": "{:+.5f}", "p một phía": "{:.4f}", "p Holm": "{:.4f}"}, decimal=",")
                  .map(verdict_style, subset=["Kết luận"]), hide_index=True, width="stretch")
-    st.caption("Như bảng B3: paired bootstrap 10.000 lần, một phía (mô hình đề xuất tốt hơn), Holm trên 6 so sánh.")
+    st.caption("Bootstrap ghép cặp theo người dùng 10.000 lần; giá trị p một phía cho giả thuyết DFHF tốt hơn, "
+               "hiệu chỉnh Holm trên 3 so sánh của tỉ lệ dữ liệu đang chọn.")
 
 
 CLOSED_COLORS = {"GRNR (đề xuất)": COLORS["grnr"], "EASE (đầy đủ)": COLORS["ease"], "EASE top-128": "#b39ae6",
@@ -482,22 +497,24 @@ def closed_form_overview(b5, b6, density):
     parts = [label + " " + ", ".join(f"<b>{name}</b>" for name, v in rivals.items() if v == verdict)
              for verdict, label in phrases if verdict in rivals.values()]
     text = "; ".join(parts)
-    finding(COLORS["grnr"], text[:1].upper() + text[1:] + " (Holm, p &lt; 0,05).")
+    finding(COLORS["grnr"], text[:1].upper() + text[1:] + " (p Holm &lt; 0,05).")
     size = dict(zip(b5["Mô hình"], b5["Checkpoint (MB)"]))
     minutes = dict(zip(b5["Mô hình"], b5["Train (phút)"]))
-    finding("#13865d", f"Checkpoint: GRNR <b>{size['GRNR (đề xuất)']:.1f} MB</b> · EASE top-128 "
-                       f"<b>{size['EASE top-128']:.1f} MB</b> · EASE đầy đủ cần <b>{size['EASE (đầy đủ)'] / 1024:.1f} GB"
-                       f"</b> (không lưu được). Train: GRNR {minutes['GRNR (đề xuất)']:.1f} phút, EASE "
-                       f"{minutes['EASE (đầy đủ)']:.1f} phút.")
+    finding("#13865d", f"Dung lượng: GRNR <b>{vn(size['GRNR (đề xuất)'], '.1f')} MiB</b> · EASE top-128 "
+                       f"<b>{vn(size['EASE top-128'], '.1f')} MiB</b> · ma trận EASE đầy đủ khoảng "
+                       f"<b>{vn(size['EASE (đầy đủ)'] / 1024, '.1f')} GiB</b> (không lưu thành checkpoint). Thời gian xây dựng: "
+                       f"GRNR {vn(minutes['GRNR (đề xuất)'], '.1f')} phút, EASE {vn(minutes['EASE (đầy đủ)'], '.1f')} phút.")
     metrics = CLOSED_METRICS
-    st.markdown(f"##### Bảng xếp hạng · mật độ {density:.0%}")
-    st.dataframe(b5.sort_values("NDCG@20", ascending=False)[["Mô hình", *metrics, "Checkpoint (MB)", "Train (phút)"]]
-                 .style.format({**{m: "{:.4f}" for m in metrics}, "Checkpoint (MB)": "{:,.1f}",
-                                "Train (phút)": "{:.1f}"})
+    st.markdown(f"##### Bảng xếp hạng · tỉ lệ dữ liệu {density:.0%}")
+    view = b5.rename(columns={"Checkpoint (MB)": "Dung lượng (MiB)", "Train (phút)": "Xây dựng (phút)"})
+    st.dataframe(view.sort_values("NDCG@20", ascending=False)[["Mô hình", *metrics, "Dung lượng (MiB)", "Xây dựng (phút)"]]
+                 .style.format({**{m: "{:.4f}" for m in metrics}, "Dung lượng (MiB)": "{:,.1f}",
+                                "Xây dựng (phút)": "{:.1f}"}, decimal=",", thousands=".")
                  .highlight_max(subset=metrics, props="font-weight:700; background-color:#e6f5ee")
                  .apply(lambda row: ["background-color:#e8f0fc" if row["Mô hình"].startswith("GRNR") else ""]
                         * len(row), axis=1), hide_index=True, width="stretch")
-    st.caption("Như bảng B5 của báo cáo. Cả 4 mô hình chạy CPU; EASE đầy đủ là ma trận float32 không lưu được.")
+    st.caption("Tô xanh: cao nhất cột. Kết quả trên tập xác thực; cả bốn mô hình chạy trên CPU. "
+               "Dung lượng của EASE đầy đủ là kích thước lý thuyết của ma trận số thực 32 bit.")
 
 
 def closed_form_charts(density, metric):
@@ -506,65 +523,62 @@ def closed_form_charts(density, metric):
     if frame is None:
         return
     if metric not in CLOSED_METRICS:
-        st.caption(f"Bảng B5 không có {metric}; biểu đồ dùng NDCG@20.")
+        st.caption(f"Nhóm giải trực tiếp không có {metric}; biểu đồ dùng NDCG@20.")
         metric = "NDCG@20"
     colors = alt.Scale(domain=list(CLOSED_COLORS), range=list(CLOSED_COLORS.values()))
     lines = (alt.Chart(frame).mark_line(point=True, strokeWidth=2.5)
-             .encode(x=alt.X("Mật độ:Q", title="Mật độ dữ liệu train",
+             .encode(x=alt.X("Mật độ:Q", title="Tỉ lệ dữ liệu huấn luyện giữ lại",
                              axis=alt.Axis(format="%", values=list(DENSITIES))),
                      y=alt.Y(f"{metric}:Q", title=metric),
-                     color=alt.Color("Mô hình:N", scale=colors, legend=alt.Legend(orient="bottom", columns=4)),
-                     tooltip=["Mô hình", alt.Tooltip("Mật độ:Q", format="%"), alt.Tooltip(f"{metric}:Q", format=".4f")])
-             .properties(title=f"{metric} theo mật độ", height=380))
+                     color=alt.Color("Mô hình:N", scale=colors, legend=alt.Legend(orient="right", columns=1, labelLimit=260, title=None)),
+                     tooltip=["Mô hình", alt.Tooltip("Mật độ:Q", title="Tỉ lệ dữ liệu", format="%"), alt.Tooltip(f"{metric}:Q", format=".4f")])
+             .properties(title=f"{metric} theo tỉ lệ dữ liệu", height=380))
     current = frame[np.isclose(frame["Mật độ"], density)]
     scatter = (alt.Chart(current).mark_circle(size=170)
-               .encode(x=alt.X("Checkpoint (MB):Q", scale=alt.Scale(type="log"),
-                               title="Dung lượng checkpoint (MB, thang log)"),
+               .encode(x=alt.X("Checkpoint (MB):Q", scale=alt.Scale(type="log", padding=70),
+                               title="Dung lượng lưu trữ (MiB, thang log)"),
                        y=alt.Y(f"{metric}:Q", title=metric),
                        color=alt.Color("Mô hình:N", scale=colors, legend=None),
-                       tooltip=["Mô hình", alt.Tooltip("Checkpoint (MB):Q", format=",.1f"),
+                       tooltip=["Mô hình", alt.Tooltip("Checkpoint (MB):Q", title="MiB", format=",.1f"),
                                 alt.Tooltip(f"{metric}:Q", format=".4f")])
-               .properties(title=f"Chất lượng và dung lượng · mật độ {density:.0%}", height=380))
+               .properties(title=f"Chất lượng và dung lượng · tỉ lệ dữ liệu {density:.0%}", height=380))
     labels = scatter.mark_text(align="left", dx=10, fontSize=12).encode(text="Mô hình:N")
     left, right = st.columns(2, gap="large")
-    left.altair_chart(lines, width="stretch")
-    right.altair_chart(scatter + labels, width="stretch")
+    left.altair_chart(lines.configure(font=CHART_FONT), width="stretch")
+    right.altair_chart((scatter + labels).configure(font=CHART_FONT), width="stretch")
 
 
 def closed_form_tests(b6, density):
     """Table B6 of the closed-form part at this density."""
-    st.markdown(f"##### GRNR so với từng mô hình nghiệm đóng · mật độ {density:.0%}")
-    view = b6.assign(**{"KTC 95%": [f"[{low:+.4f}, {high:+.4f}]"
-                                     for low, high in zip(b6["KTC 95% dưới"], b6["KTC 95% trên"])]})
-    st.dataframe(view[["So sánh", "Delta NDCG@20", "KTC 95%", "p một phía", "p Holm", "Kết luận", "Số user"]].style
-                 .format({"Delta NDCG@20": "{:+.5f}", "p một phía": "{:.4f}", "p Holm": "{:.4f}"})
+    st.markdown(f"##### GRNR so với từng baseline cùng nhóm · tỉ lệ dữ liệu {density:.0%}")
+    view = b6.assign(**{"KTC 95%": [f"[{vn(low, '+.4f')}; {vn(high, '+.4f')}]"
+                                     for low, high in zip(b6["KTC 95% dưới"], b6["KTC 95% trên"])],
+                        "Số người dùng": b6["Số user"].map(vn_int)})
+    view = view.rename(columns={"Delta NDCG@20": "Hiệu NDCG@20"})
+    st.dataframe(view[["So sánh", "Hiệu NDCG@20", "KTC 95%", "p một phía", "p Holm", "Kết luận", "Số người dùng"]]
+                 .style.format({"Hiệu NDCG@20": "{:+.5f}", "p một phía": "{:.4f}", "p Holm": "{:.4f}"}, decimal=",")
                  .map(verdict_style, subset=["Kết luận"]), hide_index=True, width="stretch")
-    st.caption("Như bảng B6: paired bootstrap 10.000 lần, một phía (GRNR tốt hơn), Holm trên 3 so sánh mỗi mật độ. "
-               "Phân tích bổ sung, mang tính khám phá. EASE top-128 là bản checkpoint mà demo dùng.")
+    st.caption("Bootstrap ghép cặp theo người dùng 10.000 lần; giá trị p một phía cho giả thuyết GRNR tốt hơn, "
+               "hiệu chỉnh Holm trên 3 so sánh của tỉ lệ dữ liệu đang chọn. Cột gợi ý của EASE dùng bản top-128.")
 
 
 def figure_gallery(metric, closed_form=False):
-    """Report figures of one comparison: the five main models (H1-H8) or the closed-form supplement."""
+    """The report's own figures of one group (report/image), so the page shows exactly what the report prints."""
     slug = metric.lower().replace("@", "")
+    group = "closed_form" if closed_form else "trained"
+    figures = [(f"H1_{group}_density_{slug}.png", f"{metric} theo tỉ lệ dữ liệu"),
+               (f"H9_mostpop_{'closed' if closed_form else 'trained'}_ndcg20.png", "NDCG@20 so với MostPop"),
+               (f"H4_{group}_retention_{slug}.png", f"Tỉ lệ duy trì {metric}"),
+               (f"H5_{group}_user_groups_{slug}.png", f"{metric} theo độ dài lịch sử"),
+               (f"H8_{group}_ndcg_at_k.png", "NDCG@K theo độ dài danh sách")]
     if closed_form:
-        figures = [(f"H1_closed_form_density_{slug}.png", "Theo mật độ dữ liệu train"),
-                   (f"H4_closed_form_retention_{slug}.png", "Mức giữ chất lượng khi dữ liệu thưa"),
-                   (f"H5_closed_form_user_groups_{slug}.png", "Theo nhóm độ dài lịch sử user"),
-                   ("H8_closed_form_ndcg_at_k.png", "NDCG@k"), ("H7a_closed_form_train_time.png", "Thời gian train"),
-                   ("H7c_closed_form_checkpoint_size.png", "Dung lượng checkpoint")]
-        script = "make_closed_form_report.py"
+        figures.append(("H7c_closed_form_checkpoint_size.png", "Dung lượng lưu trữ"))
     else:
-        figures = [(f"H1_density_{slug}.png", "Theo mật độ dữ liệu train"),
-                   (f"H2_{slug}.png", "Kèm khoảng tin cậy 95%"),
-                   (f"H4_retention_{slug}.png", "Mức giữ chất lượng khi dữ liệu thưa"),
-                   (f"H5_user_groups_{slug}.png", "Theo nhóm độ dài lịch sử user"),
-                   (f"H3_learning_curves_{slug}.png", "Đường học theo epoch"), ("H8_ndcg_at_k.png", "NDCG@k"),
-                   ("H6a_popularity_trajectory.png", "Độ phổ biến của gợi ý"), ("H6b_coverage.png", "Độ phủ catalog"),
-                   ("H7a_train_time.png", "Thời gian train"), ("H7b_inference_latency.png", "Độ trễ suy luận")]
-        script = "make_report.py"
+        figures += [(f"H3_trained_learning_curves_{slug}.png", f"Đường học {metric}"),
+                    ("H3c_loss.png", "Hàm mất mát huấn luyện")]
     figures = [(name, caption) for name, caption in figures if (FIGURES / name).exists()]
     if not figures:
-        st.caption(f"Chưa có hình. Chạy `python scripts\\{script}` để vẽ.")
+        st.caption(f"Chưa có hình cho {metric} trong thư mục report/image.")
     for row in range(0, len(figures), 3):
         for column, (name, caption) in zip(st.columns(3, gap="large"), figures[row:row + 3]):
             column.image(str(FIGURES / name), caption=caption, width="stretch")
@@ -582,30 +596,31 @@ def tab_benchmark(data):
                                  icon=":material/download:", width="stretch")
     table = leaderboard(density)
     if table.empty:
-        st.info("Chưa có kết quả cho mật độ này.")
+        st.info("Chưa có kết quả cho tỉ lệ dữ liệu này.")
         return
     tests = cached_significance(density)
-    trained, closed = st.tabs(["Nhóm cần huấn luyện", "Nhóm giải trực tiếp"])
+    closed, trained = st.tabs(["Nhóm giải trực tiếp", "Nhóm cần huấn luyện"])
     with trained:
-        st.caption("GRNR so với DFHF, LightGCN, XSimGCL, DirectAU: các mô hình học tham số qua nhiều vòng train (GPU).")
+        st.caption("DFHF so với LightGCN, XSimGCL và DirectAU: các mô hình học tham số bằng gradient qua nhiều epoch "
+                   "trên GPU. GRNR thuộc nhóm giải trực tiếp nên không có mặt ở đây.")
         overview, trend, stats, figures = st.tabs(["Tổng quan", "Biểu đồ", "Kiểm định", "Hình"])
         with overview:
             findings_main(table, tests, density)
-            st.markdown(f"##### Bảng xếp hạng · mật độ {density:.0%}")
+            st.markdown(f"##### Bảng xếp hạng · tỉ lệ dữ liệu {density:.0%}")
             leaderboard_view(table)
         with trend:
             charts(density, metric)
         with stats:
-            st.markdown(f"##### Mô hình đề xuất so với baseline GNN · mật độ {density:.0%}")
+            st.markdown(f"##### DFHF so với từng baseline cùng nhóm · tỉ lệ dữ liệu {density:.0%}")
             significance_view(tests)
         with figures:
             figure_gallery(metric)
     with closed:
-        st.caption("GRNR so với EASE, EASE top-128, GF-CF: các mô hình giải bằng công thức toán, không cần vòng train, "
-                   "cùng kiểu với GRNR.")
+        st.caption("GRNR so với EASE đầy đủ, EASE top-128 và GF-CF: các mô hình tính tham số bằng công thức đóng "
+                   "hoặc phép lọc, không có vòng lặp huấn luyện, chạy trên CPU.")
         b5, b6 = closed_form(density)
         if b5 is None or b5.empty:
-            st.info("Chưa có bảng B5/B6. Chạy `python scripts\\make_closed_form_report.py`.")
+            st.info("Chưa có kết quả nhóm giải trực tiếp. Chạy `python scripts\\make_closed_form_report.py`.")
             return
         overview, trend, stats, figures = st.tabs(["Tổng quan", "Biểu đồ", "Kiểm định", "Hình"])
         with overview:
@@ -623,10 +638,10 @@ def main():
                        initial_sidebar_state="collapsed")
     st.markdown(CSS, unsafe_allow_html=True)
     if PREVIEW:
-        st.warning(f"Chế độ xem thử: mô hình đọc từ `{PREVIEW}` (checkpoint train ngắn), "
+        st.warning(f"Chế độ xem thử: mô hình đọc từ `{PREVIEW}` (checkpoint huấn luyện ngắn), "
                    "gợi ý chưa phản ánh kết quả cuối cùng.")
     data, samples, eligible = get_data()
-    pills = [f"{len(MODELS)} mô hình", f"{data.num_users:,} khách hàng", f"{data.num_items:,} sản phẩm"]
+    pills = [f"{len(MODELS)} mô hình", f"{vn_int(data.num_users)} người dùng", f"{vn_int(data.num_items)} sản phẩm"]
     st.markdown('<div class="topbar"><div class="ttl">Hệ thống khuyến nghị sản phẩm điện tử</div>'
                 + "".join(f'<span class="pill">{p}</span>' for p in pills) + "</div>", unsafe_allow_html=True)
     existing, new, benchmark = st.tabs(["Gợi ý cho khách", "Khách mới", "Đánh giá mô hình"])

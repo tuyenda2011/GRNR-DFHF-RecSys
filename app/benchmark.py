@@ -1,10 +1,11 @@
-"""Benchmark tab back end, split as in the report.
+"""Benchmark tab back end, split into the report's two groups; the proposed models are never compared directly.
 
-Main comparison (report B2/B3): the five original models; paired tests of each proposed model (GRNR, DFHF)
-against each graph baseline, Holm over those six, recomputed per density with the report's method
-(scripts/compare_val_runs.py: per-user metrics from val_predictions.npy, paired user bootstrap, one-sided p).
-Closed-form supplement (report B5/B6): read from the tables scripts/make_closed_form_report.py writes, so the
-page always shows the report's own numbers. Validation split only.
+Trained group: DFHF against LightGCN, XSimGCL and DirectAU; paired tests recomputed per density with the
+report's method (scripts/compare_val_runs.py: per-user metrics from val_predictions.npy, paired user bootstrap,
+one-sided p), Holm over the three comparisons of each density.
+Closed-form group: GRNR against full EASE, EASE top-128 and GF-CF, read from the tables
+scripts/make_closed_form_report.py writes, so the page always shows the report's own numbers.
+Validation split only.
 """
 from __future__ import annotations
 
@@ -14,8 +15,8 @@ import pandas as pd
 from app.recommender import KINDS, LABELS, RESULTS, ROOT, run_dir
 from src.utils.model_names import canonical_model_name
 
-MAIN = ("grnr", "dfhf", "lightgcn", "xsimgcl", "directau")
-PROPOSED, GRAPH = ("grnr", "dfhf"), ("lightgcn", "xsimgcl", "directau")
+MAIN = ("dfhf", "lightgcn", "xsimgcl", "directau")  # the trained group
+PROPOSED, GRAPH = ("dfhf",), ("lightgcn", "xsimgcl", "directau")
 METRICS = ("NDCG@20", "NDCG@10", "Recall@20", "Recall@10", "MRR@20")
 TABLES = ROOT / "reports/tables"
 
@@ -39,13 +40,13 @@ def current_report_labels(frame):
 
 
 def leaderboard(density, summary_path=None):
-    """The five main models at this density, ranked by NDCG@20, with the gap to GRNR in percent."""
+    """The trained group at this density, ranked by NDCG@20, with the gap to DFHF in percent."""
     summary = read_summary(summary_path)
     rows = summary[(summary.density == density) & summary.model.isin(MAIN)]
     rows = rows.groupby("model", sort=False)[[*METRICS, "train_seconds", "inference_ms_per_user"]].mean()
     table = rows.reindex([m for m in MAIN if m in rows.index]).reset_index()
-    reference = table.loc[table.model == "grnr", "NDCG@20"]
-    table["vs GRNR"] = (table["NDCG@20"] / reference.iloc[0] - 1) * 100 if len(reference) else np.nan
+    reference = table.loc[table.model == "dfhf", "NDCG@20"]
+    table["vs DFHF"] = (table["NDCG@20"] / reference.iloc[0] - 1) * 100 if len(reference) else np.nan
     table = table.sort_values("NDCG@20", ascending=False).reset_index(drop=True)
     table.insert(0, "Hạng", range(1, len(table) + 1))
     table.insert(2, "Nhóm", table.model.map(KINDS))
@@ -72,7 +73,7 @@ def per_user(model, density, targets):
 
 
 def significance(density, targets, metric="NDCG@20", repeats=10_000):
-    """Each proposed model minus each graph baseline (as report B3): bootstrap CI, one-sided p, Holm over six."""
+    """DFHF minus each baseline of its group: bootstrap CI, one-sided p, Holm over the three comparisons."""
     from scripts.compare_val_runs import holm_adjust, paired_bootstrap
     scores = {model: per_user(model, density, targets) for model in MAIN}
     rows = []

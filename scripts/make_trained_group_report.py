@@ -21,7 +21,8 @@ from scripts.summarize_results import collect  # noqa: E402
 from scripts.validation_io import load_validation_inputs  # noqa: E402
 
 TRAINED = ("dfhf", "lightgcn", "xsimgcl", "directau")
-METRICS = ("NDCG@20",)  # only the figures the report uses
+METRICS = FIGURE_METRICS  # the report shows NDCG and Recall at 10 and 20
+CURVE_METRICS = ("NDCG@20", "NDCG@10")  # the metrics recorded in the training history
 
 
 def main(argv=None):
@@ -46,7 +47,8 @@ def main(argv=None):
 
     for metric in METRICS:
         values = means[metric].mean()
-        # The density figure is drawn as a line chart with MostPop by make_mostpop_reference_figures.py.
+        mcf.bar_figure(lambda m, d, v=values: v.get((m, d)), metric, f"H1_trained_density_{slug(metric)}",
+                       args.output, notes, **kwargs)
         mcf.bar_figure(lambda m, d, v=values: 100 * v[(m, d)] / v[(m, 1.0)], f"{metric} so với mật độ 1.00 (%)",
                        f"H4_trained_retention_{slug(metric)}", args.output, notes, fmt="{:.1f}",
                        extra=lambda ax: ax.axhline(100, color=MUTED, linestyle="--", linewidth=.8, zorder=0), **kwargs)
@@ -56,10 +58,11 @@ def main(argv=None):
     saved = mcf.ORDER
     mcf.ORDER = TRAINED
     try:
-        for metric in METRICS:
+        for metric in CURVE_METRICS:
             mcf.figure_curves(summary, metric, args.output, notes)
     finally:
         mcf.ORDER = saved
+    mcf.figure_ndcg_at_k(scores, args.output, notes, name="H8_trained_ndcg_at_k", **kwargs)
     for old in args.output.glob("H3_learning_curves_*.png"):
         old.replace(args.output / old.name.replace("H3_learning_curves_", "H3_trained_learning_curves_"))
 

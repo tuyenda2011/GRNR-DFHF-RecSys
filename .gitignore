@@ -95,11 +95,6 @@ reports/**
 # Documentation
 *.md
 !README.en.md
-!report/README.md
-!report/planning/KE_HOACH_BAO_CAO.md
-!report/log/*.md
-!report/planning/phan_tich_bo_sung/*.md
-!report/planning/LITERATURE_LOG.md
 
 # Tests stay local only (not pushed to git)
 test/
@@ -115,19 +110,6 @@ research_20261025/
 third_party/
 RecFlow/
 
-# LaTeX/MiKTeX build files of the report (the .tex sources and images stay tracked)
-report/**/*.aux
-report/**/*.out
-report/**/*.thm
-report/**/*.toc
-report/**/*.lof
-report/**/*.lot
-report/**/*.synctex.gz
-report/**/*.synctex(busy)
-report/**/*.fls
-report/**/*.fdb_latexmk
-report/**/*.xdv
-report/**/*.bbl
-report/**/*.blg
-report/**/*.nav
-report/**/*.snm
+# Report: only the compiled PDF is pushed; sources, images and notes stay local
+report/*
+!report/main.pdf
