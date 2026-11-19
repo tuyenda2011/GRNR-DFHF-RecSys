@@ -79,12 +79,11 @@ python scripts/train_model.py --model grnr --density 1.0 --seed 42 --device cpu 
 
 Thay `--model` bằng `dfhf`, `lightgcn`, `xsimgcl`, `directau`, `ease` hoặc `gfcf` và chọn `--density` từ `0.25`, `0.5`, `0.75`, `1.0`. Chạy lại mỗi mô hình ở cả bốn mức để tái tạo hai nhóm so sánh. DFHF và ba đối chứng huấn luyện lặp dùng 200 epoch, giữ checkpoint có NDCG@20 cao nhất trên tập xác thực. Các lần chạy gốc dùng [notebook GPU](kaggle/kaggle_train.ipynb) cho nhóm này và [notebook CPU](kaggle/kaggle_ease.ipynb) cho EASE đầy đủ do yêu cầu bộ nhớ của ma trận dày.
 
-Sau khi có kết quả ở cả bốn mức, chạy các lệnh sau để tạo bảng tổng hợp, bảng và hình cho nhóm giải trực tiếp, cùng các hình cho nhóm huấn luyện lặp.
+Sau khi có kết quả ở cả bốn mức, chạy các lệnh sau để tạo bảng tổng hợp và xuất hai bộ hình riêng. Script báo cáo suy luận lại từ checkpoint trên tập xác thực. Với EASE đầy đủ, ma trận trọng số không được lưu, nên script dùng dự đoán đã lưu của lần chạy gốc. Thêm `--refit-full-ease` để giải lại ma trận khi có khoảng 9 GiB RAM trống.
 
 ```bash
 python scripts/summarize_results.py --results results/reproduction
-python scripts/make_closed_form_report.py --results results/reproduction --output results/reproduction/closed-form
-python scripts/make_trained_group_report.py --results results/reproduction --output results/reproduction/trained
+python scripts/make_report.py --results results/reproduction --output results/reproduction/report
 ```
 
 **Tệp đi kèm repo.** Git lưu dữ liệu đã xử lý, checkpoint, lịch sử huấn luyện và hình báo cáo. Demo đọc `results/summary.csv`, `metrics.json` của từng lần chạy, các cặp `val_predictions.npy` và `val_users.npy` của nhóm cần huấn luyện, cùng bảng B5/B6 trong `reports/tables/`. Các checkpoint lịch sử nằm trong `results/sgkr/` và `results/sphr/`, tương ứng với GRNR và DFHF.

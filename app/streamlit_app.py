@@ -31,7 +31,8 @@ from app.benchmark import METRICS, by_density, closed_form, closed_form_all, lea
 from app.recommender import (COLORS, DENSITIES, FAMILY_COLORS, GROUPS, LABELS, MODELS, PREVIEW, RESULTS,
                              checkpoint_ndcg, load_data, load_ranker, recommend, sample_users)
 
-FIGURES = ROOT / "report/image"  # the figures printed in the report, already split by group
+FIGURES = ROOT / "reports/figures"
+MOSTPOP_FIGURES = ROOT / "report/image"
 CHART_FONT = "Be Vietnam Pro"  # same face as the page CSS, so Vega measures labels with the font it draws
 CATEGORY_TINTS = ("#fdecea", "#e8f0fc", "#e6f5ee", "#fdf3e1", "#f0ecfa", "#e3f4f6", "#fbeaf2", "#eef1e4")
 
@@ -563,7 +564,7 @@ def closed_form_tests(b6, density):
 
 
 def figure_gallery(metric, closed_form=False):
-    """The report's own figures of one group (report/image), so the page shows exactly what the report prints."""
+    """Show the generated figures for one comparison group."""
     slug = metric.lower().replace("@", "")
     group = "closed_form" if closed_form else "trained"
     figures = [(f"H1_{group}_density_{slug}.png", f"{metric} theo tỉ lệ dữ liệu"),
@@ -576,12 +577,14 @@ def figure_gallery(metric, closed_form=False):
     else:
         figures += [(f"H3_trained_learning_curves_{slug}.png", f"Đường học {metric}"),
                     ("H3c_loss.png", "Hàm mất mát huấn luyện")]
-    figures = [(name, caption) for name, caption in figures if (FIGURES / name).exists()]
+    figures = [((MOSTPOP_FIGURES if name.startswith("H9_") else FIGURES) / name, caption)
+               for name, caption in figures]
+    figures = [(path, caption) for path, caption in figures if path.is_file()]
     if not figures:
-        st.caption(f"Chưa có hình cho {metric} trong thư mục report/image.")
+        st.caption(f"Chưa có hình cho {metric} trong thư mục reports/figures.")
     for row in range(0, len(figures), 3):
-        for column, (name, caption) in zip(st.columns(3, gap="large"), figures[row:row + 3]):
-            column.image(str(FIGURES / name), caption=caption, width="stretch")
+        for column, (path, caption) in zip(st.columns(3, gap="large"), figures[row:row + 3]):
+            column.image(str(path), caption=caption, width="stretch")
 
 
 def tab_benchmark(data):

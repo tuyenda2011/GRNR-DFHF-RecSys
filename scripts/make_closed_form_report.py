@@ -13,8 +13,8 @@ drawing code, make_combined_figures.bar_figure), restricted to these four models
   reports/figures/H7c_closed_form_checkpoint_size.png as H7a, checkpoint size instead of train time
   reports/figures/H8_closed_form_ndcg_at_k.png        as H8
 
-EASE top-128 is the pruned checkpoint the demo loads; its validation predictions were not stored by the run, so
-they are rebuilt here once with the shared Evaluator and checked against the run's recorded NDCG@20.
+GRNR, GF-CF and EASE top-128 are evaluated from checkpoints. Full EASE uses its
+recorded predictions unless --refit-full-ease is supplied, since its dense matrix was not saved.
 Exploratory: this comparison family was defined after the results were seen. Validation split only.
 """
 from __future__ import annotations
@@ -33,12 +33,11 @@ matplotlib.use("Agg")
 import numpy as np
 import pandas as pd
 import pyarrow  # noqa: F401 -- load Arrow DLLs before Torch on Windows
-import torch
-from scipy import sparse
 
-from scripts.compare_val_runs import holm_adjust, paired_bootstrap, per_user_metrics
+from scripts.compare_val_runs import holm_adjust, paired_bootstrap
 from scripts.make_combined_figures import bar_figure, figure_groups, figure_ndcg_at_k
 from scripts.make_report import FIGURE_METRICS, MUTED, setup, slug
+from scripts.report_inference import report_device, rescore, saved_predictions, score_rows, validation_sample
 from scripts.validation_io import load_validation_inputs
 from src.utils.model_names import resolve_model_run
 
@@ -59,66 +58,10 @@ def run_dir(model, density, results):
     return resolve_model_run(results, folder, density, SEED)
 
 
-def ease_top128_predictions(density, results, full_train, validation, stats):
-    """Rebuild (once) and cache the pruned EASE checkpoint's validation top-20, checked against the run."""
-    folder = run_dir("ease", density, results)
-    cache = folder / "logs/ease/checkpoint_val_predictions.npy"
-    expected = json.loads((folder / "logs/ease/result.json").read_text(encoding="utf-8"))["checkpoint_val_metrics"]
-    if not cache.exists():
-        from scripts.extra.run_item_baselines import ItemScores
-        from src.data.quality_report import warm_cohort
-        from src.data.sparsity import create_sparse_train_set
-        from src.evaluation.evaluator import Evaluator
-        from src.evaluation.metrics import compute_topk_metrics
-        from src.models.grnr import GRNR
-        train = create_sparse_train_set(full_train, density, SEED)
-        cohort, _ = warm_cohort(train, validation)
-        x = GRNR.interaction_matrix(train.u_idx.to_numpy(), train.i_idx.to_numpy(), stats["num_users"],
-                                    stats["num_items"]).astype(np.float32)
-        weights = sparse.load_npz(folder / "checkpoint.npz")
-        evaluator = Evaluator(full_train, cohort, *x.shape, [10, 20], 128, candidate_items=set(train.i_idx.unique()),
-                              popularity_df=train, score_fn=ItemScores(x, weights).get_user_rating_scores)
-        predictions, _ = evaluator.get_predictions(torch.empty(0), torch.empty(0), torch.device("cpu"))
-        rebuilt = compute_topk_metrics(evaluator.ground_truth, predictions, [10, 20])["NDCG@20"]
-        if abs(rebuilt - expected["NDCG@20"]) > 1e-9:
-            raise AssertionError(f"EASE top-128 d{density}: rebuilt NDCG@20 {rebuilt} != recorded {expected['NDCG@20']}")
-        np.save(folder / "logs/ease/checkpoint_val_users.npy", np.asarray(evaluator.eval_users, dtype=np.int64))
-        np.save(cache, predictions.numpy().astype(np.int64))
-    users = np.load(folder / "logs/ease/checkpoint_val_users.npy")
-    return users, np.load(cache), expected
-
-
-def per_user(model, density, results, targets, inputs):
-    """(users, predictions, per-user metrics, targets): the layout of make_report.per_user, for H5 and H8."""
-    if model == "ease128":
-        users, predictions, _ = ease_top128_predictions(density, results, *inputs)
-    else:
-        folder = run_dir(model, density, results)
-        users, predictions = np.load(folder / "val_users.npy"), np.load(folder / "val_predictions.npy")
-    users, predictions = users.astype(np.int64), predictions.astype(np.int64)
-    truth = np.array([targets[int(u)] for u in users], dtype=np.int64)
-    values = dict(per_user_metrics(predictions, truth))
-    values["Recall@10"] = (predictions[:, :10] == truth[:, None]).any(axis=1).astype(float)
-    return users, predictions, values, truth
-
-
 def checkpoint_mb(model, density, results, num_items):
     if model == "ease":
         return num_items * num_items * 4 / 2**20  # dense float32 item-item matrix, not stored
     return (run_dir(model, density, results) / "checkpoint.npz").stat().st_size / 2**20
-
-
-def table_metrics(results, num_items):
-    rows = []
-    for density in DENSITIES:
-        for model in ARMS:
-            folder = run_dir(model, density, results)
-            run = json.loads((folder / "metrics.json").read_text(encoding="utf-8"))
-            metrics = run["checkpoint_val_metrics"] if model == "ease128" else run["val_metrics"]
-            rows.append({"Mô hình": STYLE[model]["label"], "model": model, "Mật độ": density,
-                         **{m: metrics[m] for m in METRICS}, "train_seconds": run["train_seconds"],
-                         "Checkpoint (MB)": checkpoint_mb(model, density, results, num_items)})
-    return pd.DataFrame(rows)
 
 
 def table_tests(scores, repeats=10_000):
@@ -166,28 +109,60 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--results", type=Path, default=ROOT / "results")
     parser.add_argument("--output", type=Path, default=ROOT / "reports")
+    parser.add_argument("--refit-full-ease", action="store_true", help="Rebuild the dense EASE matrix before scoring")
     args = parser.parse_args(argv)
-    results, reports = args.results, args.output
+    generate(args.results, args.output, refit_full_ease=args.refit_full_ease)
+
+
+def generate(results, reports, *, refit_full_ease=False, bootstrap=10_000):
+    device = report_device("cpu")
+    if refit_full_ease:
+        import psutil
+
+        from scripts.run_ease import ease_memory_required
+
+    _, full_train, validation, stats = load_validation_inputs(None, ROOT)
+    if refit_full_ease and psutil.virtual_memory().available < ease_memory_required(stats["num_items"]):
+        raise MemoryError("Refitting full EASE requires about 9 GiB of available RAM")
+    if not refit_full_ease:
+        for density in DENSITIES:
+            folder = run_dir("ease", density, results)
+            if any(not (folder / file).is_file() for file in ("val_users.npy", "val_predictions.npy")):
+                raise FileNotFoundError(f"Full EASE predictions missing in {folder}. Provide them or use --refit-full-ease.")
     (reports / "figures").mkdir(parents=True, exist_ok=True)
     (reports / "tables").mkdir(parents=True, exist_ok=True)
     setup()
-    _, full_train, validation, stats = load_validation_inputs(None, ROOT)
     targets = dict(zip(validation.u_idx.astype(int), validation.i_idx.astype(int)))
-    inputs = (results, full_train, validation, stats)
+    scores, rows = {}, []
     for density in DENSITIES:
-        ease_top128_predictions(density, *inputs)
-    table = table_metrics(results, stats["num_items"])
+        train, warm = validation_sample(full_train, validation, density)
+        for model in ARMS:
+            folder = run_dir(model, density, results)
+            run = json.loads((folder / "metrics.json").read_text(encoding="utf-8"))
+            if model == "ease" and not refit_full_ease:
+                print(f"Recorded full EASE predictions: density={density:.0%}", flush=True)
+                users, predictions = saved_predictions(folder)
+                metrics = run["val_metrics"]
+            else:
+                print(f"Validation inference: {model}, density={density:.0%}", flush=True)
+                l2 = run["config"]["l2"] if model == "ease" else None
+                users, predictions, metrics = rescore(model, folder, train, full_train, warm, stats, device,
+                                                      full_ease_l2=l2)
+            scores[(model, density, SEED)] = score_rows(users, predictions, targets)
+            rows.append({"Mô hình": STYLE[model]["label"], "model": model, "Mật độ": density,
+                         **{m: metrics[m] for m in METRICS}, "train_seconds": run["train_seconds"],
+                         "Checkpoint (MB)": checkpoint_mb(model, density, results, stats["num_items"])})
+    table = pd.DataFrame(rows)
     table.drop(columns="model").assign(**{"Train (phút)": (table.train_seconds / 60).round(1)}).drop(
         columns="train_seconds").round({**{m: 5 for m in METRICS}, "Checkpoint (MB)": 1}).to_csv(
-        reports / "tables/B5_closed_form.csv", index=False, encoding="utf-8-sig")
-    scores = {(model, density, SEED): per_user(model, density, results, targets, (full_train, validation, stats))
-              for model in ARMS for density in DENSITIES}
-    tests = table_tests(scores)
+        reports / "tables/B5_closed_form.csv", index=False, encoding="utf-8-sig", lineterminator="\n")
+    tests = table_tests(scores, repeats=bootstrap)
     pd.DataFrame({"So sánh": "GRNR - " + tests.model.map(lambda m: STYLE[m]["label"]), "Mật độ": tests["Mật độ"],
                   "Delta NDCG@20": tests.delta.round(5), "KTC 95% dưới": [round(c[0], 5) for c in tests.ci95],
                   "KTC 95% trên": [round(c[1], 5) for c in tests.ci95], "p một phía": tests.p_one_sided.round(5),
                   "p Holm": tests.p_holm.round(5), "Số user": tests.n_users}
-                 ).to_csv(reports / "tables/B6_closed_form_significance.csv", index=False, encoding="utf-8-sig")
+                 ).to_csv(reports / "tables/B6_closed_form_significance.csv", index=False, encoding="utf-8-sig",
+                          lineterminator="\n")
     notes = []
     figures(table, scores, full_train, reports / "figures", notes)
     print("\n".join(notes))

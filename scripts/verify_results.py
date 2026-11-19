@@ -44,15 +44,15 @@ def stored_ndcg(run):
     return json.loads((run / "metrics.json").read_text(encoding="utf-8"))["val_metrics"]["NDCG@20"]
 
 
-def predict(spec, run, train, full_train, validation, warm, stats, device, batch):
+def predict(kind, run, train, full_train, warm, stats, device, batch):
     candidates = set(train.i_idx.unique())
-    if spec["kind"] == "grnr":
+    if kind == "grnr":
         model = GRNR.load(run / "checkpoint.npz")
         evaluator = Evaluator(full_train, warm, model.num_users, model.num_items, [10, 20], batch,
                               candidate_items=candidates, popularity_df=train, score_fn=model.get_user_rating_scores)
         predictions, _ = evaluator.get_predictions(torch.empty(0), torch.empty(0), torch.device("cpu"))
         return evaluator, predictions
-    if spec["kind"] == "dfhf":
+    if kind == "dfhf":
         state = torch.load(run / "checkpoint.pt", map_location="cpu", weights_only=True)
         model = DFHF(stats["num_users"], stats["num_items"], DFHFConfig.from_dict(state["config"]))
         model.set_history(train.u_idx.to_numpy(), train.i_idx.to_numpy())
@@ -65,7 +65,7 @@ def predict(spec, run, train, full_train, validation, warm, stats, device, batch
             predictions, _ = evaluator.get_predictions(users, items, device)
         return evaluator, predictions
     state = torch.load(run / "checkpoint.pt", map_location="cpu", weights_only=False)
-    model = build_model(spec["kind"], state["config"], stats["num_users"], stats["num_items"])
+    model = build_model(kind, state["config"], stats["num_users"], stats["num_items"])
     model.load_state_dict(state["model_state_dict"])
     model.to(device).eval()
     evaluator = Evaluator(full_train, warm, stats["num_users"], stats["num_items"], [10, 20], batch,
@@ -95,7 +95,7 @@ def main(argv=None):
         spec = RUNS[name]
         run = resolve_model_run(ROOT / "results", spec["kind"], 1.0, 42)
         started = time.perf_counter()
-        evaluator, predictions = predict(spec, run, train, full_train, validation, warm, stats, device,
+        evaluator, predictions = predict(spec["kind"], run, train, full_train, warm, stats, device,
                                          args.eval_batch_size)
         predictions = predictions.cpu().numpy().astype(np.int64)
         metrics = compute_topk_metrics(evaluator.ground_truth, torch.from_numpy(predictions), [10, 20])

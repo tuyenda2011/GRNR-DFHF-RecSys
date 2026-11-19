@@ -83,8 +83,10 @@ def main(argv=None):
     if not args.no_report:
         for script in ("summarize_results.py", "make_report.py"):
             log(journal, f"{script}: start")
-            if subprocess.run([sys.executable, str(ROOT / "scripts" / script), "--results", str(args.results)],
-                              cwd=ROOT).returncode:
+            command = [sys.executable, str(ROOT / "scripts" / script), "--results", str(args.results)]
+            if script == "make_report.py":
+                command.extend(["--device", args.device])
+            if subprocess.run(command, cwd=ROOT).returncode:
                 log(journal, f"{script}: FAILED")
                 failed.append(script)
     log(journal, "batch end: " + ("all runs succeeded" if not failed else f"failed: {failed}"))

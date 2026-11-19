@@ -1,11 +1,7 @@
-"""Figures and CSV tables, rebuilt from results/<model>/d*/seed*/.
+"""Regenerate separate validation figures and tables under reports/.
 
-  python scripts/make_report.py                  # -> reports/figures/*.png, reports/tables/*.csv
-
-Figures (scripts/make_combined_figures.py) put all four densities in one picture; runs that do not exist
-yet are marked "chưa chạy".
-Reads only validation data (train + val), never the test split.
-reports/figures is regenerated from scratch on each call.
+Ranking figures use checkpoint inference. Full EASE uses its recorded predictions
+unless --refit-full-ease is specified. The test split is not used.
 """
 from __future__ import annotations
 
@@ -14,6 +10,7 @@ import json
 import sys
 from datetime import datetime
 from pathlib import Path
+from tempfile import TemporaryDirectory
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
@@ -24,11 +21,11 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import pyarrow  # noqa: F401 -- load Arrow DLLs before Torch on Windows
 
-from scripts.compare_val_runs import holm_adjust, paired_bootstrap, per_user_metrics
+from scripts.compare_val_runs import holm_adjust, paired_bootstrap
 from scripts.summarize_results import collect
-from scripts.train_model import DENSITIES, MODELS, normalize_history
-from scripts.validation_io import load_validation_inputs
+from scripts.train_model import DENSITIES, normalize_history
 
 # Fixed identity per model (reference categorical palette, slots 1-5 in validated order); shapes and
 # solid/dashed (hatched) styles are the secondary encoding. Proposed models solid, baselines dashed.
@@ -39,7 +36,7 @@ STYLE = {
     "xsimgcl": {"label": "XSimGCL", "short": "XSimGCL", "color": "#eda100", "marker": "D", "line": "--"},
     "directau": {"label": "DirectAU", "short": "DirectAU", "color": "#e87ba4", "marker": "v", "line": "--"},
 }
-ORDER = tuple(STYLE)
+ORDER = ("dfhf", "lightgcn", "xsimgcl", "directau")
 PROPOSED, BASELINES = ("grnr", "dfhf"), ("lightgcn", "xsimgcl", "directau")
 FIGURE_METRICS = ("NDCG@20", "NDCG@10", "Recall@20", "Recall@10")
 TABLE_METRICS = ("NDCG@10", "NDCG@20", "Recall@10", "Recall@20")
@@ -74,20 +71,6 @@ def save(fig, folder, name, notes):
     fig.savefig(folder / f"{name}.png", dpi=300, facecolor="white")
     plt.close(fig)
     notes.append(f"{name}: written")
-
-
-def per_user(runs, targets):
-    """Per-user metrics, predictions and targets for each run, keyed by (model, density, seed)."""
-    result = {}
-    for row in runs.itertuples():
-        folder = Path(row.path)
-        users = np.load(folder / "val_users.npy").astype(np.int64)
-        predictions = np.load(folder / "val_predictions.npy").astype(np.int64)
-        truth = np.array([targets[int(user)] for user in users], dtype=np.int64)
-        values = dict(per_user_metrics(predictions, truth))
-        values["Recall@10"] = (predictions[:, :10] == truth[:, None]).any(axis=1).astype(float)
-        result[(row.model, row.density, row.seed)] = (users, predictions, values, truth)
-    return result
 
 
 def model_average(scores, model, density, metric):
@@ -169,9 +152,9 @@ def table_training(summary, folder, density):
 
 
 def table_tests(scores, folder, metric, name, density=1.0, repeats=10_000):
-    """Paired user bootstrap, one-sided (proposed > baseline), Holm over the six comparisons."""
+    """Paired user bootstrap, one-sided (proposed > baseline), Holm over the trained-group comparisons."""
     rows = []
-    for proposed in PROPOSED:
+    for proposed in ("dfhf",):
         for baseline in BASELINES:
             users_b, values_b = model_average(scores, proposed, density, metric)
             users_a, values_a = model_average(scores, baseline, density, metric)
@@ -191,48 +174,69 @@ def table_tests(scores, folder, metric, name, density=1.0, repeats=10_000):
                   for r, p in zip(rows, adjusted)]).to_csv(folder / f"{name}.csv", index=False, encoding="utf-8-sig")
 
 
+# Retire only the mixed-group figures produced by earlier versions of this script.
+OBSOLETE_FIGURES = (
+    *(f"{prefix}_{slug(metric)}.png" for prefix in ("H1_density", "H2", "H4_retention", "H5_user_groups")
+      for metric in FIGURE_METRICS),
+    *(f"H3_learning_curves_{slug(metric)}.png" for metric in ("NDCG@10", "NDCG@20")),
+    "H6a_popularity_trajectory.png", "H6b_coverage.png", "H7a_train_time.png",
+    "H7b_inference_latency.png", "H8_ndcg_at_k.png",
+)
+
+
+def publish_report(staging, output, summary, *, trained, closed, refit_full_ease):
+    manifest = {
+        "created": datetime.now().isoformat(timespec="seconds"), "split": SPLIT,
+        "groups": {"trained": trained, "closed_form": closed},
+        "full_ease": ("refitted" if refit_full_ease else "recorded_predictions") if closed else None,
+        "runs": summary[["model", "density", "seed", "path", "source"]].to_dict("records"),
+    }
+    (staging / "report_manifest.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+    for source in sorted(staging.rglob("*")):
+        if source.is_file():
+            target = output / source.relative_to(staging)
+            target.parent.mkdir(parents=True, exist_ok=True)
+            source.replace(target)
+    for name in OBSOLETE_FIGURES:
+        (output / "figures" / name).unlink(missing_ok=True)
+
+
 def main(argv=None):
+    from scripts import make_closed_form_report, make_trained_group_report
+
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--results", type=Path, default=ROOT / "results")
     parser.add_argument("--output", type=Path, default=ROOT / "reports")
     parser.add_argument("--bootstrap", type=int, default=10_000)
+    parser.add_argument("--device", choices=("auto", "cpu", "cuda"), default="auto",
+                        help="Device for replaying the trained checkpoints")
+    parser.add_argument("--refit-full-ease", action="store_true", help="Rebuild the dense EASE matrix before scoring")
     args = parser.parse_args(argv)
-    setup()
-    figures, tables = args.output / "figures", args.output / "tables"
-    figures.mkdir(parents=True, exist_ok=True)
-    tables.mkdir(parents=True, exist_ok=True)
-    for stale in [*figures.glob("*.pdf"), *figures.glob("*.png"), *tables.glob("*.tex"),
-                  *tables.glob("*.csv")]:
-        stale.unlink()
+    if args.bootstrap < 1:
+        parser.error("--bootstrap must be positive")
     summary = collect(args.results)
     if summary.empty:
-        raise SystemExit("No runs under results/<model>/d*/seed*/metrics.json")
-    _, full_train, validation, stats = load_validation_inputs(None, ROOT)
-    targets = dict(zip(validation.u_idx.to_numpy().tolist(), validation.i_idx.to_numpy().tolist()))
-    scores = per_user(summary, targets)
-    from scripts.make_combined_figures import draw_all  # imports this module's styles, so not at the top
-    notes = []
-    present = sorted(summary.density.unique(), reverse=True)  # per-density tables for every density with runs
-    draw_all(summary, scores, full_train, stats["num_items"], figures, notes)
-    table_dataset(full_train, validation, stats, tables)
-    for density in present:
-        table_metrics(summary, tables, density)
-        table_training(summary, tables, density)
-    table_density(summary, tables)
-    table_tests(scores, tables, "NDCG@20", "B3_significance_ndcg20", repeats=args.bootstrap)
-    table_tests(scores, tables, "NDCG@10", "B3b_significance_ndcg10", repeats=args.bootstrap)
-    manifest = {"created": datetime.now().isoformat(timespec="seconds"), "split": SPLIT,
-                "runs": summary[["model", "density", "seed", "path", "source"]].to_dict("records"), "notes": notes}
-    (args.output / "report_manifest.json").write_text(json.dumps(manifest, indent=2, ensure_ascii=False) + "\n",
-                                                      encoding="utf-8")
-    print("\n".join(note for note in notes if "written" not in note))
-    print(f"{sum('written' in note for note in notes)} figures -> {figures}\nTables -> {tables}")
-    have = set(zip(summary.model, summary.density))
-    missing = [(m, d) for d in DENSITIES for m in MODELS if (m, d) not in have]
-    if missing:
-        print(f"\nThiếu {len(missing)} run (model × density); chạy rồi gọi lại make_report.py:")
-        for model, density in missing:
-            print(f"  python scripts\\train_model.py --model {model} --density {density} --seed 42 --epochs 200")
+        parser.error(f"No model results under {args.results}")
+    trained = bool(summary.model.isin(ORDER).any())
+    closed_runs = summary[summary.seed == make_closed_form_report.SEED]
+    available = set(zip(closed_runs.model, closed_runs.density))
+    required = {(model, density) for model in ("grnr", "ease", "gfcf") for density in DENSITIES}
+    closed = required <= available
+    if not closed:
+        print("Closed-form report requires GRNR, EASE and GF-CF at all four densities (seed 42).", flush=True)
+    if not trained and not closed:
+        parser.error("No model group has sufficient results to draw figures")
+
+    args.output.parent.mkdir(parents=True, exist_ok=True)
+    with TemporaryDirectory(prefix=".report-", dir=args.output.parent) as temporary:
+        staging = Path(temporary)
+        if trained:
+            make_trained_group_report.generate(args.results, staging / "figures", args.device,
+                                               tables=staging / "tables", bootstrap=args.bootstrap)
+        if closed:
+            make_closed_form_report.generate(args.results, staging, refit_full_ease=args.refit_full_ease,
+                                             bootstrap=args.bootstrap)
+        publish_report(staging, args.output, summary, trained=trained, closed=closed, refit_full_ease=args.refit_full_ease)
 
 
 if __name__ == "__main__":

@@ -1,17 +1,4 @@
-"""The report figures: all four densities in one picture. Drawn by make_report.py into reports/figures.
-
-  H1_density_<metric>              one group per density, one bar per model (metrics.json)
-  H2_<metric>                      as H1, from the per-user scores
-  H3_learning_curves_<metric>      2x2 grid, one panel per density, shared axes
-  H3c_loss                         2x2 grid, one panel per model (own y-axis), one line per density
-  H4_retention_<metric>            as H1, metric relative to the same model at density 1.00 (= 100%)
-  H5_user_groups_<metric>          2x2 grid, one panel per density; user groups by full-train history length
-  H6a_popularity_trajectory        NDCG@20 versus popularity of recommended items, one path per model
-  H6b_coverage, H7a_train_time, H7b_inference_latency   as H1
-  H8_ndcg_at_k                     2x2 grid, one panel per density
-
-Validation split only. Sized for full text width on A4.
-"""
+"""Shared plotting primitives for the separate validation report groups."""
 from __future__ import annotations
 
 import matplotlib
@@ -19,7 +6,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib.ticker import MaxNLocator
 
-from scripts.make_report import (FIGURE_METRICS, GRID, INK, MUTED, ORDER, PROPOSED, SIZE, STYLE, model_average,
+from scripts.make_report import (INK, MUTED, ORDER, PROPOSED, SIZE, STYLE, model_average,
                                  read_history, slug, style_axes)
 from scripts.train_model import DENSITIES
 
@@ -98,34 +85,6 @@ def bar_figure(value, ylabel, name, folder, notes, fmt="{:.4f}", log=False, extr
     save(fig, folder, name, notes)
 
 
-def figure_density(summary, metric, folder, notes):
-    """Metric from metrics.json, mean over seeds."""
-    means = summary.groupby(["model", "density"])[metric].mean()
-    bar_figure(lambda m, d: means[(m, d)] if (m, d) in means.index else None, metric,
-               f"H1_density_{slug(metric)}", folder, notes)
-
-
-def figure_bars(scores, metric, folder, notes):
-    def value(model, density):
-        _, values = model_average(scores, model, density, metric)
-        return None if values is None else values.mean()
-    bar_figure(value, metric, f"H2_{slug(metric)}", folder, notes)
-
-
-def figure_retention(summary, metric, folder, notes):
-    means = summary.groupby(["model", "density"])[metric].mean()
-
-    def value(model, density):
-        if (model, density) not in means.index or (model, 1.0) not in means.index:
-            return None
-        return 100 * means[(model, density)] / means[(model, 1.0)]
-
-    def reference(ax):
-        ax.axhline(100, color=MUTED, linestyle="--", linewidth=.8, zorder=0)
-    bar_figure(value, f"{metric} so với mật độ 1.00 (%)", f"H4_retention_{slug(metric)}", folder, notes,
-               fmt="{:.1f}", extra=reference)
-
-
 def grid(size=SIZE):
     fig, axes = plt.subplots(2, 2, figsize=size, layout="constrained", sharex=True, sharey=True)
     for ax, density in zip(axes.flat, PANELS):
@@ -149,7 +108,7 @@ def unavailable(ax):
     ax.text(.5, .5, "chưa chạy", transform=ax.transAxes, ha="center", va="center", color=MUTED)
 
 
-def figure_curves(summary, metric, folder, notes, seed=42):
+def figure_curves(summary, metric, folder, notes, seed=42, *, name="H3_trained_learning_curves"):
     fig, axes = grid()
     handles = {}
     for ax, density in zip(axes.flat, PANELS):
@@ -182,7 +141,7 @@ def figure_curves(summary, metric, folder, notes, seed=42):
     fig.supylabel(metric, fontsize=9)
     ordered = [handles[m] for m in ORDER if m in handles]
     legend(fig, [h for h, _ in ordered], [label for _, label in ordered])
-    save(fig, folder, f"H3_learning_curves_{slug(metric)}", notes)
+    save(fig, folder, f"{name}_{slug(metric)}", notes)
 
 
 DENSITY_LINES = {1.0: "-", .75: "--", .5: "-.", .25: ":"}  # also readable in black-and-white print
@@ -197,9 +156,8 @@ def shade(color, density):
 def figure_loss(summary, folder, notes, seed=42):
     """Training loss per epoch, one panel per gradient-trained model (own y-axis: the losses differ in kind
     and scale), one line per density."""
-    models = [m for m in ORDER if m != "grnr"]
     fig, axes = plt.subplots(2, 2, figsize=SIZE, layout="constrained", sharex=True)
-    for ax, model in zip(axes.flat, models):
+    for ax, model in zip(axes.flat, ORDER):
         style_axes(ax)
         spec = STYLE[model]
         ax.set_title(spec["short"], fontsize=9)
@@ -266,44 +224,6 @@ def figure_groups(scores, full_train, metric, folder, notes, order=ORDER, style=
     save(fig, folder, f"{name}_{slug(metric)}", notes)
 
 
-def popularity_stats(scores, full_train, num_items):
-    """Per (model, density): mean log(1 + popularity) of recommended items, NDCG@20, catalog coverage."""
-    counts = np.bincount(full_train.i_idx.to_numpy(dtype=np.int64), minlength=num_items)
-    active = np.count_nonzero(counts)
-    stats = {}
-    for model, density, seed in sorted(scores):
-        if (model, density) in stats:
-            continue  # first seed, as in make_report.py
-        _, predictions, values, _ = scores[(model, density, seed)]
-        stats[(model, density)] = {"pop": float(np.log1p(counts[predictions]).mean()),
-                                   "ndcg": float(values["NDCG@20"].mean()),
-                                   "coverage": 100 * len(np.unique(predictions)) / active}
-    return stats
-
-
-def figure_popularity(stats, folder, notes):
-    fig, ax = plt.subplots(figsize=SIZE, layout="constrained")
-    style_axes(ax)
-    for model in ORDER:
-        points = [(d, stats[(model, d)]) for d in PANELS if (model, d) in stats]
-        if not points:
-            continue
-        spec = STYLE[model]
-        xs, ys = [p["pop"] for _, p in points], [p["ndcg"] for _, p in points]
-        ax.plot(xs, ys, color=spec["color"], linestyle=spec["line"], linewidth=1.2, label=spec["label"])
-        sizes = [18 + 50 * d for d, _ in points]  # larger marker = denser training data
-        ax.scatter(xs, ys, s=sizes, color=spec["color"], marker=spec["marker"], edgecolor="white", linewidth=.8,
-                   zorder=3)
-        for (density, _), x, y in zip(points, xs, ys):
-            ax.annotate(f"{density:.2f}", (x, y), xytext=(4, 3), textcoords="offset points", fontsize=LABEL,
-                        color=MUTED)
-    ax.set_xlabel("Độ phổ biến trung bình của item được gợi ý, log(1 + số lượt tương tác)")
-    ax.set_ylabel("NDCG@20")
-    ax.grid(axis="x", color=GRID, linewidth=.6)
-    legend(fig)
-    save(fig, folder, "H6a_popularity_trajectory", notes)
-
-
 def figure_ndcg_at_k(scores, folder, notes, order=ORDER, style=STYLE, name="H8_ndcg_at_k", ncol=3):
     discount = 1 / np.log2(np.arange(2, 22))
     ks = np.arange(1, 21)
@@ -330,27 +250,3 @@ def figure_ndcg_at_k(scores, folder, notes, order=ORDER, style=STYLE, name="H8_n
                           markersize=3, linewidth=1.4) for m in order]
     legend(fig, handles, [style[m]["label"] for m in order], ncol=ncol)
     save(fig, folder, name, notes)
-
-
-def draw_all(summary, scores, full_train, num_items, folder, notes):
-    first = summary.sort_values("seed").drop_duplicates(["model", "density"]).set_index(["model", "density"])
-    for metric in FIGURE_METRICS:
-        figure_density(summary, metric, folder, notes)
-        figure_bars(scores, metric, folder, notes)
-        figure_retention(summary, metric, folder, notes)
-        figure_groups(scores, full_train, metric, folder, notes)
-    for metric in ("NDCG@20", "NDCG@10"):
-        figure_curves(summary, metric, folder, notes)
-    figure_loss(summary, folder, notes)
-    popularity = popularity_stats(scores, full_train, num_items)
-    figure_popularity(popularity, folder, notes)
-    bar_figure(lambda m, d: popularity[(m, d)]["coverage"] if (m, d) in popularity else None,
-               "Coverage@20 (% item được gợi ý ít nhất một lần)", "H6b_coverage", folder, notes, fmt="{:.1f}")
-    # Log scale for both: GRNR (CPU) is one to two orders of magnitude away from the GPU models.
-    for name, column, label, fmt in (
-            ("H7a_train_time", "train_seconds", "Thời gian huấn luyện (giây, thang log)", "{:,.0f}"),
-            ("H7b_inference_latency", "inference_ms_per_user", "Thời gian suy luận (ms/user, thang log)",
-             "{:.3f}")):
-        bar_figure(lambda m, d: float(first.at[(m, d), column]) if (m, d) in first.index else None,
-                   f"{label}\nGRNR chạy trên CPU, các mô hình khác trên GPU", name, folder, notes, fmt=fmt, log=True)
-    figure_ndcg_at_k(scores, folder, notes)

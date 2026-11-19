@@ -79,12 +79,11 @@ python scripts/train_model.py --model grnr --density 1.0 --seed 42 --device cpu 
 
 Set `--model` to `dfhf`, `lightgcn`, `xsimgcl`, `directau`, `ease`, or `gfcf` and choose `--density` from `0.25`, `0.5`, `0.75`, and `1.0`. Run each model at all four levels to reproduce both comparison groups. DFHF and the three iterative baselines train for 200 epochs and retain the checkpoint with the highest validation NDCG@20. The original runs used a [GPU notebook](kaggle/kaggle_train.ipynb) for these models and a [CPU notebook](kaggle/kaggle_ease.ipynb) for full EASE because of its dense matrix memory requirements.
 
-Once all four retention levels are available, run these commands to generate the summary, the closed-form tables and figures, and the iterative-model figures.
+Once all four retention levels are available, run these commands to generate the summary and separate figures for both groups. The report re-scores the checkpoints on validation. Full EASE uses the original saved predictions because its dense matrix was discarded. Add `--refit-full-ease` to solve the matrix again with about 9 GiB of available RAM.
 
 ```bash
 python scripts/summarize_results.py --results results/reproduction
-python scripts/make_closed_form_report.py --results results/reproduction --output results/reproduction/closed-form
-python scripts/make_trained_group_report.py --results results/reproduction --output results/reproduction/trained
+python scripts/make_report.py --results results/reproduction --output results/reproduction/report
 ```
 
 **Included artifacts.** Git tracks the processed data, checkpoints, training histories, and report figures. The demo reads `results/summary.csv`, per-run `metrics.json` files, paired `val_predictions.npy` and `val_users.npy` files for the trained group, and tables B5/B6 in `reports/tables/`. Historical GRNR and DFHF checkpoints live under `results/sgkr/` and `results/sphr/`, respectively.
