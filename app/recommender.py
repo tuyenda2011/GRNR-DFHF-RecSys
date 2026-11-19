@@ -38,7 +38,7 @@ DENSITIES = (1.0, 0.75, 0.5, 0.25)
 SEED = 42
 # DEMO_RESULTS points the demo at another results tree, e.g. results\preview (1-epoch checkpoints).
 PREVIEW = os.environ.get("DEMO_RESULTS")
-RESULTS = Path(PREVIEW) if PREVIEW else ROOT / "results"
+RESULTS = Path(PREVIEW) if PREVIEW else ROOT / "results/val"
 
 
 def run_dir(model, density, results=None, seed=SEED):

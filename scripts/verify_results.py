@@ -36,7 +36,7 @@ from src.models.dfhf import DFHF, DFHFConfig
 from src.utils.model_names import resolve_model_run
 
 # The density-1.0, seed-42 run of each model in the unified layout (scripts/train_model.py).
-RUNS = {name: {"kind": kind, "run": f"results/{kind}/d100/seed42"} for name, kind in (
+RUNS = {name: {"kind": kind, "run": f"results/val/{kind}/d100/seed42"} for name, kind in (
     ("GRNR", "grnr"), ("DFHF", "dfhf"), ("LightGCN", "lightgcn"), ("XSimGCL", "xsimgcl"), ("DirectAU", "directau"))}
 
 
@@ -93,7 +93,7 @@ def main(argv=None):
     report = {"device": args.device, "validation_only": True, "models": {}}
     for name in args.models:
         spec = RUNS[name]
-        run = resolve_model_run(ROOT / "results", spec["kind"], 1.0, 42)
+        run = resolve_model_run(ROOT / "results/val", spec["kind"], 1.0, 42)
         started = time.perf_counter()
         evaluator, predictions = predict(spec["kind"], run, train, full_train, warm, stats, device,
                                          args.eval_batch_size)

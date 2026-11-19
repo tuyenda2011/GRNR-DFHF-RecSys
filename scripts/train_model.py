@@ -2,7 +2,7 @@
 
   python scripts/train_model.py --model xsimgcl --density 1.0 --seed 42 --epochs 200
 
-Every run goes to results/<model>/d<density%>/seed<seed>/ with the same top-level files:
+Every run goes to results/val/<model>/d<density%>/seed<seed>/ with the same top-level files:
   metrics.json          validation metrics, best epoch, epochs run, timing, configuration (same schema for all)
   val_predictions.npy   validation top-20 per user;  val_users.npy  the matching user IDs
   history.csv           per epoch: epoch, loss, NDCG@10/20, Recall@10/20, seconds, learning_rate, then extra_*
@@ -189,7 +189,7 @@ def finish_dfhf(seed, logs, out):
             "checkpoint": "checkpoint.pt", "config": result["config"]}
 
 
-def train_model(model, density, seed, epochs=200, patience=None, device="auto", results=ROOT / "results"):
+def train_model(model, density, seed, epochs=200, patience=None, device="auto", results=ROOT / "results/val"):
     model = canonical_model_name(model)
     # No early stopping by default: DFHF patience equals the epoch budget (baselines: configs/common.yaml).
     patience = epochs if patience is None else patience
@@ -251,7 +251,7 @@ def main(argv=None):
                         help="DFHF early-stopping patience; default = --epochs (no early stopping). "
                              "Baselines read theirs from configs/common.yaml")
     parser.add_argument("--device", choices=("auto", "cpu", "cuda"), default="auto")
-    parser.add_argument("--results", type=Path, default=ROOT / "results")
+    parser.add_argument("--results", type=Path, default=ROOT / "results/val")
     args = parser.parse_args(argv)
     if args.epochs < 1 or (args.patience is not None and args.patience < 1) or args.seed < 0:
         parser.error("epochs and patience must be positive, seed nonnegative")

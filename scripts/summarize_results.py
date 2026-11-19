@@ -1,6 +1,6 @@
-"""Collect every results/<model>/d<density>/seed<seed>/metrics.json into one table.
+"""Collect every results/val/<model>/d<density>/seed<seed>/metrics.json into one table.
 
-  python scripts/summarize_results.py            # writes results/summary.csv
+  python scripts/summarize_results.py            # writes results/val/summary.csv
 """
 from __future__ import annotations
 
@@ -20,7 +20,7 @@ from src.utils.model_names import canonical_model_name, iter_model_metrics
 METRICS = ("Recall@10", "NDCG@10", "MRR@10", "Recall@20", "NDCG@20", "MRR@20")
 
 
-def collect(results=ROOT / "results"):
+def collect(results=ROOT / "results/val"):
     rows = []
     for model in MODELS:
         for path in iter_model_metrics(results, model):
@@ -38,7 +38,7 @@ def collect(results=ROOT / "results"):
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--results", type=Path, default=ROOT / "results")
+    parser.add_argument("--results", type=Path, default=ROOT / "results/val")
     parser.add_argument("--output", type=Path, default=None, help="Defaults to <results>/summary.csv")
     args = parser.parse_args(argv)
     frame = collect(args.results)

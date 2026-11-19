@@ -43,7 +43,7 @@ def main(argv=None):
     parser.add_argument("--patience", type=int, default=None,
                         help="DFHF patience; default = --epochs (no early stopping). Baselines use configs/common.yaml")
     parser.add_argument("--device", choices=("auto", "cpu", "cuda"), default="auto")
-    parser.add_argument("--results", type=Path, default=ROOT / "results")
+    parser.add_argument("--results", type=Path, default=ROOT / "results/val")
     parser.add_argument("--stop-on-error", action="store_true", help="Stop the batch at the first failed run")
     parser.add_argument("--no-report", action="store_true", help="Skip summarize_results.py and make_report.py")
     parser.add_argument("--dry-run", action="store_true")

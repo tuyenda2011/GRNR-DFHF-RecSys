@@ -1,4 +1,4 @@
-"""Regenerate separate validation figures and tables under reports/.
+"""Regenerate separate validation figures and tables under reports/val/.
 
 Ranking figures use checkpoint inference. Full EASE uses its recorded predictions
 unless --refit-full-ease is specified. The test split is not used.
@@ -205,8 +205,8 @@ def main(argv=None):
     from scripts import make_closed_form_report, make_trained_group_report
 
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--results", type=Path, default=ROOT / "results")
-    parser.add_argument("--output", type=Path, default=ROOT / "reports")
+    parser.add_argument("--results", type=Path, default=ROOT / "results/val")
+    parser.add_argument("--output", type=Path, default=ROOT / "reports/val")
     parser.add_argument("--bootstrap", type=int, default=10_000)
     parser.add_argument("--device", choices=("auto", "cpu", "cuda"), default="auto",
                         help="Device for replaying the trained checkpoints")

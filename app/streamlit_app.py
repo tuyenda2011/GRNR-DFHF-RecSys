@@ -31,7 +31,7 @@ from app.benchmark import METRICS, by_density, closed_form, closed_form_all, lea
 from app.recommender import (COLORS, DENSITIES, FAMILY_COLORS, GROUPS, LABELS, MODELS, PREVIEW, RESULTS,
                              checkpoint_ndcg, load_data, load_ranker, recommend, sample_users)
 
-FIGURES = ROOT / "reports/figures"
+FIGURES = ROOT / "reports/val/figures"
 MOSTPOP_FIGURES = ROOT / "report/image"
 CHART_FONT = "Be Vietnam Pro"  # same face as the page CSS, so Vega measures labels with the font it draws
 CATEGORY_TINTS = ("#fdecea", "#e8f0fc", "#e6f5ee", "#fdf3e1", "#f0ecfa", "#e3f4f6", "#fbeaf2", "#eef1e4")
@@ -581,7 +581,7 @@ def figure_gallery(metric, closed_form=False):
                for name, caption in figures]
     figures = [(path, caption) for path, caption in figures if path.is_file()]
     if not figures:
-        st.caption(f"Chưa có hình cho {metric} trong thư mục reports/figures.")
+        st.caption(f"Chưa có hình cho {metric} trong thư mục reports/val/figures.")
     for row in range(0, len(figures), 3):
         for column, (path, caption) in zip(st.columns(3, gap="large"), figures[row:row + 3]):
             column.image(str(path), caption=caption, width="stretch")

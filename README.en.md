@@ -86,7 +86,7 @@ python scripts/summarize_results.py --results results/reproduction
 python scripts/make_report.py --results results/reproduction --output results/reproduction/report
 ```
 
-**Included artifacts.** Git tracks the processed data, checkpoints, training histories, and report figures. The demo reads `results/summary.csv`, per-run `metrics.json` files, paired `val_predictions.npy` and `val_users.npy` files for the trained group, and tables B5/B6 in `reports/tables/`. Historical GRNR and DFHF checkpoints live under `results/sgkr/` and `results/sphr/`, respectively.
+**Included artifacts.** Git tracks the processed data, checkpoints, training histories, and report figures. The demo reads `results/val/summary.csv`, per-run `metrics.json` files, paired `val_predictions.npy` and `val_users.npy` files for the trained group, and tables B5/B6 in `reports/val/tables/`. Historical GRNR and DFHF checkpoints live under `results/val/sgkr/` and `results/val/sphr/`, respectively.
 
 ## Repository layout
 
@@ -95,8 +95,8 @@ python scripts/make_report.py --results results/reproduction --output results/re
 | [`src/`](src/) · [`configs/`](configs/) | Models, data processing, evaluation, and experiment configurations |
 | [`scripts/`](scripts/) · [`kaggle/`](kaggle/) | Training and reporting commands, plus notebooks |
 | [`app/`](app/) | Streamlit demo |
-| [`data/`](data/) · [`results/`](results/) | Processed data and checkpoints |
-| [`report/`](report/) · [`reports/figures/`](reports/figures/) | PDF report, illustrations, and experiment figures |
+| [`data/`](data/) · [`results/`](results/) | Processed data; validation results (`results/val/`, with checkpoints) and test results (`results/test/`) |
+| [`report/`](report/) · [`reports/val/`](reports/val/) · [`reports/test/`](reports/test/) | PDF report, illustrations, and experiment figures |
 
 ## References
 

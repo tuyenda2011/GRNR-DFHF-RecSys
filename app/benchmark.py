@@ -18,7 +18,7 @@ from src.utils.model_names import canonical_model_name
 MAIN = ("dfhf", "lightgcn", "xsimgcl", "directau")  # the trained group
 PROPOSED, GRAPH = ("dfhf",), ("lightgcn", "xsimgcl", "directau")
 METRICS = ("NDCG@20", "NDCG@10", "Recall@20", "Recall@10", "MRR@20")
-TABLES = ROOT / "reports/tables"
+TABLES = ROOT / "reports/val/tables"
 
 
 def read_summary(summary_path=None):

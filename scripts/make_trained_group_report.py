@@ -1,6 +1,6 @@
 """Replay trained checkpoints and draw the DFHF, LightGCN, XSimGCL and DirectAU figures.
 
-  python scripts/make_trained_group_report.py      # -> reports/figures/*.png
+  python scripts/make_trained_group_report.py      # -> reports/val/figures/*.png
 
 Ranking figures use fresh validation predictions. Learning curves and measured
 training/inference times come from the original training runs.
@@ -28,8 +28,8 @@ CURVE_METRICS = ("NDCG@20", "NDCG@10")  # the metrics recorded in the training h
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    parser.add_argument("--results", type=Path, default=ROOT / "results")
-    parser.add_argument("--output", type=Path, default=ROOT / "reports" / "figures")
+    parser.add_argument("--results", type=Path, default=ROOT / "results/val")
+    parser.add_argument("--output", type=Path, default=ROOT / "reports/val/figures")
     parser.add_argument("--device", choices=("auto", "cpu", "cuda"), default="auto")
     args = parser.parse_args(argv)
     generate(args.results, args.output, args.device)

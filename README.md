@@ -86,7 +86,7 @@ python scripts/summarize_results.py --results results/reproduction
 python scripts/make_report.py --results results/reproduction --output results/reproduction/report
 ```
 
-**Tệp đi kèm repo.** Git lưu dữ liệu đã xử lý, checkpoint, lịch sử huấn luyện và hình báo cáo. Demo đọc `results/summary.csv`, `metrics.json` của từng lần chạy, các cặp `val_predictions.npy` và `val_users.npy` của nhóm cần huấn luyện, cùng bảng B5/B6 trong `reports/tables/`. Các checkpoint lịch sử nằm trong `results/sgkr/` và `results/sphr/`, tương ứng với GRNR và DFHF.
+**Tệp đi kèm repo.** Git lưu dữ liệu đã xử lý, checkpoint, lịch sử huấn luyện và hình báo cáo. Demo đọc `results/val/summary.csv`, `metrics.json` của từng lần chạy, các cặp `val_predictions.npy` và `val_users.npy` của nhóm cần huấn luyện, cùng bảng B5/B6 trong `reports/val/tables/`. Các checkpoint lịch sử nằm trong `results/val/sgkr/` và `results/val/sphr/`, tương ứng với GRNR và DFHF.
 
 ## Cấu trúc repo
 
@@ -95,8 +95,8 @@ python scripts/make_report.py --results results/reproduction --output results/re
 | [`src/`](src/) · [`configs/`](configs/) | Mô hình, xử lý dữ liệu, đánh giá và cấu hình thực nghiệm |
 | [`scripts/`](scripts/) · [`kaggle/`](kaggle/) | Lệnh huấn luyện, tổng hợp kết quả và notebook |
 | [`app/`](app/) | Demo Streamlit |
-| [`data/`](data/) · [`results/`](results/) | Dữ liệu đã xử lý và checkpoint |
-| [`report/`](report/) · [`reports/figures/`](reports/figures/) | Báo cáo PDF, hình minh họa và hình thực nghiệm |
+| [`data/`](data/) · [`results/`](results/) | Dữ liệu đã xử lý; kết quả val (`results/val/`, kèm checkpoint) và test (`results/test/`) |
+| [`report/`](report/) · [`reports/val/`](reports/val/) · [`reports/test/`](reports/test/) | Báo cáo PDF, hình minh họa và hình thực nghiệm |
 
 ## Tài liệu tham khảo
 

@@ -69,25 +69,25 @@ artifacts/
 # Results: checkpoints, training histories, and inputs used by the demo
 results/**
 !results/**/
-!results/*/*/*/checkpoint.pt
-!results/*/*/*/checkpoint.npz
+!results/val/*/*/*/checkpoint.pt
+!results/val/*/*/*/checkpoint.npz
 !results/**/*history.csv
-!results/summary.csv
-!results/*/d*/seed42/metrics.json
-!results/directau/d*/seed42/val_predictions.npy
-!results/directau/d*/seed42/val_users.npy
-!results/lightgcn/d*/seed42/val_predictions.npy
-!results/lightgcn/d*/seed42/val_users.npy
-!results/sphr/d*/seed42/val_predictions.npy
-!results/sphr/d*/seed42/val_users.npy
-!results/xsimgcl/d*/seed42/val_predictions.npy
-!results/xsimgcl/d*/seed42/val_users.npy
+!results/val/summary.csv
+!results/val/*/d*/seed42/metrics.json
+!results/val/directau/d*/seed42/val_predictions.npy
+!results/val/directau/d*/seed42/val_users.npy
+!results/val/lightgcn/d*/seed42/val_predictions.npy
+!results/val/lightgcn/d*/seed42/val_users.npy
+!results/val/sphr/d*/seed42/val_predictions.npy
+!results/val/sphr/d*/seed42/val_users.npy
+!results/val/xsimgcl/d*/seed42/val_predictions.npy
+!results/val/xsimgcl/d*/seed42/val_users.npy
 # Reports: figures and closed-form benchmark tables used by the demo
 reports/**
 !reports/**/
 !reports/**/*.png
-!reports/tables/B5_closed_form.csv
-!reports/tables/B6_closed_form_significance.csv
+!reports/*/tables/B5_closed_form.csv
+!reports/*/tables/B6_closed_form_significance.csv
 
 # DVC
 .dvc/cache
@@ -111,6 +111,8 @@ reports/**
 # Tests stay local only (not pushed to git)
 test/
 tests/
+# ...except the test-split report, which mirrors reports/val
+!reports/test/
 
 # Local validation scratch
 .tmp/
@@ -128,3 +130,4 @@ report/*
 !report/image/
 report/image/*
 !report/image/*.png
+!report/image/test/

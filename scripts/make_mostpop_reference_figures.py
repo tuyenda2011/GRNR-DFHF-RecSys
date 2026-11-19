@@ -2,7 +2,7 @@
 
   python scripts/make_mostpop_reference_figures.py   # -> report/image/H9_mostpop_{closed,trained}_ndcg20.png
 
-Inputs (validation only): reports/tables/B5_closed_form.csv, reports/tables/B2b_by_density.csv and
+Inputs (validation only): reports/val/tables/B5_closed_form.csv, reports/val/tables/B2b_by_density.csv and
 report/planning/phan_tich_bo_sung/t6g_mostpop.json (MostPop ranks retained-train candidates by retained count).
 Each figure holds one group only; GRNR and DFHF never share a figure.
 """
@@ -29,7 +29,7 @@ DENSITIES = (0.25, 0.5, 0.75, 1.0)
 OUT = ROOT / "report" / "image"
 
 
-def draw(series, styles, mostpop, name):
+def draw(series, styles, mostpop, name, folder=OUT):
     fig, ax = plt.subplots(figsize=(6.4, 3.6), layout="constrained")
     style_axes(ax)
     for key, values in series.items():
@@ -44,7 +44,7 @@ def draw(series, styles, mostpop, name):
     ax.set_ylim(0, None)
     ax.yaxis.set_major_formatter(matplotlib.ticker.FuncFormatter(lambda v, _: f"{v:.3f}".replace(".", ",")))
     fig.legend(loc="outside lower center", ncol=3, frameon=False)
-    fig.savefig(OUT / f"{name}.png", dpi=300, facecolor="white")
+    fig.savefig(folder / f"{name}.png", dpi=300, facecolor="white")
     plt.close(fig)
     print(f"{name}: written")
 
@@ -55,13 +55,13 @@ def main():
     pop = json.loads((ROOT / "report/planning/phan_tich_bo_sung/t6g_mostpop.json").read_text(encoding="utf-8"))
     mostpop = [pop[str(d)]["NDCG@20"] for d in DENSITIES]
 
-    b5 = pd.read_csv(ROOT / "reports/tables/B5_closed_form.csv", encoding="utf-8-sig")
+    b5 = pd.read_csv(ROOT / "reports/val/tables/B5_closed_form.csv", encoding="utf-8-sig")
     labels = {"grnr": "GRNR (đề xuất)", "ease": "EASE (đầy đủ)", "ease128": "EASE top-128", "gfcf": "GF-CF"}
     closed = {key: [float(b5[(b5["Mô hình"] == label) & (b5["Mật độ"] == d)]["NDCG@20"].iloc[0]) for d in DENSITIES]
               for key, label in labels.items()}
     draw(closed, CLOSED_STYLE, mostpop, "H9_mostpop_closed_ndcg20")
 
-    b2 = pd.read_csv(ROOT / "reports/tables/B2b_by_density.csv", encoding="utf-8-sig").set_index("Mô hình")
+    b2 = pd.read_csv(ROOT / "reports/val/tables/B2b_by_density.csv", encoding="utf-8-sig").set_index("Mô hình")
     trained = {key: [float(b2.at[STYLE[key]["label"], f"NDCG@20 d={d:.2f}"]) for d in DENSITIES]
                for key in ("dfhf", "lightgcn", "xsimgcl", "directau")}
     draw(trained, STYLE, mostpop, "H9_mostpop_trained_ndcg20")

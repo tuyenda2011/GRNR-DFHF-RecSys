@@ -4,14 +4,14 @@
 
 Writes next to the main report without touching it. The figures are the main report's own types (same
 drawing code, make_combined_figures.bar_figure), restricted to these four models:
-  reports/tables/B5_closed_form.csv                   metrics, train time and checkpoint size, all four densities
-  reports/tables/B6_closed_form_significance.csv      GRNR minus each model: paired bootstrap, Holm over 3 per density
-  reports/figures/H1_closed_form_density_<metric>.png as H1
-  reports/figures/H4_closed_form_retention_<metric>.png as H4
-  reports/figures/H5_closed_form_user_groups_<metric>.png as H5
-  reports/figures/H7a_closed_form_train_time.png      as H7a
-  reports/figures/H7c_closed_form_checkpoint_size.png as H7a, checkpoint size instead of train time
-  reports/figures/H8_closed_form_ndcg_at_k.png        as H8
+  reports/val/tables/B5_closed_form.csv                   metrics, train time and checkpoint size, all four densities
+  reports/val/tables/B6_closed_form_significance.csv      GRNR minus each model: paired bootstrap, Holm over 3 per density
+  reports/val/figures/H1_closed_form_density_<metric>.png as H1
+  reports/val/figures/H4_closed_form_retention_<metric>.png as H4
+  reports/val/figures/H5_closed_form_user_groups_<metric>.png as H5
+  reports/val/figures/H7a_closed_form_train_time.png      as H7a
+  reports/val/figures/H7c_closed_form_checkpoint_size.png as H7a, checkpoint size instead of train time
+  reports/val/figures/H8_closed_form_ndcg_at_k.png        as H8
 
 GRNR, GF-CF and EASE top-128 are evaluated from checkpoints. Full EASE uses its
 recorded predictions unless --refit-full-ease is supplied, since its dense matrix was not saved.
@@ -107,8 +107,8 @@ def figures(table, scores, full_train, folder, notes):
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--results", type=Path, default=ROOT / "results")
-    parser.add_argument("--output", type=Path, default=ROOT / "reports")
+    parser.add_argument("--results", type=Path, default=ROOT / "results/val")
+    parser.add_argument("--output", type=Path, default=ROOT / "reports/val")
     parser.add_argument("--refit-full-ease", action="store_true", help="Rebuild the dense EASE matrix before scoring")
     args = parser.parse_args(argv)
     generate(args.results, args.output, refit_full_ease=args.refit_full_ease)

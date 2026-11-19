@@ -44,7 +44,13 @@ from src.evaluation.evaluator import EVALUATION_PROTOCOL, Evaluator
 from src.evaluation.metrics import compute_topk_metrics
 from src.utils.model_names import resolve_model_run
 
-MODELS = ("grnr", "ease", "gfcf", "dfhf", "lightgcn", "xsimgcl", "directau")
+MODELS = ("grnr", "ease", "ease128", "gfcf", "dfhf", "lightgcn", "xsimgcl", "directau", "mostpop")
+# ease128 = the saved top-128 EASE matrix (results/val/ease/.../checkpoint.npz), i.e. EASE with --ease checkpoint,
+# filed separately so the full and pruned EASE results can sit side by side.
+# mostpop = reference ranking by interaction count in the density's training sample, ties by item ID
+# (as scripts/extra/run_item_baselines.mostpop_predictions). It has no saved run; its validation check uses the
+# only recorded validation value (README: NDCG@20 0.01771 at density 0.25, rounded to 5 decimals).
+MOSTPOP_VAL_NDCG20 = {0.25: 0.01771}
 DENSITIES = (1.0, 0.75, 0.5, 0.25)
 METRICS = ("Recall@10", "NDCG@10", "MRR@10", "Recall@20", "NDCG@20", "MRR@20")
 SEED = 42
@@ -65,6 +71,13 @@ def scorer(model, run, train, stats, device, ease_mode):
     """(user_table, item_table, score_fn, device) for the Evaluator, built from the run's saved artifact."""
     cpu = torch.device("cpu")
     empty = torch.empty(0)
+    if model == "mostpop":
+        counts = np.bincount(train.i_idx.to_numpy(), minlength=stats["num_items"])
+        order = np.lexsort((np.arange(stats["num_items"]), -counts))  # count descending, then item ID
+        rank_score = np.empty(stats["num_items"], dtype=np.float32)
+        rank_score[order] = np.arange(stats["num_items"], 0, -1, dtype=np.float32)  # exact, no float ties
+        table = torch.from_numpy(rank_score)
+        return empty, empty, lambda users, *_: table.expand(len(users), -1).clone(), cpu
     if model == "grnr":
         from src.models.grnr import GRNR
         grnr = GRNR.load(run / "checkpoint.npz")
@@ -120,24 +133,36 @@ def rank(history, targets, train, stats, users, items, score_fn, device, batch):
 
 def evaluate(model, density, data, args, device):
     full_train, validation, test, stats = data
-    run = resolve_model_run(ROOT / "results", model, density, SEED)
-    stored = json.loads((run / "metrics.json").read_text(encoding="utf-8"))
+    ease_mode = "checkpoint" if model == "ease128" else args.ease
+    pruned_ease = model == "ease128" or (model == "ease" and ease_mode == "checkpoint")
+    if model == "mostpop":
+        run, reference = None, MOSTPOP_VAL_NDCG20.get(density)
+        stored_val = None if reference is None else {"NDCG@20": reference}
+    else:
+        run = resolve_model_run(ROOT / "results/val", "ease" if model == "ease128" else model, density, SEED)
+        stored = json.loads((run / "metrics.json").read_text(encoding="utf-8"))
+        stored_val = stored["checkpoint_val_metrics"] if pruned_ease else stored["val_metrics"]
     train = create_sparse_train_set(full_train, density, SEED)
     started = time.perf_counter()
-    users, items, score_fn, run_device = scorer(model, run, train, stats, device, args.ease)
+    users, items, score_fn, run_device = scorer("ease" if model == "ease128" else model, run, train, stats, device,
+                                                ease_mode)
     setup_seconds = time.perf_counter() - started
 
-    val_check = None
+    val_check, val_metrics = None, None
     if not args.skip_val_check:
         warm_val, _ = warm_cohort(train, validation)
         _, _, val_metrics, _ = rank(full_train, warm_val, train, stats, users, items, score_fn, run_device,
                                     args.eval_batch_size)
-        reference = stored["checkpoint_val_metrics"] if model == "ease" and args.ease == "checkpoint" \
-            else stored["val_metrics"]
-        diff = abs(val_metrics["NDCG@20"] - reference["NDCG@20"])
-        val_check = {"NDCG@20": val_metrics["NDCG@20"], "stored_NDCG@20": reference["NDCG@20"],
-                     "abs_diff": diff, "ok": diff <= args.tolerance}
-        print(f"  val check NDCG@20 {val_metrics['NDCG@20']:.6f} vs stored {reference['NDCG@20']:.6f} "
+    if val_metrics is not None and stored_val is None:
+        print(f"  val NDCG@20 {val_metrics['NDCG@20']:.6f} (no recorded value to check against)", flush=True)
+    elif val_metrics is not None:
+        reference = stored_val["NDCG@20"]
+        # The recorded MostPop value is rounded to 5 decimals.
+        tolerance = max(args.tolerance, 5e-6) if model == "mostpop" else args.tolerance
+        diff = abs(val_metrics["NDCG@20"] - reference)
+        val_check = {"NDCG@20": val_metrics["NDCG@20"], "stored_NDCG@20": reference,
+                     "abs_diff": diff, "ok": diff <= tolerance}
+        print(f"  val check NDCG@20 {val_metrics['NDCG@20']:.6f} vs stored {reference:.6f} "
               f"-> {'ok' if val_check['ok'] else 'MISMATCH'}", flush=True)
         if not val_check["ok"] and not args.allow_mismatch:
             raise AssertionError(f"{model} d{density}: validation NDCG@20 differs from metrics.json by {diff:.2e}; "
@@ -149,8 +174,10 @@ def evaluate(model, density, data, args, device):
     evaluator, predictions, metrics, latency = rank(history, warm_test, train, stats, users, items, score_fn,
                                                     run_device, args.eval_batch_size)
     return run, {"model": model, "density": density, "seed": SEED, "split": "test", "test_metrics": metrics,
-                 "validation_metrics_stored": stored["val_metrics"], "validation_check": val_check,
-                 "ease_matrix": args.ease if model == "ease" else None, "source_run": run.relative_to(ROOT).as_posix(),
+                 "validation_metrics_stored": stored_val, "validation_metrics_recomputed": val_metrics,
+                 "validation_check": val_check,
+                 "ease_matrix": ease_mode if model in ("ease", "ease128") else None,
+                 "source_run": None if run is None else run.relative_to(ROOT).as_posix(),
                  "test_cohort": cohort, "evaluation_protocol": EVALUATION_PROTOCOL,
                  "mask": "full_train + validation item", "retrained": False,
                  "setup_seconds": setup_seconds, "seconds": time.perf_counter() - started,
@@ -165,7 +192,7 @@ def write_summary(output):
         result = json.loads(path.read_text(encoding="utf-8"))
         check = result.get("validation_check") or {}
         rows.append({"model": result["model"], "density": result["density"], "seed": result["seed"], "split": "test",
-                     **result["test_metrics"], "val_NDCG@20_stored": result["validation_metrics_stored"]["NDCG@20"],
+                     **result["test_metrics"], "val_NDCG@20_stored": (result["validation_metrics_stored"] or {}).get("NDCG@20"),
                      "val_check_ok": check.get("ok"), "evaluable_users": result["test_cohort"]["evaluable_users"],
                      "seconds": round(result["seconds"], 1), "path": path.parent.relative_to(output).as_posix()})
     rows.sort(key=lambda r: (MODELS.index(r["model"]), -r["density"]))
