@@ -113,6 +113,7 @@ test/
 tests/
 # ...except the test-split report, which mirrors reports/val
 !reports/test/
+!reports/test/tables/*.csv
 # ...and the test-split results: metrics and summary only (predictions .npy stay local, re-creatable
 # with scripts/evaluate_test.py)
 !results/test/

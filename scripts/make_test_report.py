@@ -6,6 +6,9 @@ Inputs come from scripts/evaluate_test.py (results/test/<model>/d<pct>/seed42/: 
 test_predictions.npy, test_users.npy); nothing is re-scored here. Same drawing code, names and layout as
 reports/val, so each test file sits beside its validation file:
   tables/B5_closed_form.csv, tables/B6_closed_form_significance.csv
+  tables/B3_trained_significance.csv   DFHF minus each trained baseline, NDCG@20, Holm over 3 per density
+  tables/B7_mostpop_significance.csv   DFHF and GRNR minus MostPop, NDCG@20, Holm over 2 per density
+    (both: paired user bootstrap, same procedure as B6)
   figures/H1_*_density_<metric>, H4_*_retention_<metric>, H5_*_user_groups_<metric>, H8_*_ndcg_at_k
     for the closed-form group (GRNR, EASE, EASE top-128, GF-CF) and the trained group (DFHF and baselines).
   figures/H3_trained_learning_curves_<metric>, H3c_loss, H7a_*_train_time, H7b_trained_inference_latency,
@@ -140,6 +143,33 @@ def mostpop_figures(results, folder):
     draw({m: series(m) for m in TRAINED}, STYLE, mostpop, "H9_mostpop_trained_ndcg20", folder)
 
 
+def significance_table(scores, pairs, path, repeats, metric="NDCG@20"):
+    """Paired user bootstrap of proposed minus rival, Holm over the comparisons of each density (as B6)."""
+    from scripts.compare_val_runs import holm_adjust, paired_bootstrap
+    rows = []
+    for density in DENSITIES:
+        block = []
+        for proposed, rival in pairs:
+            users, _, values, _ = scores[(proposed, density, SEED)]
+            reference = pd.Series(values[metric], index=users)
+            users, _, values, _ = scores[(rival, density, SEED)]
+            other = pd.Series(values[metric], index=users)
+            common = reference.index.intersection(other.index)
+            test = paired_bootstrap(other.loc[common].to_numpy(float), reference.loc[common].to_numpy(float),
+                                    repeats=repeats)
+            block.append({"proposed": proposed, "rival": rival, **test})
+        for row, p in zip(block, holm_adjust([row["p_one_sided"] for row in block])):
+            rows.append({"So sánh": f"{LABELS[row['proposed']]} - {LABELS[row['rival']]}", "Mật độ": density,
+                         f"Delta {metric}": round(row["delta"], 6), "KTC 95% dưới": round(row["ci95"][0], 5),
+                         "KTC 95% trên": round(row["ci95"][1], 5), "p một phía": round(row["p_one_sided"], 5),
+                         "p Holm": round(p, 5), "Số user": row["n_users"]})
+    pd.DataFrame(rows).to_csv(path, index=False, encoding="utf-8-sig", lineterminator="\n")
+
+
+LABELS = {**{m: STYLE[m]["label"] for m in TRAINED}, **{m: cf.STYLE[m]["label"] for m in cf.ARMS},
+          "mostpop": "MostPop"}
+
+
 def generate(results, val_results, reports, *, bootstrap=10_000):
     _, full_train, _, test, stats = load_inputs(None)
     targets = dict(zip(test.u_idx.astype(int), test.i_idx.astype(int)))
@@ -151,8 +181,14 @@ def generate(results, val_results, reports, *, bootstrap=10_000):
     scores, metrics = load_scores(results, cf.ARMS, targets)
     bar_figures(metrics, scores, full_train, figures, notes, "closed_form", cf.ARMS, cf.STYLE)
     closed_form_tables(metrics, scores, val_results, tables, stats["num_items"], bootstrap)
+    grnr_scores = {key: value for key, value in scores.items() if key[0] == "grnr"}
     scores, metrics = load_scores(results, TRAINED, targets)
     bar_figures(metrics, scores, full_train, figures, notes, "trained", TRAINED, STYLE)
+    significance_table(scores, [("dfhf", rival) for rival in TRAINED[1:]],
+                       tables / "B3_trained_significance.csv", bootstrap)
+    mostpop_scores, _ = load_scores(results, ("mostpop",), targets)
+    significance_table({**scores, **grnr_scores, **mostpop_scores}, [("dfhf", "mostpop"), ("grnr", "mostpop")],
+                       tables / "B7_mostpop_significance.csv", bootstrap)
     training_figures(val_results, figures, notes, stats["num_items"])
     mostpop_figures(results, figures)
     print("\n".join(notes))
