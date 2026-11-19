@@ -113,6 +113,11 @@ test/
 tests/
 # ...except the test-split report, which mirrors reports/val
 !reports/test/
+# ...and the test-split results: metrics and summary only (predictions .npy stay local, re-creatable
+# with scripts/evaluate_test.py)
+!results/test/
+!results/test/summary_test.csv
+!results/test/*/d*/seed42/metrics.json
 
 # Local validation scratch
 .tmp/

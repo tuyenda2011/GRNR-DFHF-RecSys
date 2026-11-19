@@ -1,0 +1,53 @@
+{
+  "model": "ease128",
+  "density": 0.5,
+  "seed": 42,
+  "split": "test",
+  "test_metrics": {
+    "Recall@10": 0.018816476687788963,
+    "NDCG@10": 0.01118560478100758,
+    "MRR@10": 0.008851951854603904,
+    "Recall@20": 0.024699542671442032,
+    "NDCG@20": 0.012665753970621073,
+    "MRR@20": 0.00925446740203244
+  },
+  "validation_metrics_stored": {
+    "Recall@10": 0.024959193542599678,
+    "NDCG@10": 0.01564254547144455,
+    "MRR@10": 0.012783418424186973,
+    "Recall@20": 0.03294315189123154,
+    "NDCG@20": 0.017661908457177553,
+    "MRR@20": 0.013338144216175093
+  },
+  "validation_check": {
+    "NDCG@20": 0.01766190845717756,
+    "stored_NDCG@20": 0.017661908457177553,
+    "abs_diff": 6.938893903907228e-18,
+    "ok": true
+  },
+  "ease_matrix": "checkpoint",
+  "source_run": "results/val/ease/d50/seed42",
+  "test_cohort": {
+    "total_targets": 107274,
+    "warm_targets": 107087,
+    "cold_item_targets": 187,
+    "cold_item_rate": 0.0017431996569532227,
+    "unique_cold_items": 38,
+    "users_without_train_history": 0,
+    "evaluable_users": 107087,
+    "user_coverage": 0.8574162296328917
+  },
+  "evaluation_protocol": "profile_monitor_scoring_v5",
+  "mask": "full_train + validation item",
+  "retrained": false,
+  "setup_seconds": 0.18588389999968058,
+  "seconds": 25.437298299999384,
+  "inference_ms_per_user": 0.09850284254858306,
+  "device": "cpu",
+  "env": {
+    "python": "3.12.16",
+    "torch": "2.14.0+cu130",
+    "os": "Windows-11-10.0.26200-SP0",
+    "cuda": "13.0"
+  }
+}

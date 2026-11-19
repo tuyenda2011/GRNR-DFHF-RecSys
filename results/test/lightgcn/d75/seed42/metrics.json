@@ -1,0 +1,53 @@
+{
+  "model": "lightgcn",
+  "density": 0.75,
+  "seed": 42,
+  "split": "test",
+  "test_metrics": {
+    "Recall@10": 0.028780337423086166,
+    "NDCG@10": 0.015341366129356217,
+    "MRR@10": 0.01129290218115192,
+    "Recall@20": 0.04455256089568138,
+    "NDCG@20": 0.01930185275508005,
+    "MRR@20": 0.012365872481896457
+  },
+  "validation_metrics_stored": {
+    "Recall@10": 0.033456139266490936,
+    "NDCG@10": 0.01814149470113828,
+    "MRR@10": 0.013510247544431196,
+    "Recall@20": 0.051224175840616226,
+    "NDCG@20": 0.022607858630232763,
+    "MRR@20": 0.014722726194192995
+  },
+  "validation_check": {
+    "NDCG@20": 0.022607858630232763,
+    "stored_NDCG@20": 0.022607858630232763,
+    "abs_diff": 0.0,
+    "ok": true
+  },
+  "ease_matrix": null,
+  "source_run": "results/val/lightgcn/d75/seed42",
+  "test_cohort": {
+    "total_targets": 107274,
+    "warm_targets": 107087,
+    "cold_item_targets": 187,
+    "cold_item_rate": 0.0017431996569532227,
+    "unique_cold_items": 38,
+    "users_without_train_history": 0,
+    "evaluable_users": 107087,
+    "user_coverage": 0.8574162296328917
+  },
+  "evaluation_protocol": "profile_monitor_scoring_v5",
+  "mask": "full_train + validation item",
+  "retrained": false,
+  "setup_seconds": 0.1468709000000672,
+  "seconds": 6.226119200000085,
+  "inference_ms_per_user": 0.010192259564653453,
+  "device": "cuda",
+  "env": {
+    "python": "3.12.16",
+    "torch": "2.14.0+cu130",
+    "os": "Windows-11-10.0.26200-SP0",
+    "cuda": "13.0"
+  }
+}

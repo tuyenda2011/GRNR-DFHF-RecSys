@@ -1,0 +1,53 @@
+{
+  "model": "directau",
+  "density": 0.5,
+  "seed": 42,
+  "split": "test",
+  "test_metrics": {
+    "Recall@10": 0.023326827213168144,
+    "NDCG@10": 0.013079350159141587,
+    "MRR@10": 0.009970401606407844,
+    "Recall@20": 0.03434590622782707,
+    "NDCG@20": 0.01584520535109573,
+    "MRR@20": 0.010718855563421269
+  },
+  "validation_metrics_stored": {
+    "Recall@10": 0.030219651758670807,
+    "NDCG@10": 0.016996577935590652,
+    "MRR@10": 0.012986537213091334,
+    "Recall@20": 0.04418225213885307,
+    "NDCG@20": 0.02050281021011622,
+    "MRR@20": 0.013936207589612852
+  },
+  "validation_check": {
+    "NDCG@20": 0.020502810210116212,
+    "stored_NDCG@20": 0.02050281021011622,
+    "abs_diff": 6.938893903907228e-18,
+    "ok": true
+  },
+  "ease_matrix": null,
+  "source_run": "results/val/directau/d50/seed42",
+  "test_cohort": {
+    "total_targets": 107274,
+    "warm_targets": 107087,
+    "cold_item_targets": 187,
+    "cold_item_rate": 0.0017431996569532227,
+    "unique_cold_items": 38,
+    "users_without_train_history": 0,
+    "evaluable_users": 107087,
+    "user_coverage": 0.8574162296328917
+  },
+  "evaluation_protocol": "profile_monitor_scoring_v5",
+  "mask": "full_train + validation item",
+  "retrained": false,
+  "setup_seconds": 0.13115779999998267,
+  "seconds": 6.113667499999792,
+  "inference_ms_per_user": 0.008731921708516256,
+  "device": "cuda",
+  "env": {
+    "python": "3.12.16",
+    "torch": "2.14.0+cu130",
+    "os": "Windows-11-10.0.26200-SP0",
+    "cuda": "13.0"
+  }
+}
