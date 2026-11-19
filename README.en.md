@@ -20,7 +20,7 @@ python -m streamlit run app/streamlit_app.py
 
 - **Existing users** shows top-10 recommendations and how individual history items contribute to a GRNR score.
 - **New users** lets you assemble a history from catalog items and try GRNR, DFHF, EASE top-128, and GF-CF.
-- **Model evaluation** separates the two comparison groups. In a fresh clone, this tab reports a missing summary until the experiment outputs are available.
+- **Model evaluation** shows rankings, charts, statistical tests, and report figures for both comparison groups using results included in the repository.
 
 ![Streamlit interface showing an existing user's interaction history and recommendations](report/image/anh_1.png)
 
@@ -87,7 +87,7 @@ python scripts/make_closed_form_report.py --results results/reproduction --outpu
 python scripts/make_trained_group_report.py --results results/reproduction --output results/reproduction/trained
 ```
 
-**Included artifacts.** Git tracks the processed data, checkpoints, training histories, and report figures. The pipeline generates `metrics.json`, `val_predictions.npy`, `val_users.npy`, and the experiment CSV tables. To enable the full benchmark tab, place `summary.csv` and the per-run outputs in the app's default `results/` tree, then copy tables B5/B6 into `reports/tables/`. Historical GRNR and DFHF checkpoints live under `results/sgkr/` and `results/sphr/`, respectively.
+**Included artifacts.** Git tracks the processed data, checkpoints, training histories, and report figures. The demo reads `results/summary.csv`, per-run `metrics.json` files, paired `val_predictions.npy` and `val_users.npy` files for the trained group, and tables B5/B6 in `reports/tables/`. Historical GRNR and DFHF checkpoints live under `results/sgkr/` and `results/sphr/`, respectively.
 
 ## Repository layout
 

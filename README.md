@@ -20,7 +20,7 @@ python -m streamlit run app/streamlit_app.py
 
 - **Gợi ý cho khách** hiển thị top-10 cho người dùng có sẵn và đóng góp của từng sản phẩm trong lịch sử vào điểm gợi ý của GRNR.
 - **Khách mới** cho phép tạo lịch sử từ các sản phẩm trong danh mục rồi thử GRNR, DFHF, EASE top-128 và GF-CF.
-- **Đánh giá mô hình** trình bày hai nhóm so sánh. Trên bản clone mới, thẻ này báo thiếu bảng tổng hợp cho đến khi có tệp kết quả thực nghiệm.
+- **Đánh giá mô hình** trình bày bảng xếp hạng, biểu đồ, kiểm định và hình báo cáo cho hai nhóm so sánh từ kết quả có sẵn trong repo.
 
 ![Giao diện Streamlit hiển thị lịch sử tương tác và các gợi ý cho người dùng có sẵn](report/image/anh_1.png)
 
@@ -87,7 +87,7 @@ python scripts/make_closed_form_report.py --results results/reproduction --outpu
 python scripts/make_trained_group_report.py --results results/reproduction --output results/reproduction/trained
 ```
 
-**Tệp đi kèm repo.** Git lưu dữ liệu đã xử lý, checkpoint, lịch sử huấn luyện và hình báo cáo. `metrics.json`, `val_predictions.npy`, `val_users.npy` và các bảng CSV thực nghiệm được tạo khi chạy pipeline. Để bật đầy đủ thẻ đánh giá trong demo, đặt `summary.csv` và các tệp kết quả theo từng lần chạy vào cây `results/` mặc định của ứng dụng, rồi chép bảng B5/B6 vào `reports/tables/`. Các checkpoint lịch sử nằm trong `results/sgkr/` và `results/sphr/`, tương ứng với GRNR và DFHF.
+**Tệp đi kèm repo.** Git lưu dữ liệu đã xử lý, checkpoint, lịch sử huấn luyện và hình báo cáo. Demo đọc `results/summary.csv`, `metrics.json` của từng lần chạy, các cặp `val_predictions.npy` và `val_users.npy` của nhóm cần huấn luyện, cùng bảng B5/B6 trong `reports/tables/`. Các checkpoint lịch sử nằm trong `results/sgkr/` và `results/sphr/`, tương ứng với GRNR và DFHF.
 
 ## Cấu trúc repo
 

@@ -1,0 +1,36 @@
+{
+  "model": "gfcf",
+  "density": 0.5,
+  "seed": 42,
+  "split": "validation",
+  "max_epochs": null,
+  "val_metrics": {
+    "Recall@10": 0.005474979989230633,
+    "NDCG@10": 0.0026818887051241434,
+    "MRR@10": 0.0018479668134567166,
+    "Recall@20": 0.0100918710231781,
+    "NDCG@20": 0.0038374796093393945,
+    "MRR@20": 0.0021591020140277156
+  },
+  "best_epoch": null,
+  "epochs_run": 0,
+  "train_seconds": 350.3642723480002,
+  "inference_ms_per_user": 2.3896265903371745,
+  "checkpoint": "checkpoint.npz",
+  "config": {
+    "singular_vectors": 256,
+    "ideal_weight": 0.3,
+    "svd_seed": 0,
+    "svd_backend": "subspace"
+  },
+  "env": {
+    "created": "2026-10-27T18:06:19",
+    "python": "3.13.15",
+    "torch": "2.11.0+cpu",
+    "cuda": null,
+    "gpu": null,
+    "cpu": "x86_64",
+    "os": "Linux-6.18.55+-x86_64-with-glibc2.39",
+    "git_commit": "52053ee"
+  }
+}

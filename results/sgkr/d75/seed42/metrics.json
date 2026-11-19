@@ -1,0 +1,47 @@
+{
+  "model": "sgkr",
+  "density": 0.75,
+  "seed": 42,
+  "split": "validation",
+  "max_epochs": null,
+  "val_metrics": {
+    "Recall@10": 0.04319358244538307,
+    "NDCG@10": 0.025450995820965022,
+    "MRR@10": 0.02003303701433627,
+    "Recall@20": 0.05835936963558197,
+    "NDCG@20": 0.029281082439766234,
+    "MRR@20": 0.02108220112891652
+  },
+  "best_epoch": null,
+  "epochs_run": 0,
+  "train_seconds": 123.75249032600004,
+  "inference_ms_per_user": 0.8982639045282856,
+  "checkpoint": "checkpoint.npz",
+  "config": {
+    "neighbors": 128,
+    "alpha": 10.0,
+    "positive_weight": 10.0,
+    "eta_linear": 1e-05,
+    "eta_bias": 0.001,
+    "graph_weight": 0.001,
+    "adaptive_regularization": true,
+    "adaptive_power": 2.0,
+    "adaptive_cap": 10.0,
+    "correction_batch_size": 1024,
+    "threads": 1,
+    "max_cooccurrence_entries": 50000000,
+    "boundary_weight": 0.5,
+    "support_alpha": 2.0,
+    "popularity_tilt": -0.1
+  },
+  "env": {
+    "created": "2026-10-27T07:47:59",
+    "python": "3.13.15",
+    "torch": "2.11.0+cu128",
+    "cuda": "12.8",
+    "gpu": "Tesla T4",
+    "cpu": "x86_64",
+    "os": "Linux-6.18.55+-x86_64-with-glibc2.39",
+    "git_commit": "0ed954f"
+  }
+}
