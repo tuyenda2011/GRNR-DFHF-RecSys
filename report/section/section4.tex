@@ -1,0 +1,272 @@
+\section{Thiết lập thực nghiệm}
+\label{sec:experiments}
+
+\subsection{Dữ liệu và tiền xử lý}
+\label{sec:data}
+
+Nhóm sử dụng danh mục Electronics của bộ Amazon product data do McAuley và cộng sự công bố~\cite{mcauley2015image,he2016ups}, gồm các đánh giá thuộc bản 5-core và thông tin mô tả sản phẩm (metadata). Bản 5-core yêu cầu mỗi người dùng và sản phẩm có ít nhất 5 đánh giá. Nhóm lấy mã người dùng, mã sản phẩm, số sao và thời điểm từ từng đánh giá, rồi quy ước đánh giá từ 4 sao trở lên là một phản hồi tích cực, tức $X_{ui}=1$ theo Định nghĩa~\ref{def:implicit}. Tương tác ở đây là tín hiệu sở thích suy ra từ đánh giá công khai, không phải lượt mua. Thông tin mô tả chỉ cung cấp tên, thương hiệu và danh mục cho demo, không tham gia xếp hạng.
+Nhóm khử các đánh giá tích cực trùng cặp người dùng--sản phẩm bằng cách giữ đánh giá mới nhất, ưu tiên số sao cao hơn nếu cùng thời điểm; dữ liệu này không có cặp trùng. Sau khi bỏ đánh giá thấp, một số người dùng và sản phẩm không còn đủ 5 tương tác, nên nhóm áp lại K-core hai phía với ngưỡng 5: loại các nút dưới ngưỡng, tính lại bậc và lặp đến khi hội tụ sau 13 vòng. Các mã còn lại được ánh xạ sang chỉ số liên tục theo thứ tự mã gốc. \Figref{fig:pipeline} ghi số tương tác qua từng bước: lọc số sao loại 333.121 đánh giá, khử trùng không loại đánh giá nào và K-core loại thêm 283.327 tương tác.
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[node distance=0.55cm and 0.5cm, every node/.style={font=\small}]
+\node[chthreeblue, text width=3.1cm] (raw) {Đánh giá thô\\1.689.188};
+\node[chthreeblue, text width=3.1cm, right=of raw] (pos) {Giữ số sao $\ge4$\\1.356.067};
+\node[chthreeblue, text width=3.1cm, right=of pos] (core) {K-core $\ge5$ (13 vòng)\\1.072.740};
+\node[chthreegreen, text width=3.1cm, below=of core] (split) {Chia theo thời gian\\80/10/10};
+\node[chthreepurple, text width=3.1cm, left=of split.north west, anchor=north east] (sparse) {Giảm tập huấn luyện\\$d\in\{1;0{,}75;0{,}5;0{,}25\}$};
+\node[chthreeorange, text width=3.1cm, left=of sparse.north west, anchor=north east] (models) {Huấn luyện\\$\downarrow$\\Chọn mô hình trên tập xác thực\\$\downarrow$\\Đánh giá cuối cùng trên tập kiểm tra};
+\draw[chthreeflow] (raw) -- (pos);
+\draw[chthreeflow] (pos) -- (core);
+\draw[chthreeflow] (core) -- (split);
+\draw[chthreeflow] (split.west) -- (split.west -| sparse.east);
+\draw[chthreeflow] (sparse.west) -- (sparse.west -| models.east);
+\end{tikzpicture}
+\caption{Quy trình tiền xử lý dữ liệu}
+\label{fig:pipeline}
+\end{figure}
+
+\Tabref{tab:data-stats} thống kê dữ liệu trước khi chia tập. Mật độ tương tác bằng 0,0192\%, và một nửa người dùng có không quá 6 tương tác. Nhóm tạo thêm các mức độ thưa bằng cách giảm số tương tác huấn luyện.
+
+\begin{table}[H]
+\centering
+\begin{tabular}{@{}lr@{}}
+\toprule
+Thống kê & Giá trị \\
+\midrule
+Số người dùng & 124.895 \\
+Số sản phẩm & 44.843 \\
+Số tương tác & 1.072.740 \\
+Mật độ & 0,0192\% \\
+Số tương tác mỗi người dùng: trung bình / trung vị / lớn nhất & 8,59 / 6 / 354 \\
+Số tương tác trung bình mỗi sản phẩm & 23,9 \\
+\bottomrule
+\end{tabular}
+\caption{Thống kê dữ liệu sau tiền xử lý}
+\label{tab:data-stats}
+\end{table}
+
+Dữ liệu sau tiền xử lý được chia theo thời gian. Lịch sử của mỗi người dùng được sắp theo thời điểm đánh giá; các tương tác cùng thời điểm được sắp theo một hàm băm có seed của cặp người dùng--sản phẩm, rồi theo mã sản phẩm. Từ những người dùng có ít nhất 3 tương tác, nhóm chọn ngẫu nhiên 107.274 người dùng với seed 42; sau bước K-core, mọi người dùng đều thỏa điều kiện này. Con số 107.274 bằng 10\% tổng số tương tác, để tập xác thực và tập kiểm tra mỗi tập chiếm đúng 10\% dữ liệu.
+
+Với mỗi người dùng được chọn, tương tác cuối cùng thuộc tập kiểm tra, tương tác áp cuối thuộc tập xác thực, còn các tương tác trước đó thuộc tập huấn luyện. 17.621 người dùng còn lại chỉ có mặt trong tập huấn luyện, nên tỉ lệ 80/10/10 ở \tabref{tab:split} tính trên tổng số tương tác chứ không áp riêng cho từng người dùng. Cách chia này cho mỗi người dùng được chọn đúng một mục tiêu, nhờ đó chất lượng được đo và so sánh ghép cặp theo từng người dùng; một mốc thời gian chung sẽ để lại nhiều người dùng không có mục tiêu nào. Trong \tabref{tab:split}, sản phẩm mới là sản phẩm không có trong tập huấn luyện.
+
+\begin{table}[H]
+\centering
+\begin{tabular}{@{}lrrr@{}}
+\toprule
+ & Huấn luyện & Xác thực & Kiểm tra \\
+\midrule
+Số tương tác & 858.192 & 107.274 & 107.274 \\
+Tỉ lệ & 80\% & 10\% & 10\% \\
+Mục tiêu thuộc sản phẩm mới & --- & 59 & 187 \\
+\bottomrule
+\end{tabular}
+\caption{Kết quả chia tập theo thời gian}
+\label{tab:split}
+\end{table}
+
+Ba tập có ba vai trò tách biệt. Tập huấn luyện dùng để học tham số. Tập xác thực dùng để chọn siêu tham số và checkpoint theo NDCG@20. Sau khi chọn xong, cấu hình và checkpoint của từng mô hình được giữ cố định và đánh giá một lần trên tập kiểm tra. Mọi kết quả chất lượng và kiểm định ở Chương~\ref{sec:results} đều tính trên tập kiểm tra; chỉ các đường học và phân tích chọn checkpoint dùng tập xác thực. Tập kiểm tra không tham gia vào việc huấn luyện hay chọn mô hình.
+
+\label{sec:sparsity-protocol}
+
+Để khảo sát ảnh hưởng của độ thưa, tập huấn luyện được giữ lại ở các tỉ lệ $d\in\{1;0{,}75;0{,}5;0{,}25\}$, còn tập xác thực và tập kiểm tra giữ nguyên. Ở đây $d$ là tỉ lệ số tương tác huấn luyện còn lại so với tập đầy đủ; vì số người dùng và sản phẩm không đổi, mật độ của ma trận tương tác giảm theo $d$. Bốn mức cách đều nhau 25\%, đi từ tập đầy đủ đến mức mà phần lớn người dùng chỉ còn một tương tác, như \tabref{tab:sparsity} cho thấy.
+
+Thuật toán giảm dùng seed 42, gán một số ngẫu nhiên cho mỗi tương tác rồi tạo một \emph{lõi phủ}: trước hết giữ tương tác đầu tiên theo thứ tự ngẫu nhiên của mỗi sản phẩm, sau đó giữ tương tác đầu tiên của mỗi người dùng chưa được phủ. Các tương tác còn lại được thêm theo cùng thứ tự cho đến khi đủ $\mathrm{round}(d\cdot|E|)$ tương tác, với $E$ là tập tương tác huấn luyện đầy đủ. Cách tạo này bảo đảm mỗi người dùng và mỗi sản phẩm có mặt trong tập huấn luyện ban đầu vẫn còn ít nhất một tương tác. Mỗi mức $d$ được tạo một lần và dùng chung cho mọi mô hình.
+
+\begin{table}[H]
+\centering
+\begin{tabular}{@{}lrrrr@{}}
+\toprule
+$d$ & 1 & 0,75 & 0,5 & 0,25 \\
+\midrule
+Số tương tác & 858.192 & 643.644 & 429.096 & 214.548 \\
+Số tương tác trung bình mỗi người dùng & 6,87 & 5,15 & 3,44 & 1,72 \\
+Người dùng warm bậc 1 & 0 & 6.653 & 28.539 & 72.889 \\
+Tỉ lệ người dùng warm bậc 1 & 0\% & 6,2\% & 26,7\% & 68,1\% \\
+\bottomrule
+\end{tabular}
+\caption{Tập huấn luyện ở các mức giảm tương tác}
+\label{tab:sparsity}
+\end{table}
+
+Lõi phủ bảo toàn ít nhất một tương tác cho các nút ít dữ liệu, nên cách giảm này khác với lấy mẫu tương tác ngẫu nhiên đều. Trong \tabref{tab:sparsity}, người dùng bậc 1 là người dùng warm, theo định nghĩa ở Mục~\ref{sec:evaluation-unit}, chỉ còn đúng một tương tác huấn luyện. Bảng đếm trên người dùng warm của tập kiểm tra; ở $d=0{,}25$, 68,1\% số người dùng này thuộc nhóm bậc 1. Các nhóm người dùng theo độ dài lịch sử được xác định trên tập huấn luyện gốc và giữ nguyên ở mọi mức $d$.
+
+\subsection{Tiêu chí so sánh}
+\label{sec:criteria}
+
+\subsubsection{Đơn vị đánh giá và thước đo xếp hạng}
+\label{sec:evaluation-unit}
+
+Nhóm đánh giá trên tập $\mathcal{U}_w$ gồm các người dùng \emph{warm}, tức vừa có lịch sử huấn luyện vừa có sản phẩm mục tiêu đã xuất hiện trong tập huấn luyện. Trên tập kiểm tra, quy tắc này loại 187 mục tiêu thuộc sản phẩm chưa có trong tập huấn luyện, còn 107.087 người dùng; trên tập xác thực, dùng để chọn cấu hình và checkpoint, quy tắc tương tự loại 59 mục tiêu và còn 107.215 người dùng. Tập $\mathcal{U}_w$ được giữ cố định cho mọi mô hình và mọi $d$, mỗi người dùng có đúng một sản phẩm mục tiêu.
+
+Với từng người dùng, nhóm chấm điểm toàn bộ 44.803 sản phẩm có trong tập huấn luyện, một tập không đổi theo $d$. Lịch sử huấn luyện gốc, kể cả các tương tác bị bỏ khi giảm dữ liệu, được loại khỏi danh sách, rồi $K$ sản phẩm có điểm cao nhất được chọn theo Định nghĩa~\ref{def:topk}. Gọi $r_u$ là hạng của sản phẩm mục tiêu trong danh sách, bắt đầu từ 1. Phép đánh giá dùng toàn bộ tập ứng viên vì lấy mẫu sản phẩm âm có thể làm đổi thứ tự mô hình~\cite{krichene2020sampled}; quy tắc này không thay đổi cách lấy mẫu âm khi huấn luyện bằng Bayesian Personalized Ranking (BPR).
+
+Khi đánh giá trên tập kiểm tra, sản phẩm của tập xác thực cũng bị loại khỏi danh sách, nhưng không được thêm vào lịch sử đầu vào, và mô hình không được huấn luyện lại. Mọi mô hình chấm điểm từ đúng tập huấn luyện ở mức $d$ với checkpoint đã chọn, như khi đánh giá trên tập xác thực. Cách làm này giữ so sánh công bằng giữa các mô hình chấm điểm từ lịch sử và các baseline dùng vector người dùng đã học, vốn không nhận thêm tương tác được nếu không huấn luyện lại. Đổi lại, mỗi mô hình phải dự đoán tương tác cuối mà không thấy tương tác ngay trước nó.
+
+\label{sec:ranking-metrics}
+
+Nhóm đo chất lượng bằng Recall at $K$ (Recall@K) và Normalized Discounted Cumulative Gain at $K$ (NDCG@K), với $K\in\{10,20\}$, lấy NDCG@20 làm thước đo chính. Ngưỡng 20 cũng được các bài gốc của Light Graph Convolution Network (LightGCN) và eXtremely Simple Graph Contrastive Learning (XSimGCL) sử dụng~\cite{he2020lightgcn,yu2023xsimgcl}. Mỗi thước đo được tính riêng cho từng người dùng rồi lấy trung bình với trọng số bằng nhau.
+
+Gọi $\mathcal{R}_u\ne\varnothing$ là tập sản phẩm liên quan dùng để đánh giá người dùng $u$, $\mathcal{L}_u^K$ là tập $K$ gợi ý đầu. Khi đó~\cite{rendle2019metrics}:
+\begin{equation}
+\mathrm{Recall}_u@K=\frac{|\mathcal{R}_u\cap\mathcal{L}_u^K|}{|\mathcal{R}_u|},
+\qquad
+\mathrm{Recall@}K=\frac{1}{|\mathcal{U}_w|}
+\sum_{u\in\mathcal{U}_w}\mathrm{Recall}_u@K.
+\label{eq:recall-evaluation}
+\end{equation}
+Tử số đếm số sản phẩm liên quan tìm thấy trong top-$K$, mẫu số đếm toàn bộ sản phẩm liên quan. Vì mỗi người dùng hợp lệ có đúng một sản phẩm mục tiêu thuộc tập kiểm tra, Recall@K ở đây tương đương Hit Rate@K: tìm trúng được điểm 1, bỏ sót được điểm 0, và vị trí bên trong top-$K$ không ảnh hưởng đến điểm.
+
+NDCG@K tính thêm vị trí của mục tiêu. Discounted Cumulative Gain (DCG) và dạng chuẩn hóa của nó do Järvelin và Kekäläinen đề xuất~\cite{jarvelin2002cumulated}: mỗi sản phẩm phù hợp đóng góp trọng số $1/\log_2(j+1)$ tại hạng $j$. Mẫu số chuẩn hóa là Ideal Discounted Cumulative Gain at $K$ (IDCG@K), tức DCG của thứ tự lý tưởng. Gọi $\mathrm{rel}_{u,j}$ bằng 1 khi sản phẩm tại hạng $j$ là mục tiêu của người dùng $u$ và bằng 0 nếu ngược lại; khi đó
+\begin{equation}
+\mathrm{DCG}_u@K=\sum_{j=1}^{K}
+\frac{\mathrm{rel}_{u,j}}{\log_2(j+1)},\qquad
+\mathrm{NDCG}_u@K=\frac{\mathrm{DCG}_u@K}{\mathrm{IDCG}_u@K}.
+\label{eq:dcg-evaluation}
+\end{equation}
+Với một mục tiêu, thứ tự lý tưởng đặt mục tiêu ở hạng 1, nên $\mathrm{IDCG}_u@K=1/\log_2 2=1$. Gọi $\mathbf{1}[\cdot]$ là hàm chỉ báo, bằng 1 khi điều kiện đúng và 0 khi sai; khi đó
+\begin{equation}
+\mathrm{NDCG@}K=\frac{1}{|\mathcal{U}_w|}
+\sum_{u\in\mathcal{U}_w}\frac{\mathbf{1}[r_u\le K]}{\log_2(r_u+1)}.
+\label{eq:ndcg-evaluation}
+\end{equation}
+Cả hai thước đo đều thuộc $[0,1]$, giá trị càng cao càng tốt. Với NDCG, mục tiêu ở hạng 1 đóng góp 1, ở hạng 3 đóng góp 0,5, ở hạng 20 đóng góp khoảng 0,228, và ngoài top-$K$ đóng góp 0. Vì có trọng số theo vị trí, NDCG trung bình không biểu thị tỉ lệ người dùng có mục tiêu trong danh sách.
+
+Ví dụ giả định, ba người dùng có mục tiêu ở các hạng 1, 5 và 15. Với $K=10$, Recall@10 bằng $2/3\approx0{,}6667$, còn NDCG@10 bằng $(1+1/\log_2 6)/3\approx0{,}4623$. Nếu mục tiêu ở hạng 5 được đưa lên hạng 2, Recall@10 giữ nguyên nhưng NDCG@10 tăng lên khoảng $0{,}5436$. Cả hai chỉ đo trên mục tiêu quan sát được, không bao quát những sở thích chưa được ghi nhận của người dùng.
+
+\subsubsection{Đại lượng so sánh và kiểm định}
+\label{sec:comparison-interpretation}
+
+\label{sec:mostpop}
+Nhóm dùng MostPop làm mốc tham chiếu chung cho hai nhóm mô hình. Ở mỗi $d$, MostPop gán điểm $s(u,i)=c_i$, với $c_i$ là số tương tác của sản phẩm $i$ trong tập huấn luyện giữ lại, rồi loại lịch sử theo cùng quy tắc với các mô hình khác; trước bước loại này, mọi người dùng có chung một thứ tự. Mốc không cá nhân hóa này cho biết mỗi mô hình còn hơn cách chỉ gợi ý sản phẩm phổ biến bao nhiêu, đúng tinh thần Dacrema và cộng sự nhấn mạnh về vai trò của các phương pháp đơn giản được thiết lập cẩn thận~\cite{dacrema2019progress}.
+
+Gọi $M_m(d)$ là giá trị một thước đo của mô hình $m$ tại mức $d$. So với mô hình $b$, chênh lệch tuyệt đối là $\Delta M=M_m(d)-M_b(d)$, còn mức thay đổi tương đối là $100\,\Delta M/M_b(d)\,\%$ khi $M_b(d)>0$; giá trị âm nghĩa là $m$ thấp hơn $b$. Mức vượt MostPop dùng $b$ là MostPop và $M$ là NDCG@20. Nhóm đối chiếu từng mô hình với mốc này trong phạm vi nhóm của nó.
+
+Chất lượng ở từng $d$ được theo dõi bằng giá trị tuyệt đối và tỉ lệ duy trì $M_m(d)/M_m(1)$ khi $M_m(1)>0$. Tỉ lệ này cho biết mô hình còn giữ được bao nhiêu phần chất lượng so với chính nó trên tập huấn luyện đầy đủ, và luôn được đọc cùng giá trị tuyệt đối.
+
+\label{sec:beyond-accuracy}
+Ngoài hai ngưỡng chính 10 và 20, nhóm tính NDCG@K với $K=1,\ldots,20$ từ cùng danh sách dự đoán để mô tả ảnh hưởng của độ dài danh sách, không chọn lại checkpoint hay kiểm định riêng tại từng $K$. Hai đại lượng mô tả bổ sung là độ phổ biến của sản phẩm được gợi ý và độ phủ danh mục. Gọi $\mathcal{I}_0$ là tập 44.803 sản phẩm xuất hiện trong tập huấn luyện gốc, $c_i^{(0)}$ là số tương tác của sản phẩm $i$ trong tập này và $L_{u,m}^{20}(d)$ là danh sách 20 gợi ý của mô hình $m$ cho người dùng $u$ ở mức $d$. Khi đó
+\begin{align}
+\mathrm{Pop}_{20}(m,d)
+&=\frac{1}{20|\mathcal{U}_w|}\sum_{u\in\mathcal{U}_w}\sum_{i\in L_{u,m}^{20}(d)}\ln(1+c_i^{(0)}),
+\label{eq:recommendation-popularity}\\
+\mathrm{Cov}_{20}(m,d)
+&=100\,\frac{\left|\bigcup_{u\in\mathcal{U}_w}L_{u,m}^{20}(d)\right|}{|\mathcal{I}_0|}\,\%.
+\label{eq:catalog-coverage}
+\end{align}
+Đại lượng thứ nhất lấy trung bình sau biến đổi log để giảm ảnh hưởng của sản phẩm có rất nhiều tương tác; giá trị cao hơn nghĩa là các gợi ý nghiêng về sản phẩm phổ biến hơn theo mốc huấn luyện gốc. Đại lượng thứ hai đếm phần danh mục được gợi ý ít nhất một lần cho toàn bộ tập người dùng. Mốc độ phổ biến và mẫu số danh mục giữ cố định ở mọi $d$, còn tập ứng viên vẫn tuân theo giao thức ở trên. Hai đại lượng chỉ mô tả các danh sách đã lưu, không đo trực tiếp sự hài lòng hay độ đa dạng trong từng danh sách và không dùng để chọn mô hình.
+
+\label{sec:statistical-protocol}
+
+Với mỗi cặp mô hình đề xuất và baseline cùng nhóm, nhóm tính hiệu NDCG@20 của từng người dùng rồi bootstrap ghép cặp theo người dùng 10.000 lần. Khoảng tin cậy 95\% được lấy từ các phân vị bootstrap. Giá trị $p$ một phía cho giả thuyết mô hình đề xuất tốt hơn được tính từ phân phối bootstrap đã dịch tâm về chênh lệch trung bình bằng 0, rồi hiệu chỉnh Holm trong 3 so sánh của mỗi nhóm tại từng $d$. Với 10.000 lần lặp, giá trị $p$ chưa hiệu chỉnh có sàn $(0+1)/(10^4+1)\approx10^{-4}$, nên sau hiệu chỉnh Holm, kết quả chạm sàn được ghi là $p_{\mathrm{Holm}}\le3\cdot10^{-4}$. Mỗi mức $d$ được xem là một họ giả thuyết riêng, và việc hiệu chỉnh không gộp qua bốn mức. Khoảng tin cậy được báo cáo riêng cho từng so sánh, không hiệu chỉnh đồng thời.
+
+Phép bootstrap giữ cố định mô hình và checkpoint đã chọn, lấy người dùng làm đơn vị tái lấy mẫu. Khi khoảng tin cậy chứa 0, nhóm kết luận chưa phát hiện được khác biệt, không kết luận hai mô hình tương đương.
+
+\label{sec:resource-criteria}
+
+Chi phí được đo bằng ba đại lượng: thời gian xây dựng mô hình, thời gian suy luận và dung lượng lưu trữ. Với nhóm giải trực tiếp, thời gian xây dựng là thời gian khớp mô hình ghi lại trong lần chạy; với nhóm cần huấn luyện, đó là tổng thời gian 200 epoch và thời gian trung bình mỗi epoch. Thời gian suy luận là thời gian trung bình cho mỗi người dùng khi chấm điểm theo lô, đo trên GPU với nhóm cần huấn luyện và trên CPU với GRNR; các baseline giải trực tiếp không có số đo cùng điều kiện. Dung lượng của các mô hình giải trực tiếp là kích thước tệp checkpoint, tính theo mebibyte (MiB; $1\,\mathrm{MiB}=2^{20}$ byte). Riêng EASE đầy đủ dùng kích thước lý thuyết của ma trận hệ số ở dạng số thực 32 bit, $4|\mathcal{I}|^2/2^{20}$ MiB, vì ma trận này không được lưu thành checkpoint. Bộ nhớ cực đại khi khớp mô hình hoặc khi suy luận chưa được đo. Thời gian chạy phụ thuộc vào môi trường nêu ở Mục~\ref{sec:runtime-protocol}.
+
+\subsection{Cấu hình thực nghiệm}
+\label{sec:protocol}
+
+\label{sec:baseline-setup}
+
+Nhóm so Graph-Regularized Neighborhood Regression (GRNR) với Embarrassingly Shallow Autoencoder (EASE) đầy đủ, EASE top-128 và Graph Filter based Collaborative Filtering (GF-CF) trong nhóm giải trực tiếp; Diffusion-Filtered History Factorization (DFHF) được so với LightGCN, XSimGCL và DirectAU trong nhóm cần huấn luyện. Hai mô hình đề xuất không được so trực tiếp với nhau. Cấu hình và phần cứng được ghi ở \tabref{tab:setup}.
+
+EASE dùng $\lambda=300$, giá trị giữa của lưới 100, 300, 1000 trong mã nguồn tham chiếu; nhóm không chọn lại $\lambda$ trên tập xác thực của dự án. EASE top-128 giữ 128 hệ số lớn nhất ở mỗi cột của nghiệm EASE đầy đủ. GF-CF dùng cấu hình mặc định, còn các baseline cần huấn luyện dùng cấu hình tham chiếu của tác giả. Mã gốc của GF-CF tính vector kỳ dị bằng thư viện sparsesvd, nhưng thư viện này không cài được với NumPy 2; nhóm thay bằng phép lặp không gian con theo khối, dừng khi phần dư đạt ngưỡng hội tụ, để lấy $r=256$ vector kỳ dị đầu, và chưa đối chiếu nghiệm của hai cách tính.
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabularx}{\textwidth}{@{}llXc@{}}
+\toprule
+Nhóm & Mô hình & Cấu hình chính & Phần cứng \\
+\midrule
+\multirow{4}{*}{Giải trực tiếp} & GRNR & \Tabref{tab:grnr-hparams} & CPU \\
+ & EASE đầy đủ~\cite{steck2019ease} & $\lambda=300$ & CPU \\
+ & EASE top-128 & EASE đầy đủ, giữ 128 hệ số mỗi cột & CPU \\
+ & GF-CF~\cite{shen2021gfcf} & $r=256$, $\alpha_{\mathrm{GF}}=0{,}3$ & CPU \\
+\midrule
+\multirow{4}{*}{Cần huấn luyện} & DFHF & \Tabref{tab:dfhf-hparams} & GPU \\
+ & LightGCN~\cite{he2020lightgcn} & $f=64$, $\nu=3$, BPR & GPU \\
+ & XSimGCL~\cite{yu2023xsimgcl} & $\lambda_{\mathrm{cl}}=0{,}1$; $\tau=0{,}2$; $\epsilon=0{,}1$ & GPU \\
+ & DirectAU~\cite{wang2022directau} & Bộ mã hóa LightGCN; $\gamma_{\mathrm{AU}}=1$ & GPU \\
+\midrule
+Mốc chung & MostPop & Độ phổ biến trong tập huấn luyện & CPU \\
+\bottomrule
+\end{tabularx}
+\caption{Cấu hình và môi trường chạy}
+\label{tab:setup}
+\end{table}
+
+LightGCN, XSimGCL và DirectAU dùng embedding 64 chiều, 3 lớp lan truyền, thuật toán tối ưu Adaptive Moment Estimation (Adam) với tốc độ học $0{,}0003$, kích thước lô 2.048 và 200 epoch. LightGCN và XSimGCL dùng hệ số phạt $\ell_2$ bằng $10^{-4}$ trong hàm mất mát và không thêm suy giảm trọng số ở Adam. DirectAU dùng hệ số 2 trong số hạng đồng đều, đúng như công thức~\eqref{eq:align-uniform}, suy giảm trọng số của Adam bằng $10^{-6}$ và không thêm phạt $\ell_2$ riêng trong hàm mất mát, theo cấu hình tham chiếu của tác giả.
+
+\label{sec:proposed-setup}
+
+Với GRNR, nhóm giới hạn mỗi hồi quy ở 128 láng giềng, dùng các hệ số điều chuẩn trong \tabref{tab:grnr-hparams} khi giải hệ và nhân điểm với hệ số độ phổ biến có số mũ $\rho_{\mathrm{pop}}=-0{,}1$. Các bước tính tuân theo Mục~\ref{sec:grnr}.
+
+\begingroup
+\setlength{\intextsep}{1pt}
+\begin{table}[H]
+\centering
+\captionsetup{skip=3pt}
+{\fontsize{11.5}{13}\selectfont
+\renewcommand{\arraystretch}{1}
+\begin{tabular}{@{}llr@{}}
+\toprule
+Ký hiệu & Ý nghĩa & Giá trị \\
+\midrule
+$k$ & Số láng giềng tối đa & 128 \\
+$\kappa_{\mathrm{lift}}$ & Làm trơn mẫu số của lift & 10 \\
+$\omega_+$ & Trọng số mẫu dương & 10 \\
+$\eta$ & Phạt ridge cho hệ số láng giềng & $10^{-5}$ \\
+$\alpha_s$ & Làm trơn mức hỗ trợ trong $s_j$ & 2 \\
+$s_{\max}$ & Giới hạn trên của $s_j$ & 10 \\
+$\lambda_g$ & Trọng số điều chuẩn đồ thị & $10^{-3}$ \\
+$\beta$ & Phần năng lượng biên được giữ & 0,5 \\
+$\eta_b$ & Phạt cho hệ số chặn & $10^{-3}$ \\
+$\rho_{\mathrm{pop}}$ & Số mũ của hệ số độ phổ biến khi xếp hạng & $-0{,}1$ \\
+\bottomrule
+\end{tabular}
+}
+\caption{Siêu tham số của GRNR}
+\label{tab:grnr-hparams}
+\end{table}
+\endgroup
+
+Với DFHF, nhóm dùng cấu hình ở \tabref{tab:dfhf-hparams} cho mô hình ở Mục~\ref{sec:dfhf}. Tham số $\omega_1=0$ khiến lịch sử đơn không đóng góp vào vector người dùng, nên người dùng chỉ còn một tương tác được xếp hạng bằng hệ số chặn.
+
+\begingroup
+\setlength{\intextsep}{1pt}
+\begin{table}[H]
+\centering
+\captionsetup{skip=3pt}
+{\fontsize{11.5}{13}\selectfont
+\setlength{\tabcolsep}{9pt}
+\begin{tabular}{@{}llr@{}}
+\toprule
+Ký hiệu & Ý nghĩa & Giá trị \\
+\midrule
+$f$ & Số chiều embedding & 64 \\
+$\mathrm{lr}$ & Tốc độ học & $0{,}0003$ \\
+$Q_{\mathrm{batch}}$ & Kích thước lô tối đa & 2.048 \\
+$\lambda_{\mathrm{emb}}$ & Phạt ridge cho embedding & 0,1 \\
+$\lambda_b$ & Phạt cho vector chặn & $10^{-4}$ \\
+$R_{\mathrm{emb}}$ & Bán kính chiếu embedding & 100 \\
+$\zeta_{\mathrm{hist}}$ & Số mũ chuẩn hóa lịch sử & 0,5 \\
+$\omega_1$ & Trọng số lịch sử đơn & 0 \\
+$\tau_{\mathrm{sm}}$ & Nhiệt độ softmax & 1 \\
+$N_{\mathrm{ep}}$ & Số epoch & 200 \\
+\bottomrule
+\end{tabular}
+}
+\caption{Siêu tham số của DFHF}
+\label{tab:dfhf-hparams}
+\end{table}
+\endgroup
+
+\label{sec:runtime-protocol}
+
+Nhóm chạy mọi mô hình trên Kaggle, dùng CPU cho nhóm giải trực tiếp và GPU cho nhóm cần huấn luyện. Tính cả bốn mức $d$, thời gian xây dựng các mô hình giải trực tiếp là khoảng 2,5 giờ (GRNR 7 phút, EASE 45 phút, GF-CF 95 phút), còn thời gian huấn luyện là khoảng 13,1 giờ (DFHF 5,2 giờ, DirectAU 3,5 giờ, XSimGCL 2,6 giờ, LightGCN 1,8 giờ). Môi trường phần mềm gồm Python 3.13, PyTorch 2.11, NumPy 2.1 và SciPy 1.16. Việc đánh giá trên tập kiểm tra được chạy trên máy tính cá nhân từ các checkpoint đã lưu; trước đó, mọi mô hình được chấm lại trên tập xác thực và cho NDCG@20 trùng với kết quả đã ghi trên Kaggle, sai lệch không quá $10^{-6}$.
+
+Các mô hình cần huấn luyện chạy đủ 200 epoch. Tập xác thực chỉ dùng để chọn checkpoint có NDCG@20 cao nhất; mọi số liệu chất lượng trên tập kiểm tra đều lấy từ checkpoint này, còn chi phí huấn luyện tính trên cả 200 epoch.

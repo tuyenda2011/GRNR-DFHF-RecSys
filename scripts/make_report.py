@@ -19,6 +19,7 @@ import matplotlib
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+import matplotlib.ticker
 import numpy as np
 import pandas as pd
 import pyarrow  # noqa: F401 -- load Arrow DLLs before Torch on Windows
@@ -49,7 +50,25 @@ def slug(metric):
     return metric.lower().replace("@", "")
 
 
+def vn(text):
+    """Vietnamese number format: decimal comma and thousands dot ("7,671.0" -> "7.671,0")."""
+    return text.translate(str.maketrans({",": ".", ".": ","}))
+
+
+def vn_density(density):
+    return vn(f"{density:.2f}")
+
+
+class VNFormatter(matplotlib.ticker.ScalarFormatter):
+    """Linear tick labels with a decimal comma; log axes keep their own formatter."""
+
+    def __call__(self, x, pos=None):
+        return vn(super().__call__(x, pos))
+
+
 def style_axes(ax):
+    ax.xaxis.set_major_formatter(VNFormatter())
+    ax.yaxis.set_major_formatter(VNFormatter())
     ax.set_facecolor("white")
     ax.grid(axis="y", color=GRID, linewidth=.6)
     ax.set_axisbelow(True)

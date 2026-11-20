@@ -70,7 +70,7 @@ def generate(results, output, device, *, tables=None, bootstrap=10_000):
         if 1.0 in values.index.get_level_values("density"):
             reference = values.xs(1.0, level="density")
             relative = (100 * values.div(reference.where(reference != 0), level="model")).dropna()
-            mcf.bar_figure(lambda m, d, v=relative: v.get((m, d)), f"{metric} so với mật độ 1.00 (%)",
+            mcf.bar_figure(lambda m, d, v=relative: v.get((m, d)), f"{metric} so với $d$ = 1 (%)",
                            f"H4_trained_retention_{slug(metric)}", output, notes, fmt="{:.1f}",
                            extra=lambda ax: ax.axhline(100, color=MUTED, linestyle="--", linewidth=.8, zorder=0), **kwargs)
         mcf.figure_groups(scores, full_train, metric, output, notes, name="H5_trained_user_groups", **kwargs)
@@ -82,7 +82,7 @@ def generate(results, output, device, *, tables=None, bootstrap=10_000):
 
     mcf.bar_figure(column("train_seconds"), "Thời gian huấn luyện 200 epoch (giây, thang log)\nTesla T4",
                    "H7a_trained_train_time", output, notes, fmt="{:,.0f}", log=True, **kwargs)
-    mcf.bar_figure(column("inference_ms_per_user"), "Thời gian suy luận (ms/user, thang log)\nTesla T4, theo batch",
+    mcf.bar_figure(column("inference_ms_per_user"), "Thời gian suy luận (ms/người dùng, thang log)\nTesla T4, theo batch",
                    "H7b_trained_inference_latency", output, notes, fmt="{:.4f}", log=True, **kwargs)
     if tables is not None:
         tables.mkdir(parents=True, exist_ok=True)

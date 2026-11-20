@@ -1,0 +1,854 @@
+\section{Kết quả và thảo luận}
+\label{sec:results}
+
+Các kết quả đánh giá chất lượng xếp hạng, so sánh mô hình và kiểm định thống kê trong chương được đo trên tập kiểm tra độc lập với seed 42, theo các tiêu chí ở Mục~\ref{sec:criteria}. Riêng các đường học và phân tích lựa chọn checkpoint sử dụng tập xác thực. Mức giữ lại dữ liệu huấn luyện được ghi bằng $d$ như trên trục hoành của các hình, theo định nghĩa ở Mục~\ref{sec:sparsity-protocol}; mức $d=0{,}25$ cũng được gọi là mức thưa nhất.
+
+\FloatBarrier
+\subsection{Graph-Regularized Neighborhood Regression so với các mô hình giải trực tiếp}
+\label{sec:grnr-results}
+
+GRNR được thiết kế để trả lời một câu hỏi thực dụng: có cần đến ma trận trọng số đầy đủ của EASE không, hay chỉ cần một số ít láng giềng được ước lượng cẩn thận là đủ? Vì vậy, đối chứng quan trọng nhất của GRNR không chỉ là EASE đầy đủ mà còn là EASE top-128. Hai mô hình này có cùng ngân sách lưu trữ, khoảng 128 hệ số cho mỗi sản phẩm. Điểm khác nhau là EASE top-128 giải bài toán đầy đủ rồi mới cắt bớt, còn GRNR giới hạn láng giềng ngay trong bài toán. GF-CF đại diện cho hướng lọc tín hiệu trên toàn đồ thị.
+
+\FloatBarrier
+\subsubsection{Chất lượng xếp hạng khi có đủ dữ liệu}
+
+Khi có đủ dữ liệu, ba mô hình hồi quy giữa các sản phẩm gần như ngang nhau, và GRNR đứng đầu ở cả bốn thước đo trong \tabref{tab:closed-form}.
+
+\begin{table}[H]
+\centering
+\footnotesize
+\renewcommand{\arraystretch}{0.95}
+\begin{tabular}{@{}llrrrr@{}}
+\toprule
+$d$ & Mô hình & NDCG@10 & NDCG@20 & Recall@10 & Recall@20 \\
+\midrule
+\multirow{4}{*}{1} & GRNR & \textbf{0,02421} & \textbf{0,02843} & \textbf{0,04264} & \textbf{0,05941} \\
+ & EASE đầy đủ & 0,02388 & 0,02809 & 0,04163 & 0,05834 \\
+ & EASE top-128 & 0,02285 & 0,02635 & 0,03927 & 0,05312 \\
+ & GF-CF & 0,01032 & 0,01280 & 0,01847 & 0,02835 \\
+\midrule
+\multirow{4}{*}{0,75} & GRNR & \textbf{0,01899} & 0,02214 & \textbf{0,03328} & 0,04581 \\
+ & EASE đầy đủ & \textbf{0,01899} & \textbf{0,02230} & 0,03280 & \textbf{0,04597} \\
+ & EASE top-128 & 0,01770 & 0,02033 & 0,03006 & 0,04046 \\
+ & GF-CF & 0,00435 & 0,00560 & 0,00809 & 0,01305 \\
+\midrule
+\multirow{4}{*}{0,5} & GRNR & 0,01076 & 0,01291 & 0,01812 & 0,02665 \\
+ & EASE đầy đủ & \textbf{0,01227} & \textbf{0,01432} & \textbf{0,02092} & \textbf{0,02906} \\
+ & EASE top-128 & 0,01119 & 0,01267 & 0,01882 & 0,02470 \\
+ & GF-CF & 0,00193 & 0,00284 & 0,00387 & 0,00753 \\
+\midrule
+\multirow{4}{*}{0,25} & GRNR & \textbf{0,00486} & \textbf{0,00703} & \textbf{0,00968} & \textbf{0,01834} \\
+ & EASE đầy đủ & 0,00422 & 0,00557 & 0,00739 & 0,01274 \\
+ & EASE top-128 & 0,00345 & 0,00400 & 0,00531 & 0,00748 \\
+ & GF-CF & 0,00181 & 0,00358 & 0,00466 & 0,01178 \\
+\bottomrule
+\end{tabular}
+\caption{Chất lượng xếp hạng, nhóm giải trực tiếp}
+\label{tab:closed-form}
+\end{table}
+
+Khoảng cách giữa GRNR và EASE đầy đủ lại rất nhỏ: NDCG@20 của GRNR là 0,02843, chỉ cao hơn 0,00034. \Tabref{tab:closed-form-sig} cho giá trị $p_{\mathrm{Holm}}$ một phía bằng 0,037, nhưng khoảng tin cậy 95\% của chênh lệch vẫn chứa 0. Hai con số này không mâu thuẫn, vì kiểm định một phía ở mức 5\% chỉ tương ứng với khoảng tin cậy 90\%; theo quy tắc ở Mục~\ref{sec:criteria}, nhóm chưa kết luận GRNR tốt hơn EASE đầy đủ.
+
+So sánh có ý nghĩa hơn là với EASE top-128, mô hình dùng đúng ngân sách hệ số như GRNR. Ở đây GRNR hơn 0,00209 và khoảng tin cậy nằm hẳn trên 0. Nói cách khác, nếu đằng nào cũng phải giới hạn số hệ số thì giải ngay bài toán đã giới hạn tốt hơn giải bài toán đầy đủ rồi cắt bớt. Lý do có thể nằm ở cách EASE ước lượng: mỗi hệ số được tính khi có mặt mọi sản phẩm khác, nên khi phần lớn sản phẩm bị bỏ đi, các hệ số còn lại không còn là nghiệm tốt nhất cho tập láng giềng mới. GRNR thì ước lượng hệ số ngay trên tập láng giềng mà nó sẽ dùng. Báo cáo chưa tách được yếu tố này khỏi các khác biệt khác của GRNR, như trọng số mẫu và điều chuẩn đồ thị.
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{@{}llrcr@{}}
+\toprule
+$d$ & So sánh & $\Delta$ NDCG@20 & KTC 95\% & $p_{\mathrm{Holm}}$ (một phía) \\
+\midrule
+\multirow{3}{*}{1} & GRNR $-$ EASE đầy đủ & $+0{,}00034$ & $[-0{,}00003;\;+0{,}00072]$ & 0,037 \\
+ & GRNR $-$ EASE top-128 & $+0{,}00209$ & $[+0{,}00174;\;+0{,}00247]$ & $\le 3\cdot10^{-4}$ \\
+ & GRNR $-$ GF-CF & $+0{,}01564$ & $[+0{,}01506;\;+0{,}01622]$ & $\le 3\cdot10^{-4}$ \\
+\midrule
+\multirow{3}{*}{0,75} & GRNR $-$ EASE đầy đủ & $-0{,}00016$ & $[-0{,}00053;\;+0{,}00021]$ & 0,805 \\
+ & GRNR $-$ EASE top-128 & $+0{,}00182$ & $[+0{,}00147;\;+0{,}00215]$ & $\le 3\cdot10^{-4}$ \\
+ & GRNR $-$ GF-CF & $+0{,}01654$ & $[+0{,}01596;\;+0{,}01714]$ & $\le 3\cdot10^{-4}$ \\
+\midrule
+\multirow{3}{*}{0,5} & GRNR $-$ EASE đầy đủ & $-0{,}00141$ & $[-0{,}00173;\;-0{,}00109]$ & 1,000 \\
+ & GRNR $-$ EASE top-128 & $+0{,}00024$ & $[-0{,}00003;\;+0{,}00052]$ & 0,084 \\
+ & GRNR $-$ GF-CF & $+0{,}01007$ & $[+0{,}00960;\;+0{,}01056]$ & $\le 3\cdot10^{-4}$ \\
+\midrule
+\multirow{3}{*}{0,25} & GRNR $-$ EASE đầy đủ & $+0{,}00146$ & $[+0{,}00118;\;+0{,}00174]$ & $\le 3\cdot10^{-4}$ \\
+ & GRNR $-$ EASE top-128 & $+0{,}00303$ & $[+0{,}00275;\;+0{,}00330]$ & $\le 3\cdot10^{-4}$ \\
+ & GRNR $-$ GF-CF & $+0{,}00344$ & $[+0{,}00317;\;+0{,}00373]$ & $\le 3\cdot10^{-4}$ \\
+\bottomrule
+\end{tabular}
+\caption{Kiểm định NDCG@20, nhóm giải trực tiếp}
+\label{tab:closed-form-sig}
+\end{table}
+
+GF-CF đứng ở một mức hoàn toàn khác: ngay khi có đủ dữ liệu, NDCG@20 của nó vẫn thấp hơn MostPop 28\%. Kết quả này trái với báo cáo của Shen và cộng sự, nơi GF-CF cạnh tranh được với các mô hình đồ thị cần huấn luyện~\cite{shen2021gfcf}, nên nhiều khả năng cấu hình hoặc cài đặt GF-CF trong dự án chưa hợp với bộ dữ liệu này. Khoảng cách lớn giữa GRNR và GF-CF vì thế nói lên điểm yếu của baseline nhiều hơn là sức mạnh của GRNR.
+
+\FloatBarrier
+\subsubsection{Chất lượng theo thước đo và độ dài danh sách}
+
+Khi bớt dữ liệu, thứ tự trong nhóm bắt đầu thay đổi, như \figref{fig:closed-ndcg10} cho thấy qua NDCG@10. Ở $d=0{,}75$, GRNR và EASE đầy đủ vẫn bằng nhau, cùng đạt 0,01899, còn EASE top-128 thấp hơn khoảng 0,0013 như ở $d=1$. Đến $d=0{,}5$, GRNR tụt xuống dưới cả hai biến thể EASE. Nhưng ở mức thưa nhất, GRNR lại dẫn đầu với 0,00486, so với 0,00422 của EASE đầy đủ. GF-CF thấp nhất ở mọi mức.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.75\linewidth]{H1_closed_form_density_ndcg10.png}
+\caption{NDCG@10 theo mức $d$, nhóm giải trực tiếp}
+\label{fig:closed-ndcg10}
+\end{figure}
+
+Mở rộng danh sách lên 20 vị trí như ở \figref{fig:closed-ndcg20} làm rõ thêm hai điều. Thứ nhất, ở $d=0{,}5$, GRNR vượt lại EASE top-128 nhưng vẫn kém EASE đầy đủ khoảng 0,0014, gần bằng mức kém ở NDCG@10. Thứ hai, ưu thế của GRNR ở mức thưa nhất tăng hơn gấp đôi, từ 0,00064 theo NDCG@10 lên 0,00146 theo NDCG@20. Vì hai thước đo chỉ khác nhau ở các vị trí từ 11 đến 20, phần lớn ưu thế này nằm ở nửa sau của danh sách chứ không ở mười gợi ý đầu. Riêng GF-CF còn tăng khi $d$ giảm từ 0,5 xuống 0,25, nhưng đó là vì mô hình đã chạm đáy từ trước, không phải dấu hiệu bền vững.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.75\linewidth]{H1_closed_form_density_ndcg20.png}
+\caption{NDCG@20 theo mức $d$, nhóm giải trực tiếp}
+\label{fig:closed-ndcg20}
+\end{figure}
+
+Recall bỏ qua vị trí và chỉ hỏi sản phẩm mục tiêu có lọt vào danh sách hay không, nhờ đó tách được câu hỏi ``có tìm thấy không'' khỏi câu hỏi ``có xếp đúng chỗ không''. \Figref{fig:closed-recall10} cho thấy hai thước đo không phải lúc nào cũng cùng chiều khi các mô hình đứng sát nhau: ở $d=0{,}75$, GRNR nhỉnh hơn EASE đầy đủ về Recall@10 dù kém một chút về NDCG@20. Ở $d=0{,}5$, GRNR vẫn xếp cuối trong ba mô hình hồi quy. Ở mức thưa nhất, GRNR hơn EASE đầy đủ 0,00229, gấp khoảng ba lần mức chênh theo NDCG@10.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.75\linewidth]{H1_closed_form_density_recall10.png}
+\caption{Recall@10 theo mức $d$, nhóm giải trực tiếp}
+\label{fig:closed-recall10}
+\end{figure}
+
+Recall@20 ở \figref{fig:closed-recall20} khuếch đại cùng xu hướng. Ở mức thưa nhất, GRNR đạt 0,01834, hơn EASE đầy đủ 0,0056; ở $d=0{,}5$, GRNR lại vượt EASE top-128 như ở NDCG@20. Các quan sát này chỉ về cùng một hướng: danh sách càng dài, GRNR càng tìm thêm được mục tiêu ở các hạng sau, nhưng điều đó chưa có nghĩa là mô hình đưa mục tiêu lên đầu danh sách tốt hơn. GF-CF một lần nữa hành xử bất thường: Recall@20 của nó tăng khi bớt dữ liệu và ở mức thưa nhất còn vượt EASE top-128, thêm một dấu hiệu cho thấy baseline này cần được kiểm tra lại.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.75\linewidth]{H1_closed_form_density_recall20.png}
+\caption{Recall@20 theo mức $d$, nhóm giải trực tiếp}
+\label{fig:closed-recall20}
+\end{figure}
+
+Đường NDCG@K ở \figref{fig:closed-at-k} cho biết khoảng cách giữa các mô hình nằm ở đầu hay cuối danh sách. Khi $d\ge0{,}75$, đường của GRNR và EASE đầy đủ chồng lên nhau ngay từ gợi ý đầu tiên, còn EASE top-128 chỉ tách xuống ở các vị trí sau. Ở $d=0{,}5$, EASE đầy đủ dẫn từ đầu đến cuối danh sách. Ở mức thưa nhất, GRNR thậm chí kém EASE đầy đủ ở các vị trí đầu, với NDCG@1 bằng 0,00167 so với 0,00194, rồi bắt kịp quanh vị trí thứ năm và vượt lên sau đó, đúng như khác biệt giữa NDCG@10 và NDCG@20 đã gợi ý. Các đường được tính từ cùng danh sách dự đoán nên chỉ mang tính mô tả; kiểm định chính vẫn dành cho NDCG@20.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.75\linewidth]{H8_closed_form_ndcg_at_k.png}
+\caption{NDCG@K, nhóm giải trực tiếp}
+\label{fig:closed-at-k}
+\end{figure}
+
+\FloatBarrier
+\subsubsection{Chất lượng khi dữ liệu thưa dần}
+
+Nếu chỉ so các mô hình với nhau, diễn biến theo mức thưa khá rối. Theo \tabref{tab:closed-form-sig}, GRNR chưa phân định được với EASE đầy đủ ở $d=1$ và $d=0{,}75$, thua rõ ở $d=0{,}5$ với khoảng tin cậy nằm hẳn dưới 0, rồi thắng ở mức thưa nhất. Ở $d=0{,}5$, GRNR cũng không hơn được EASE top-128. Đây là kết quả bất lợi cho GRNR, và kiểm định một phía không phát hiện được nó vì chỉ được thiết kế để tìm chiều GRNR tốt hơn; phải đọc khoảng tin cậy mới thấy.
+
+Khi đặt thêm mốc MostPop vào như ở \figref{fig:closed-density} thì một xu hướng lớn hơn nhiều hiện ra: cả nhóm cùng rơi xuống dưới mức xếp hạng theo độ phổ biến.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.75\linewidth]{H9_mostpop_closed_ndcg20.png}
+\caption{NDCG@20 so với MostPop, nhóm giải trực tiếp}
+\label{fig:closed-density}
+\end{figure}
+
+\Tabref{tab:closed-gain} lượng hóa xu hướng này bằng mức vượt MostPop, tức chênh lệch tương đối so với cách xếp hạng không cá nhân hóa. Khi có đủ dữ liệu, ba mô hình hồi quy vượt MostPop từ 49\% đến 60\%. Mức vượt giảm còn 14--26\% ở $d=0{,}75$ rồi đổi dấu: ở $d=0{,}5$, cả ba đã thấp hơn MostPop 20--29\%, và ở mức thưa nhất thấp hơn 59--77\%. GF-CF thấp hơn MostPop ở cả bốn mức. Mức sụt này lớn hơn cả một bậc so với khoảng cách vài phần trăm giữa các mô hình trong nhóm.
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{@{}lrrrr@{}}
+\toprule
+& $d=1$ & $d=0{,}75$ & $d=0{,}5$ & $d=0{,}25$ \\
+\midrule
+MostPop (NDCG@20) & 0{,}01775 & 0{,}01778 & 0{,}01782 & 0{,}01710 \\
+\midrule
+GRNR & $+60{,}2\%$ & $+24{,}5\%$ & $-27{,}6\%$ & $-58{,}9\%$ \\
+EASE đầy đủ & $+58{,}3\%$ & $+25{,}5\%$ & $-19{,}7\%$ & $-67{,}4\%$ \\
+EASE top-128 & $+48{,}5\%$ & $+14{,}3\%$ & $-28{,}9\%$ & $-76{,}6\%$ \\
+GF-CF & $-27{,}9\%$ & $-68{,}5\%$ & $-84{,}1\%$ & $-79{,}1\%$ \\
+\bottomrule
+\end{tabular}
+\caption{Mức vượt MostPop, nhóm giải trực tiếp}
+\label{tab:closed-gain}
+\end{table}
+
+Tỉ lệ duy trì nhìn cùng dữ liệu từ một góc khác: chất lượng ở mỗi mức được tính thành phần trăm của chính mô hình đó ở $d=1$, nên cho biết mô hình suy giảm nhanh hay chậm, bất kể xuất phát cao hay thấp. Theo NDCG@10 ở \figref{fig:closed-retention-ndcg10}, ba mô hình hồi quy suy giảm gần như đều nhau ở $d=0{,}75$, cùng giữ 77--80\%. Ở $d=0{,}5$, GRNR giảm nhanh hơn, chỉ còn 44,5\% so với 49--51\% của hai biến thể EASE; nhưng ở mức thưa nhất, thứ tự đảo lại và GRNR giữ nhiều nhất, 20,1\%. GF-CF mất hơn một nửa chất lượng ngay ở bước giảm đầu tiên.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.75\linewidth]{H4_closed_form_retention_ndcg10.png}
+\caption{Tỉ lệ duy trì NDCG@10, nhóm giải trực tiếp}
+\label{fig:closed-retention-ndcg10}
+\end{figure}
+
+NDCG@20 ở \figref{fig:closed-retention-ndcg20} cho cùng diễn biến, với GRNR giữ 24,7\% ở mức thưa nhất, nhiều nhất trong ba mô hình hồi quy. Tỉ lệ 28,0\% của GF-CF còn cao hơn, nhưng con số này dễ gây hiểu lầm: nó đến từ việc mô hình đã chạm đáy ở $d=0{,}5$ rồi nhích lên, chứ không phải từ sức bền. Hiện tượng này, cùng việc thời gian chạy của GF-CF không tăng đều theo lượng dữ liệu, chưa được giải thích.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.75\linewidth]{H4_closed_form_retention_ndcg20.png}
+\caption{Tỉ lệ duy trì NDCG@20, nhóm giải trực tiếp}
+\label{fig:closed-retention-ndcg20}
+\end{figure}
+
+Recall@10 ở \figref{fig:closed-retention-recall10} lặp lại mẫu hình đó: GRNR giảm nhanh hơn hai biến thể EASE ở $d=0{,}5$ nhưng giữ nhiều nhất trong ba mô hình hồi quy ở mức thưa nhất. Khoảng cách đáng chú ý nhất lúc này là giữa GRNR và EASE top-128, gần 9 điểm phần trăm, nên bản EASE bị cắt là mô hình chịu thiệt nhiều nhất khi dữ liệu cạn.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.75\linewidth]{H4_closed_form_retention_recall10.png}
+\caption{Tỉ lệ duy trì Recall@10, nhóm giải trực tiếp}
+\label{fig:closed-retention-recall10}
+\end{figure}
+
+Recall@20 ở \figref{fig:closed-retention-recall20} là thước đo duy nhất mà GRNR còn giữ được gần một phần ba giá trị ban đầu ở mức thưa nhất, 30,9\% so với 24,7\% theo NDCG@20. Mô hình vẫn đưa được một phần mục tiêu vào 20 vị trí đầu, nhưng phần chất lượng phụ thuộc vào vị trí suy giảm mạnh hơn. GF-CF có tỉ lệ cao nhất, 41,5\%, cũng chỉ vì Recall@20 của nó tăng lên khi bớt dữ liệu. Vì mỗi mô hình có một mẫu số riêng, các tỉ lệ duy trì luôn cần được đọc cùng giá trị tuyệt đối ở \tabref{tab:closed-form}.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.75\linewidth]{H4_closed_form_retention_recall20.png}
+\caption{Tỉ lệ duy trì Recall@20, nhóm giải trực tiếp}
+\label{fig:closed-retention-recall20}
+\end{figure}
+
+\FloatBarrier
+\subsubsection{Nguồn tín hiệu khi dữ liệu thưa}
+
+Mức sụt so với MostPop có một nguyên nhân cơ học. Mọi mô hình trong nhóm đều học từ đồng xuất hiện, tức hai sản phẩm cùng nằm trong lịch sử của một người dùng, và một cặp chỉ còn khi cả hai tương tác cùng được giữ lại. Số cặp vì thế giảm nhanh hơn nhiều so với số tương tác. \Tabref{tab:cooccurrence} xác nhận điều đó: ở $d=0{,}25$, tập huấn luyện chỉ còn 4,2\% số cặp đồng xuất hiện. Trong bảng, số cặp theo người dùng là $\sum_u n_u(n_u-1)/2$, số cặp sản phẩm là số cặp sản phẩm khác nhau có $C_{ij}>0$, còn hai hàng cuối đếm hệ số láng giềng khác 0 trong checkpoint GRNR. Có thể đối chiếu với một mốc lý thuyết đơn giản: nếu mỗi tương tác được giữ độc lập với xác suất $d$, một cặp chỉ còn với xác suất $d^2$. Ở $d=0{,}75$ và $d=0{,}5$, số đo là 56,3\% và 24,2\%, gần sát mốc 56,25\% và 25\%; chỉ ở $d=0{,}25$, số đo 4,2\% thấp hơn rõ so với mốc 6,25\%. Một cách giải thích là cách giảm dữ liệu giữ ít nhất một tương tác cho mỗi người dùng (Mục~\ref{sec:sparsity-protocol}): khi dữ liệu còn rất ít, một phần đáng kể số tương tác được giữ lại dồn vào những người dùng chỉ còn một tương tác, vốn không tạo ra cặp nào. Ảnh hưởng lên GRNR thấy rõ qua số láng giềng: mỗi sản phẩm trung bình có 89,8 láng giềng ở $d=1$ nhưng chỉ còn 11,1 ở $d=0{,}25$, và 12,7\% sản phẩm không còn láng giềng nào. Với những sản phẩm này, điểm của GRNR chỉ còn hệ số chặn $b_i$, tức một dạng độ phổ biến.
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{@{}lrrrr@{}}
+\toprule
+& $d=1$ & $d=0{,}75$ & $d=0{,}5$ & $d=0{,}25$ \\
+\midrule
+Số tương tác & 100{,}0\% & 75{,}0\% & 50{,}0\% & 25{,}0\% \\
+Số cặp đồng xuất hiện theo người dùng & 100{,}0\% & 56{,}3\% & 24{,}2\% & 4{,}2\% \\
+Số cặp sản phẩm có đồng xuất hiện & 100{,}0\% & 58{,}5\% & 26{,}1\% & 4{,}7\% \\
+\midrule
+Số láng giềng trung bình của GRNR & 89{,}8 & 68{,}9 & 42{,}5 & 11{,}1 \\
+Sản phẩm không có láng giềng & 0{,}1\% & 0{,}1\% & 0{,}8\% & 12{,}7\% \\
+\bottomrule
+\end{tabular}
+\caption{Đồng xuất hiện còn lại trong tập huấn luyện}
+\label{tab:cooccurrence}
+\end{table}
+
+NDCG@20 của GRNR giảm cùng chiều với số cặp đồng xuất hiện nhưng chậm hơn nhiều: ở mức thưa nhất, số cặp chỉ còn 4,2\% còn NDCG@20 vẫn giữ 24,7\%. Một phần chênh lệch này đến từ hệ số chặn, vốn không cần đồng xuất hiện. GRNR cũng là mô hình ít tệ nhất trong nhóm ở mức thưa nhất, kém MostPop 59\% so với 67\% của EASE đầy đủ. Vì bài toán của GRNR neo hệ số chặn vào xác suất nền của sản phẩm và phạt nặng các láng giềng ít dữ liệu, có thể khi thiếu đồng xuất hiện, mô hình dựa nhiều hơn vào hệ số chặn thay vì các hệ số nhiễu. Đây mới là giả thuyết, và phân tích độ phổ biến dưới đây không ủng hộ nó.
+
+Nếu GRNR thật sự xếp hạng gần theo độ phổ biến khi dữ liệu thưa, các sản phẩm được gợi ý phải phổ biến hơn và tập trung vào ít sản phẩm hơn. \Tabref{tab:closed-popularity}, tính theo Mục~\ref{sec:beyond-accuracy}, cho thấy điều ngược lại. Độ phổ biến trung bình sau biến đổi log của GRNR giảm từ 5,60 ở $d=1$ xuống 4,18 ở $d=0{,}5$ và chỉ nhích lên 4,50 ở mức thưa nhất; hai biến thể EASE thì giảm đều. Khi đồng xuất hiện cạn, cả nhóm gợi ý những sản phẩm ít phổ biến hơn chứ không lùi về sản phẩm phổ biến. Một giải thích khác phù hợp hơn với số liệu: hệ số láng giềng của các sản phẩm ít tương tác trở nên nhiễu và đẩy chính các sản phẩm này lên danh sách.
+
+Độ phủ danh mục trong top-20, tính trên 44.803 sản phẩm của tập huấn luyện gốc, cùng chiều với nhận xét này: GRNR gợi ý ít nhất một lần khoảng 85\% danh mục ở cả $d=1$ lẫn $d=0{,}25$, tức danh sách không co lại về một nhóm nhỏ sản phẩm. GF-CF có độ phủ trên 93\% ở mọi mức dù xếp hạng kém, cho thấy độ phủ cao chỉ nói rằng nhiều sản phẩm xuất hiện trong danh sách, chưa nói gì về việc chúng có hợp với người nhận hay không.
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{@{}lrrrr@{}}
+\toprule
+& $d=1$ & $d=0{,}75$ & $d=0{,}5$ & $d=0{,}25$ \\
+\midrule
+\multicolumn{5}{@{}l}{Độ phổ biến trung bình (log)} \\
+GRNR & 5{,}60 & 5{,}02 & 4{,}18 & 4{,}50 \\
+EASE đầy đủ & 5{,}64 & 5{,}39 & 4{,}85 & 4{,}25 \\
+EASE top-128 & 5{,}12 & 4{,}89 & 4{,}42 & 3{,}38 \\
+GF-CF & 2{,}68 & 2{,}38 & 2{,}58 & 3{,}68 \\
+\midrule
+\multicolumn{5}{@{}l}{Độ phủ danh mục trong top-20 (\%)} \\
+GRNR & 85{,}4 & 94{,}9 & 97{,}6 & 84{,}7 \\
+EASE đầy đủ & 72{,}3 & 92{,}8 & 96{,}3 & 83{,}7 \\
+EASE top-128 & 87{,}0 & 95{,}9 & 97{,}0 & 84{,}2 \\
+GF-CF & 98{,}6 & 99{,}4 & 99{,}9 & 93{,}9 \\
+\bottomrule
+\end{tabular}
+\caption{Độ phổ biến và độ phủ, nhóm giải trực tiếp}
+\label{tab:closed-popularity}
+\end{table}
+
+\FloatBarrier
+\subsubsection{Chất lượng theo độ dài lịch sử người dùng}
+
+Một cách khác để đọc kết quả là chia người dùng theo số tương tác trong tập huấn luyện gốc thành ba nhóm: 3--4, 5--9 và từ 10 tương tác trở lên, lần lượt có 54.693, 36.673 và 15.721 người dùng. \Figref{fig:closed-groups} cho một kết quả ngược trực giác: khi có đủ dữ liệu, người dùng có nhiều tương tác hơn lại được gợi ý kém hơn. Ở $d=1$, NDCG@20 của GRNR giảm từ 0,0298 ở nhóm ngắn nhất xuống 0,0227 ở nhóm dài nhất, và hai biến thể EASE cũng vậy. Có hai cách giải thích mà báo cáo chưa kiểm tra: người dùng nhiều tương tác có thể có sở thích trải rộng hơn, nên lịch sử ít định hướng cho lần mua tiếp theo; hoặc sản phẩm mục tiêu của họ ít phổ biến hơn và khó đoán với mọi mô hình. Hiện tượng này lặp lại ở nhóm cần huấn luyện, nên nhiều khả năng đây là tính chất của dữ liệu hơn là của riêng một mô hình. Tuy vậy, nó không đúng ở mọi mức: ở $d=0{,}5$, chiều này đảo lại, với GRNR đạt 0,0118 ở nhóm ngắn nhất nhưng 0,0147 ở nhóm dài nhất.
+
+Cách chia này cũng cho biết ưu thế của GRNR ở mức thưa nhất đến từ đâu. GRNR hơn EASE đầy đủ ở hai nhóm lịch sử ngắn, chẳng hạn 0,0079 so với 0,0057 ở nhóm 3--4, nhưng kém ở nhóm dài nhất, 0,0041 so với 0,0053. Ưu thế trung bình vì thế đến từ những người dùng ít tương tác, cũng là nhóm đông nhất. Các nhóm được cố định theo lịch sử gốc nên không đổi khi bớt dữ liệu, và các giá trị theo nhóm chỉ mang tính mô tả.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.68\linewidth]{H5_closed_form_user_groups_ndcg20.png}
+\caption{NDCG@20 theo độ dài lịch sử, nhóm giải trực tiếp}
+\label{fig:closed-groups}
+\end{figure}
+
+Thu hẹp về mười vị trí đầu như ở \figref{fig:closed-groups-ndcg10}, GRNR không còn dẫn ở mọi nhóm. Ngay ở $d=1$, GRNR chỉ cao nhất ở hai nhóm lịch sử ngắn, còn ở nhóm dài nhất EASE đầy đủ cao hơn, 0,0190 so với 0,0181. Sự phân hóa rõ nhất ở mức thưa nhất: GRNR hơn EASE đầy đủ ở nhóm 3--4, 0,0055 so với 0,0043, nhưng kém ở nhóm dài nhất, 0,0031 so với 0,0044. Mức chênh trung bình giữa hai mô hình vì vậy che đi hai chiều ngược nhau giữa các nhóm người dùng.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.68\linewidth]{H5_closed_form_user_groups_ndcg10.png}
+\caption{NDCG@10 theo độ dài lịch sử, nhóm giải trực tiếp}
+\label{fig:closed-groups-ndcg10}
+\end{figure}
+
+Recall@10 ở \figref{fig:closed-groups-recall10} cho thấy rõ hơn rằng nhận xét ``lịch sử dài thì khó gợi ý hơn'' phụ thuộc vào lượng dữ liệu. Ở $d=1$, Recall@10 của GRNR giảm đều theo độ dài lịch sử, từ 0,0449 xuống 0,0338. Nhưng ở $d=0{,}5$, nhóm dài nhất lại có Recall@10 cao nhất, 0,0223 so với 0,0162 ở nhóm ngắn nhất, và EASE đầy đủ cũng đảo chiều tương tự. Có thể là sau khi bớt dữ liệu, người dùng lịch sử dài vẫn còn vài tương tác để tạo đồng xuất hiện, trong khi nhiều người dùng lịch sử ngắn chỉ còn một; báo cáo chưa kiểm tra giải thích này. Ở mức thưa nhất, mẫu hình của NDCG@10 quay lại: GRNR dẫn ở hai nhóm ngắn nhưng thua EASE đầy đủ ở nhóm dài nhất.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.68\linewidth]{H5_closed_form_user_groups_recall10.png}
+\caption{Recall@10 theo độ dài lịch sử, nhóm giải trực tiếp}
+\label{fig:closed-groups-recall10}
+\end{figure}
+
+Recall@20 ở \figref{fig:closed-groups-recall20} cho sự đảo chiều ở $d=0{,}5$ rõ nhất: Recall@20 của EASE đầy đủ tăng dần theo độ dài lịch sử, từ 0,0260 lên 0,0336, ngược hẳn với ở $d=1$. Ở $d=0{,}75$, Recall@20 của GRNR gần như bằng nhau giữa ba nhóm. Nhận xét ``người dùng nhiều tương tác khó được gợi ý hơn'' vì thế chỉ đúng khi gắn với một thước đo và một mức dữ liệu cụ thể.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.68\linewidth]{H5_closed_form_user_groups_recall20.png}
+\caption{Recall@20 theo độ dài lịch sử, nhóm giải trực tiếp}
+\label{fig:closed-groups-recall20}
+\end{figure}
+
+\FloatBarrier
+\subsubsection{Chi phí tính toán}
+
+Về thời gian, ở $d=1$, GRNR mất 2,5 phút để khớp mô hình, EASE 11,2 phút và GF-CF 45,2 phút. Các con số này lẫn với khác biệt phần cứng, vì GRNR được giải trên CPU một luồng của máy có GPU còn EASE và GF-CF chạy trên máy chỉ có CPU; chúng mô tả chi phí trong môi trường của dự án, không phải tốc độ của bản thân thuật toán.
+
+Dung lượng lưu trữ thì không phụ thuộc máy chạy, và \figref{fig:closed-size} cho thấy khoảng cách ở đây lên tới hai bậc. Ma trận đầy đủ của EASE ở dạng float32 chiếm khoảng 7.671 MiB, theo ước tính vì ma trận này không được lưu, gấp khoảng 190 lần checkpoint 40,5 MiB của GRNR. Khoảng cách này còn lớn dần theo quy mô danh mục: bộ nhớ của EASE tăng theo bình phương số sản phẩm, còn của GRNR tăng tuyến tính vì mỗi sản phẩm giữ tối đa 128 hệ số (Mục~\ref{sec:complexity}). Ngoại suy cho một danh mục lớn gấp 10 lần, EASE đầy đủ sẽ cần khoảng 750 GiB, trong khi GRNR chỉ cần khoảng 0,4 GiB. Cắt EASE xuống top-128 đưa dung lượng về cùng cỡ với GRNR, nhưng bản cắt kém GRNR ở cả bốn mức dữ liệu, rõ ràng ở ba mức, và kém EASE đầy đủ ở cả bốn mức. GF-CF vừa chậm nhất vừa yếu nhất nhóm, nên trong thiết lập này không có đánh đổi nào có lợi cho nó.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.75\linewidth]{H7c_closed_form_checkpoint_size.png}
+\caption{Dung lượng lưu trữ, nhóm giải trực tiếp}
+\label{fig:closed-size}
+\end{figure}
+
+
+Thời gian suy luận đã ghi lại của GRNR trên CPU là khoảng 0,38 ms mỗi người dùng ở $d=1$ và 0,88--0,90 ms ở ba mức còn lại, tức không giảm theo lượng dữ liệu. Đây là trung bình khi chấm điểm theo lô, chịu ảnh hưởng của cách thực thi và môi trường chạy; vì không có số đo cùng điều kiện cho EASE và GF-CF, báo cáo không kết luận về thứ tự tốc độ suy luận trong nhóm.
+
+Tóm lại, khi dữ liệu còn dày, GRNR cho chất lượng chưa phân biệt được với EASE đầy đủ trong khi dung lượng nhỏ hơn hai bậc, và tốt hơn cách cắt EASE xuống cùng ngân sách. Khi dữ liệu thưa, ưu điểm này mất ý nghĩa: cả nhóm cùng cạn tín hiệu đồng xuất hiện và rơi xuống dưới mốc độ phổ biến ngay từ $d=0{,}5$, mức mà GRNR cũng thua EASE đầy đủ.
+
+\FloatBarrier
+\subsection{Diffusion-Filtered History Factorization so với các mô hình cần huấn luyện}
+\label{sec:dfhf-results}
+
+Ba baseline của nhóm này cùng dùng bộ mã hóa LightGCN, tức cùng một kiến trúc lan truyền trên đồ thị với vector riêng cho mỗi người dùng. Chúng chỉ khác nhau ở hàm mục tiêu: BPR (LightGCN), BPR cộng học tương phản (XSimGCL), và căn chỉnh--đồng đều (DirectAU). DFHF khác cả ba ở hai điểm cơ bản: không có vector người dùng, và huấn luyện bằng softmax trên toàn danh mục. Câu hỏi của mục này là các khác biệt đó đem lại gì, và mất gì.
+
+\FloatBarrier
+\subsubsection{Chất lượng xếp hạng khi có đủ dữ liệu}
+
+Khi có đủ dữ liệu, DFHF dẫn đầu nhóm ở cả bốn thước đo trong \tabref{tab:trained}, với NDCG@20 bằng 0,02724.
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{@{}llrrrr@{}}
+\toprule
+$d$ & Mô hình & NDCG@10 & NDCG@20 & Recall@10 & Recall@20 \\
+\midrule
+\multirow{4}{*}{1} & DFHF & \textbf{0,02231} & \textbf{0,02724} & \textbf{0,04002} & \textbf{0,05966} \\
+ & LightGCN & 0,01761 & 0,02168 & 0,03251 & 0,04870 \\
+ & XSimGCL & 0,02107 & 0,02561 & 0,03843 & 0,05647 \\
+ & DirectAU & 0,01991 & 0,02407 & 0,03599 & 0,05256 \\
+\midrule
+\multirow{4}{*}{0,75} & DFHF & \textbf{0,01889} & \textbf{0,02324} & \textbf{0,03436} & \textbf{0,05166} \\
+ & LightGCN & 0,01534 & 0,01930 & 0,02878 & 0,04455 \\
+ & XSimGCL & 0,01769 & 0,02158 & 0,03226 & 0,04773 \\
+ & DirectAU & 0,01719 & 0,02065 & 0,03133 & 0,04503 \\
+\midrule
+\multirow{4}{*}{0,5} & DFHF & \textbf{0,01560} & \textbf{0,01971} & \textbf{0,02875} & \textbf{0,04510} \\
+ & LightGCN & 0,01337 & 0,01691 & 0,02608 & 0,04020 \\
+ & XSimGCL & 0,01269 & 0,01544 & 0,02281 & 0,03377 \\
+ & DirectAU & 0,01308 & 0,01585 & 0,02333 & 0,03435 \\
+\midrule
+\multirow{4}{*}{0,25} & DFHF & \textbf{0,01315} & \textbf{0,01710} & \textbf{0,02467} & \textbf{0,04023} \\
+ & LightGCN & 0,00631 & 0,00786 & 0,01193 & 0,01807 \\
+ & XSimGCL & 0,00807 & 0,01019 & 0,01566 & 0,02408 \\
+ & DirectAU & 0,00695 & 0,00856 & 0,01242 & 0,01884 \\
+\bottomrule
+\end{tabular}
+\caption{Chất lượng xếp hạng, nhóm cần huấn luyện}
+\label{tab:trained}
+\end{table}
+
+\Tabref{tab:trained-sig} cho thấy DFHF hơn XSimGCL 0,00163, hơn DirectAU 0,00317 và hơn LightGCN 0,00557, cả ba khoảng tin cậy đều nằm hẳn trên 0. Ưu thế này giữ nguyên ở cả bốn mức dữ liệu.
+
+Thứ tự giữa các baseline cũng đáng chú ý. LightGCN, chỉ dùng BPR, yếu nhất nhóm; chỉ cần thay hàm mục tiêu và giữ nguyên bộ mã hóa, XSimGCL và DirectAU đã đạt 0,02561 và 0,02407, so với 0,02168 của LightGCN. Trong nhóm này, hàm mục tiêu như vậy có vẻ quan trọng hơn kiến trúc lan truyền. DFHF đi tiếp theo cùng hướng: softmax trên toàn danh mục so sánh sản phẩm dương với mọi sản phẩm cùng lúc thay vì với một mẫu âm ngẫu nhiên như BPR, nên gần với thước đo xếp hạng hơn~\cite{liang2018multvae}. Đây là cách giải thích phù hợp với dữ liệu nhưng chưa được kiểm chứng, vì báo cáo chưa có thí nghiệm tách đóng góp của hàm mất mát, bộ lọc khuếch tán và cách biểu diễn bằng lịch sử.
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{@{}llrcr@{}}
+\toprule
+$d$ & So sánh & $\Delta$ NDCG@20 & KTC 95\% & $p_{\mathrm{Holm}}$ (một phía) \\
+\midrule
+\multirow{3}{*}{1} & DFHF $-$ LightGCN & $+0{,}00557$ & $[+0{,}00502;\;+0{,}00610]$ & $\le 3\cdot10^{-4}$ \\
+ & DFHF $-$ XSimGCL & $+0{,}00163$ & $[+0{,}00111;\;+0{,}00213]$ & $\le 3\cdot10^{-4}$ \\
+ & DFHF $-$ DirectAU & $+0{,}00317$ & $[+0{,}00260;\;+0{,}00375]$ & $\le 3\cdot10^{-4}$ \\
+\midrule
+\multirow{3}{*}{0,75} & DFHF $-$ LightGCN & $+0{,}00394$ & $[+0{,}00342;\;+0{,}00448]$ & $\le 3\cdot10^{-4}$ \\
+ & DFHF $-$ XSimGCL & $+0{,}00166$ & $[+0{,}00113;\;+0{,}00218]$ & $\le 3\cdot10^{-4}$ \\
+ & DFHF $-$ DirectAU & $+0{,}00259$ & $[+0{,}00202;\;+0{,}00317]$ & $\le 3\cdot10^{-4}$ \\
+\midrule
+\multirow{3}{*}{0,5} & DFHF $-$ LightGCN & $+0{,}00280$ & $[+0{,}00232;\;+0{,}00328]$ & $\le 3\cdot10^{-4}$ \\
+ & DFHF $-$ XSimGCL & $+0{,}00427$ & $[+0{,}00370;\;+0{,}00483]$ & $\le 3\cdot10^{-4}$ \\
+ & DFHF $-$ DirectAU & $+0{,}00386$ & $[+0{,}00327;\;+0{,}00447]$ & $\le 3\cdot10^{-4}$ \\
+\midrule
+\multirow{3}{*}{0,25} & DFHF $-$ LightGCN & $+0{,}00924$ & $[+0{,}00867;\;+0{,}00981]$ & $\le 3\cdot10^{-4}$ \\
+ & DFHF $-$ XSimGCL & $+0{,}00691$ & $[+0{,}00637;\;+0{,}00746]$ & $\le 3\cdot10^{-4}$ \\
+ & DFHF $-$ DirectAU & $+0{,}00854$ & $[+0{,}00791;\;+0{,}00918]$ & $\le 3\cdot10^{-4}$ \\
+\bottomrule
+\end{tabular}
+\caption{Kiểm định NDCG@20, nhóm cần huấn luyện}
+\label{tab:trained-sig}
+\end{table}
+
+Số liệu của DirectAU trên tập kiểm tra cần được đọc cùng một lưu ý. Checkpoint được chọn trên tập xác thực của mô hình này rơi vào epoch cuối khi $d=1$, epoch 113 khi $d=0{,}75$, và epoch 195 và 181 ở hai mức còn lại. Nhiều khả năng DirectAU chưa hội tụ sau 200 epoch, nên các giá trị 0,02407 ở $d=1$ hay 0,00856 ở mức thưa nhất có thể thấp hơn mức mô hình đạt được nếu huấn luyện lâu hơn.
+
+\FloatBarrier
+\subsubsection{Chất lượng theo thước đo và độ dài danh sách}
+
+\Figref{fig:trained-ndcg10} cho thấy DFHF giữ vị trí đầu ở mọi mức, nhưng khoảng cách với baseline mạnh nhất thay đổi theo $d$. Ở $d=1$ và $d=0{,}75$, DFHF hơn XSimGCL khoảng 0,0012. Ở $d=0{,}5$, đối thủ gần nhất đổi thành LightGCN và khoảng cách tăng lên 0,0022. Ở mức thưa nhất, khoảng cách lớn nhất, 0,0051, dù giá trị của cả nhóm khi đó đã thấp hơn nhiều. Một khoảng cách nới rộng đúng lúc dữ liệu cạn nhất là điều cần giải thích, chưa phải bằng chứng rằng DFHF học tốt hơn hẳn.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.75\linewidth]{H1_trained_density_ndcg10.png}
+\caption{NDCG@10 theo mức $d$, nhóm cần huấn luyện}
+\label{fig:trained-ndcg10}
+\end{figure}
+
+NDCG@20 ở \figref{fig:trained-ndcg20} giữ nguyên bức tranh đó: DFHF hơn baseline mạnh nhất khoảng 0,0016 khi $d\ge0{,}75$, 0,0028 ở $d=0{,}5$ và 0,0069 ở mức thưa nhất. Điều thay đổi theo $d$ là thứ tự giữa các baseline. LightGCN đứng cuối khi dữ liệu dày, vươn lên thứ hai ở $d=0{,}5$, rồi lại xuống cuối ở mức thưa nhất; XSimGCL đứng thứ hai ở ba mức còn lại. So sánh trên tập đầy đủ vì vậy chưa nói hết hành vi của các mô hình khi dữ liệu thưa.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.75\linewidth]{H1_trained_density_ndcg20.png}
+\caption{NDCG@20 theo mức $d$, nhóm cần huấn luyện}
+\label{fig:trained-ndcg20}
+\end{figure}
+
+Recall@10 ở \figref{fig:trained-recall10} kể cùng câu chuyện: DFHF dẫn ở mọi mức, và khoảng cách tuyệt đối lớn nhất ở mức thưa nhất, nơi DFHF đạt 0,02467 còn XSimGCL chỉ đạt 0,01566.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.75\linewidth]{H1_trained_density_recall10.png}
+\caption{Recall@10 theo mức $d$, nhóm cần huấn luyện}
+\label{fig:trained-recall10}
+\end{figure}
+
+Recall@20 ở \figref{fig:trained-recall20} cho cùng xu hướng, với khoảng cách giữa DFHF và XSimGCL tăng từ 0,0032 khi có đủ dữ liệu lên 0,0162 ở mức thưa nhất. Hình này cũng cho thấy rõ vị trí bất thường của LightGCN ở $d=0{,}5$: với Recall@20 bằng 0,04020, nó vượt cả XSimGCL lẫn DirectAU. Đây là mức duy nhất LightGCN không đứng cuối, và điều đó đúng ở cả bốn thước đo, nên thứ tự giữa các baseline phụ thuộc vào lượng dữ liệu nhiều hơn vào thước đo.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.75\linewidth]{H1_trained_density_recall20.png}
+\caption{Recall@20 theo mức $d$, nhóm cần huấn luyện}
+\label{fig:trained-recall20}
+\end{figure}
+
+Đường NDCG@K ở \figref{fig:trained-at-k} cho biết ưu thế của DFHF nằm ở đâu trong danh sách. Khi có đủ dữ liệu, DFHF đã hơn XSimGCL ngay tại $K=1$, với 0,00895 so với 0,00830, và khoảng cách tiếp tục tăng lên 0,00124 ở $K=10$ và 0,00163 ở $K=20$. Ưu thế của DFHF vì vậy có mặt từ gợi ý đầu tiên và tích lũy dần dọc theo danh sách. Ở $d=0{,}5$, DFHF cũng dẫn ngay từ $K=1$. Ở mức thưa nhất, đường của DFHF tách hẳn khỏi ba baseline từ đầu, với NDCG@1 bằng 0,00487 so với 0,00294 của DirectAU. Đây là phân tích mô tả, tính từ cùng danh sách dự đoán, không chọn lại checkpoint cho từng $K$.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.75\linewidth]{H8_trained_ndcg_at_k.png}
+\caption{NDCG@K, nhóm cần huấn luyện}
+\label{fig:trained-at-k}
+\end{figure}
+
+\FloatBarrier
+\subsubsection{Chất lượng khi dữ liệu thưa dần}
+
+Những hình trên dễ dẫn tới kết luận rằng DFHF bền hơn hẳn khi dữ liệu thưa: DFHF cao nhất ở mọi mức, và khoảng cách với baseline tốt nhất lớn nhất ở mức thưa nhất. \Figref{fig:trained-density} đặt NDCG@20 của cả nhóm cạnh mốc MostPop, và chính mốc này cho thấy cách hiểu ``bền hơn'' là chưa đúng.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.75\linewidth]{H9_mostpop_trained_ndcg20.png}
+\caption{NDCG@20 so với MostPop, nhóm cần huấn luyện}
+\label{fig:trained-density}
+\end{figure}
+
+\Tabref{tab:trained-gain} làm rõ điều đó. Mức vượt MostPop của DFHF giảm đều từ 54\% xuống 31\%, 11\%, rồi chỉ còn 0,02\%: ở mức thưa nhất, DFHF chỉ còn ngang mốc độ phổ biến. Ba baseline thì đã xuống dưới MostPop từ $d=0{,}5$, và ở mức thưa nhất thấp hơn 40--54\%. Khoảng cách lớn giữa DFHF và XSimGCL ở mức thưa nhất vì thế không phản ánh khả năng cá nhân hóa tốt hơn. Nó phản ánh việc DFHF dừng lại ở mốc độ phổ biến trong khi các baseline tụt xuống dưới, và gợi ý cần xem xét vai trò của hệ số chặn khi lịch sử quá ngắn.
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{@{}lrrrr@{}}
+\toprule
+& $d=1$ & $d=0{,}75$ & $d=0{,}5$ & $d=0{,}25$ \\
+\midrule
+MostPop (NDCG@20) & 0{,}01775 & 0{,}01778 & 0{,}01782 & 0{,}01710 \\
+\midrule
+DFHF & $+53{,}5\%$ & $+30{,}7\%$ & $+10{,}6\%$ & $+0{,}02\%$ \\
+LightGCN & $+22{,}1\%$ & $+8{,}6\%$ & $-5{,}1\%$ & $-54{,}0\%$ \\
+XSimGCL & $+44{,}3\%$ & $+21{,}4\%$ & $-13{,}4\%$ & $-40{,}4\%$ \\
+DirectAU & $+35{,}7\%$ & $+16{,}2\%$ & $-11{,}1\%$ & $-50{,}0\%$ \\
+\bottomrule
+\end{tabular}
+\caption{Mức vượt MostPop, nhóm cần huấn luyện}
+\label{tab:trained-gain}
+\end{table}
+
+Tỉ lệ duy trì đi tới cùng kết luận từ một góc khác. Theo NDCG@10 ở \figref{fig:trained-retention-ndcg10}, khi dữ liệu còn khá dày, DFHF không suy giảm chậm hơn các baseline: ở cả $d=0{,}75$ và $d=0{,}5$, nó đều giữ ít hơn LightGCN. Chỉ ở mức thưa nhất, DFHF mới tách hẳn lên, giữ 58,9\% so với 35--38\% của ba baseline. Sự bền vững của DFHF vì thế chỉ xuất hiện ở đúng mức mà điểm số của nó chạm mốc MostPop.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.75\linewidth]{H4_trained_retention_ndcg10.png}
+\caption{Tỉ lệ duy trì NDCG@10, nhóm cần huấn luyện}
+\label{fig:trained-retention-ndcg10}
+\end{figure}
+
+NDCG@20 ở \figref{fig:trained-retention-ndcg20} cho cùng mẫu hình: ở mức thưa nhất, DFHF giữ 62,8\% so với 36--40\% của các baseline, nhưng ở $d=0{,}5$, LightGCN giữ nhiều nhất, 78,0\% so với 72,3\% của DFHF, một phần vì LightGCN xuất phát từ mức thấp hơn. Khi các mô hình có điểm khởi đầu và mức sàn khác nhau như vậy, tỉ lệ duy trì không cho biết mô hình nào học tốt hơn.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.75\linewidth]{H4_trained_retention_ndcg20.png}
+\caption{Tỉ lệ duy trì NDCG@20, nhóm cần huấn luyện}
+\label{fig:trained-retention-ndcg20}
+\end{figure}
+
+Recall@10 ở \figref{fig:trained-retention-recall10} lặp lại điều này: LightGCN giữ nhiều nhất ở $d=0{,}5$, còn DFHF chỉ vượt lên ở mức thưa nhất. Giữ được một phần chất lượng chưa cho biết phần đó đến từ lịch sử hay từ hệ số chặn; muốn biết, cần đối chiếu với MostPop và với nhóm người dùng chỉ còn một tương tác ở mục dưới.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.75\linewidth]{H4_trained_retention_recall10.png}
+\caption{Tỉ lệ duy trì Recall@10, nhóm cần huấn luyện}
+\label{fig:trained-retention-recall10}
+\end{figure}
+
+Với DFHF, Recall@20 ở \figref{fig:trained-retention-recall20} cho tỉ lệ duy trì cao nhất trong bốn thước đo, 67,4\% ở mức thưa nhất, trong khi LightGCN vẫn giữ nhiều nhất ở $d=0{,}75$ và $d=0{,}5$. Recall@20 của DFHF giữ được nhiều hơn NDCG@20, 67,4\% so với 62,8\%, nghĩa là mô hình vẫn đưa được mục tiêu vào danh sách nhưng ở vị trí thấp hơn trước.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.75\linewidth]{H4_trained_retention_recall20.png}
+\caption{Tỉ lệ duy trì Recall@20, nhóm cần huấn luyện}
+\label{fig:trained-retention-recall20}
+\end{figure}
+
+\FloatBarrier
+\subsubsection{Nguồn tín hiệu khi dữ liệu thưa}
+
+Mức sàn gần MostPop của DFHF có một cơ chế cụ thể, đã mô tả ở Mục~\ref{sec:dfhf-representation}. Người dùng chỉ còn một tương tác nhận vector lịch sử bằng 0, nên được xếp hạng chỉ bằng hệ số chặn $b$, tức một thứ tự chung do vector chặn đã học quyết định, không nhất thiết trùng MostPop. Ở mức thưa nhất, nhóm người dùng này chiếm 68\%. \Tabref{tab:degree-split} xác nhận trực tiếp: trên người dùng bậc 1, DFHF đạt 0,01757, gần như trùng với 0,01746 của MostPop. Các baseline thì phải học một vector người dùng từ đúng một tương tác; vector đó nhiễu và cho xếp hạng kém cả độ phổ biến.
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{@{}lrrr@{}}
+\toprule
+Mô hình & Bậc 1 ($n=72.889$) & Bậc $\ge2$ ($n=34.198$) & Tất cả \\
+\midrule
+DFHF & 0,01757 & 0,01609 & 0,01710 \\
+LightGCN & 0,00788 & 0,00782 & 0,00786 \\
+XSimGCL & 0,01041 & 0,00970 & 0,01019 \\
+DirectAU & 0,00849 & 0,00870 & 0,00856 \\
+\midrule
+MostPop (tham chiếu) & 0,01746 & 0,01631 & 0,01710 \\
+\bottomrule
+\end{tabular}
+\caption{NDCG@20 theo số tương tác còn lại ($d=0{,}25$)}
+\label{tab:degree-split}
+\end{table}
+
+Với người dùng còn từ hai tương tác trở lên, DFHF đạt 0,01609, vẫn thấp hơn một chút so với 0,01631 của MostPop. Ở mức thưa này, vì vậy, chưa có bằng chứng rằng DFHF khai thác lịch sử tốt hơn một cách xếp hạng không cá nhân hóa. Kết quả gợi ý rằng khi dữ liệu rất thưa, một phương án dự phòng tốt có thể quan trọng hơn khả năng biểu diễn của mô hình; nhận định này chưa được kiểm tra bằng cách cho các baseline dùng cùng phương án dự phòng.
+
+Nếu phần lớn người dùng được xếp hạng chỉ bằng hệ số chặn, danh sách gợi ý của DFHF phải tập trung hơn vào sản phẩm phổ biến khi dữ liệu thưa, và \tabref{tab:trained-popularity} cho thấy đúng như vậy. Từ $d=1$ xuống mức thưa nhất, độ phổ biến trung bình sau biến đổi log của các sản phẩm DFHF gợi ý tăng từ 5,84 lên 7,10, rất gần mức 7,16 của chính MostPop, còn độ phủ danh mục giảm từ 32,1\% xuống 12,9\%. Xu hướng tập trung này không riêng DFHF: độ phổ biến của XSimGCL cũng tăng, và độ phủ của LightGCN giảm từ 47,0\% xuống 7,5\%. Điểm riêng của DFHF là mức tập trung cao nhất nhóm đi cùng NDCG@20 bằng MostPop thay vì thấp hơn. Bảng chưa tách được ảnh hưởng của hệ số chặn, biểu diễn lịch sử và tập ứng viên, và mức phổ biến gần bằng MostPop cũng chưa cho biết hai danh sách trùng nhau đến đâu.
+
+DirectAU đi theo chiều ngược lại: độ phủ tăng từ 11,9\% lên 38,7\% dù NDCG@20 giảm. Cùng với diễn biến độ phổ biến, kết quả này cho thấy phạm vi sản phẩm được gợi ý và khả năng đưa đúng mục tiêu lên đầu là hai khía cạnh khác nhau; không thể dùng riêng độ phủ để xếp hạng chất lượng các mô hình.
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{@{}lrrrr@{}}
+\toprule
+& $d=1$ & $d=0{,}75$ & $d=0{,}5$ & $d=0{,}25$ \\
+\midrule
+\multicolumn{5}{@{}l}{Độ phổ biến trung bình (log)} \\
+DFHF & 5{,}84 & 6{,}09 & 6{,}67 & 7{,}10 \\
+LightGCN & 5{,}91 & 6{,}18 & 6{,}46 & 6{,}06 \\
+XSimGCL & 5{,}82 & 5{,}89 & 6{,}02 & 6{,}46 \\
+DirectAU & 5{,}64 & 5{,}66 & 5{,}75 & 5{,}47 \\
+MostPop (tham chiếu) & 7{,}17 & 7{,}17 & 7{,}17 & 7{,}16 \\
+\midrule
+\multicolumn{5}{@{}l}{Độ phủ danh mục trong top-20 (\%)} \\
+DFHF & 32{,}1 & 30{,}8 & 21{,}1 & 12{,}9 \\
+LightGCN & 47{,}0 & 33{,}7 & 26{,}8 & 7{,}5 \\
+XSimGCL & 6{,}8 & 6{,}7 & 5{,}9 & 2{,}6 \\
+DirectAU & 11{,}9 & 13{,}8 & 18{,}3 & 38{,}7 \\
+\bottomrule
+\end{tabular}
+\caption{Độ phổ biến và độ phủ, nhóm cần huấn luyện}
+\label{tab:trained-popularity}
+\end{table}
+
+\FloatBarrier
+\subsubsection{Chất lượng theo độ dài lịch sử người dùng}
+
+Chia người dùng theo độ dài lịch sử như ở \figref{fig:trained-groups}, hiện tượng người dùng nhiều tương tác được gợi ý kém hơn lại xuất hiện. Khi có đủ dữ liệu, NDCG@20 của DFHF giảm từ 0,0296 ở nhóm ngắn nhất xuống 0,0198 ở nhóm dài nhất, và cả ba baseline cũng vậy. Điểm riêng ở đây là với người dùng có từ 10 tương tác trở lên, XSimGCL nhỉnh hơn DFHF, 0,0202 so với 0,0198. Một giả thuyết là DFHF gộp cả lịch sử thành một vector duy nhất bằng phép cộng chuẩn hóa; với lịch sử dài và đa dạng, phép gộp này làm mờ các sở thích khác nhau, trong khi một vector người dùng học riêng có thể giữ chúng tốt hơn.
+
+Khi dữ liệu thưa đi, DFHF lại dẫn ở cả ba nhóm tại mọi mức $d\le0{,}75$. Ở mức thưa nhất, NDCG@20 của DFHF ở ba nhóm chỉ còn dao động từ 0,0153 đến 0,0181, hẹp hơn nhiều so với ở $d=1$: khi phần lớn người dùng được xếp hạng chủ yếu bằng hệ số chặn, độ dài lịch sử gốc không còn tạo ra nhiều khác biệt. Các giá trị theo nhóm chỉ mang tính mô tả.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.68\linewidth]{H5_trained_user_groups_ndcg20.png}
+\caption{NDCG@20 theo độ dài lịch sử, nhóm cần huấn luyện}
+\label{fig:trained-groups}
+\end{figure}
+
+Thu hẹp về mười vị trí đầu như ở \figref{fig:trained-groups-ndcg10}, mẫu hình vẫn vậy: ở $d=1$, XSimGCL cao hơn DFHF ở nhóm lịch sử dài nhất, 0,0164 so với 0,0156, còn ở mọi trường hợp khác DFHF dẫn cả ba nhóm. Khoảng cách lớn nhất ở mức thưa nhất, khi DFHF đạt 0,0120 đến 0,0136 ở ba nhóm, còn baseline tốt nhất chỉ đạt 0,0071 đến 0,0084. Điểm trung bình cao nhất vì thế không có nghĩa DFHF cao nhất ở mọi nhóm và mọi phần của danh sách.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.68\linewidth]{H5_trained_user_groups_ndcg10.png}
+\caption{NDCG@10 theo độ dài lịch sử, nhóm cần huấn luyện}
+\label{fig:trained-groups-ndcg10}
+\end{figure}
+
+Recall@10 ở \figref{fig:trained-groups-recall10} cho biết ưu thế của DFHF đến từ đâu. Khi có đủ dữ liệu, DFHF dẫn ở hai nhóm lịch sử ngắn, chẳng hạn 0,0431 so với 0,0409 của XSimGCL ở nhóm 3--4, nhưng ở nhóm dài nhất XSimGCL lại cao hơn, 0,0303 so với 0,0289. Ưu thế trung bình của DFHF như vậy chủ yếu đến từ người dùng lịch sử ngắn, cũng là nhóm đông nhất; với người dùng lịch sử dài, DFHF không hơn XSimGCL khi dữ liệu đầy đủ.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.68\linewidth]{H5_trained_user_groups_recall10.png}
+\caption{Recall@10 theo độ dài lịch sử, nhóm cần huấn luyện}
+\label{fig:trained-groups-recall10}
+\end{figure}
+
+Recall@20 ở \figref{fig:trained-groups-recall20} cũng giảm theo độ dài lịch sử khi có đủ dữ liệu, và ở nhóm dài nhất XSimGCL gần như bằng DFHF. Ở $d=0{,}5$, xu hướng này không còn đơn điệu: Recall@20 của DFHF ở nhóm 5--9 cao hơn nhóm 3--4, và LightGCN ở nhóm dài nhất cao hơn nhóm ngắn nhất, giống chiều đảo đã thấy ở nhóm giải trực tiếp. Các hình Recall chỉ đo khả năng tìm đúng mục tiêu, chưa đo mức hữu ích của những sản phẩm phù hợp khác không trùng với mục tiêu kiểm tra.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.68\linewidth]{H5_trained_user_groups_recall20.png}
+\caption{Recall@20 theo độ dài lịch sử, nhóm cần huấn luyện}
+\label{fig:trained-groups-recall20}
+\end{figure}
+
+\FloatBarrier
+\subsubsection{Quá trình huấn luyện và chi phí tính toán}
+
+Đường học ở \figref{fig:trained-curves} đo NDCG@20 trên tập xác thực sau mỗi epoch, cũng là đại lượng dùng để chọn checkpoint, nên các số trong mục này là số trên tập xác thực. Đường học chia nhóm thành hai kiểu hành vi. DFHF và XSimGCL học nhanh rồi quá khớp: khi có đủ dữ liệu, DFHF đạt đỉnh ở epoch 71 rồi giảm dần, đến epoch 200 thấp hơn đỉnh 24,5\%, còn XSimGCL đạt đỉnh sớm hơn, ở epoch 25, rồi giảm 21,4\%. LightGCN và DirectAU học chậm và gần như không giảm. Khi $d$ giảm, đỉnh của DFHF đến sớm hơn, ở epoch 66, 54 và 32; LightGCN, vốn đạt đỉnh ở epoch 169 khi $d=1$, đạt đỉnh ngay ở epoch 10 ở mức thưa nhất rồi giảm dần. XSimGCL vẫn đạt đỉnh quanh epoch 24--26 cho đến $d=0{,}5$, và ở epoch 6 ở mức thưa nhất. DirectAU thì ngược lại, đạt đỉnh gần cuối quá trình huấn luyện, cho thấy mô hình này có thể chưa hội tụ sau 200 epoch.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.75\linewidth]{H3_trained_learning_curves_ndcg20.png}
+\caption{Đường học NDCG@20 trên tập xác thực, nhóm cần huấn luyện}
+\label{fig:trained-curves}
+\end{figure}
+
+Đường học theo NDCG@10 ở \figref{fig:trained-curves-ndcg10} cho cùng hai kiểu hành vi; với DFHF và XSimGCL, epoch đạt đỉnh chỉ lệch không quá 4 epoch so với NDCG@20. Riêng DirectAU có đỉnh NDCG@10 đến sớm hơn nhiều, chẳng hạn epoch 98 so với 200 khi $d=1$, nhưng sau đỉnh đường gần như phẳng. Với DFHF, NDCG@10 ở epoch 200 thấp hơn đỉnh rõ rệt ở mọi mức, chẳng hạn từ 0,02946 xuống 0,02221 khi có đủ dữ liệu, nên dừng sớm có ích ở mọi mức.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.75\linewidth]{H3_trained_learning_curves_ndcg10.png}
+\caption{Đường học NDCG@10 trên tập xác thực, nhóm cần huấn luyện}
+\label{fig:trained-curves-ndcg10}
+\end{figure}
+
+
+Hàm mất mát trên tập huấn luyện ở \figref{fig:trained-loss} cho thấy rõ hơn hiện tượng quá khớp: DFHF và XSimGCL tiếp tục giảm hàm mất mát sau khi NDCG trên tập xác thực đã qua đỉnh, nên tối ưu tốt hơn trên tập huấn luyện không bảo đảm chất lượng tốt hơn trên người dùng được đánh giá. Các ô con có trục tung riêng vì hàm mục tiêu khác nhau cả về thành phần lẫn thang giá trị, nên không thể so giá trị mất mát giữa các mô hình, và giá trị âm của DirectAU không phải lỗi tối ưu.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.75\linewidth]{H3c_loss.png}
+\caption{Hàm mất mát huấn luyện, nhóm cần huấn luyện}
+\label{fig:trained-loss}
+\end{figure}
+
+Điều này cho thấy dừng sớm là cần thiết với DFHF: trên tập xác thực, NDCG@20 của DFHF ở epoch 200 giảm còn 0,02658, trong khi checkpoint tốt nhất ở epoch 71 đạt 0,03519. \Tabref{tab:training} tổng hợp epoch được chọn, mức giảm sau đỉnh và thời gian mỗi epoch của cả bốn mô hình ở $d=1$, kèm NDCG@20 trên tập kiểm tra của checkpoint được chọn. Nhờ dừng sớm, DFHF được đánh giá ở epoch 71 và đạt 0,02724 trên tập kiểm tra, cao nhất nhóm; XSimGCL cũng được đánh giá ở epoch 25, trước khi quá khớp, và đạt 0,02561. Nếu lấy mô hình ở epoch cuối, hai mô hình này sẽ bị thiệt nhiều nhất, vì NDCG@20 trên tập xác thực của chúng đã giảm 24,5\% và 21,4\% so với đỉnh.
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabular}{@{}lrrrrrr@{}}
+\toprule
+& & \multicolumn{3}{c}{NDCG@20 xác thực} & NDCG@20 & \\
+\cmidrule(lr){3-5}
+Mô hình & Epoch chọn & Chọn & Cuối & Giảm & kiểm tra & Giây/epoch \\
+\midrule
+DFHF & 71 & 0,03519 & 0,02658 & 24,5\% & 0,02724 & 37,9 \\
+LightGCN & 169 & 0,02655 & 0,02617 & 1,4\% & 0,02168 & 11,2 \\
+XSimGCL & 25 & 0,03292 & 0,02587 & 21,4\% & 0,02561 & 17,7 \\
+DirectAU & 200 & 0,03205 & 0,03205 & 0\% & 0,02407 & 24,1 \\
+\bottomrule
+\end{tabular}
+\caption[Huấn luyện và chi phí ($d=1$), nhóm cần huấn luyện]{Huấn luyện và chi phí ($d=1$), nhóm cần huấn luyện. NDCG@20 trên tập xác thực được đo tại checkpoint được chọn và tại epoch cuối; NDCG@20 trên tập kiểm tra là của checkpoint được chọn.}
+\label{tab:training}
+\end{table}
+
+DFHF là mô hình chậm nhất nhóm: mỗi epoch mất 37,9 giây trên GPU Tesla T4, tổng khoảng 127 phút cho 200 epoch ở $d=1$, trong khi DirectAU, XSimGCL và LightGCN cần lần lượt 24,1, 17,7 và 11,2 giây mỗi epoch theo \tabref{tab:training}. Phần lớn chi phí đến từ softmax trên toàn danh mục và hai lần áp toán tử khuếch tán ở mỗi bước. Tuy vậy, đường học cho thấy phần lớn số epoch này là thừa: nếu dừng ở khoảng epoch 71, DFHF chỉ cần khoảng 45 phút, ít hơn 80 phút mà DirectAU cần cho 200 epoch. Đây chỉ là phép tính minh họa, vì điểm dừng phải được chọn trên một tập riêng và báo cáo chưa thử cách này.
+
+Khi suy luận, cả bốn mô hình đều mất khoảng 0,01 ms cho mỗi người dùng khi chấm theo lô trên GPU Tesla T4. Điều này dễ hiểu vì cả bốn đều chấm điểm bằng tích vô hướng giữa vector người dùng và embedding sản phẩm. Chi phí thêm của DFHF vì vậy chỉ nằm ở giai đoạn huấn luyện. Đây là trung bình theo lô, không phải độ trễ của một dịch vụ thực tế.
+
+Tóm lại, trên tập kiểm tra, DFHF có NDCG@20 cao nhất nhóm ở mọi mức dữ liệu, và là mô hình duy nhất của nhóm còn vượt MostPop ở $d=0{,}5$. Khi dữ liệu đủ dày, ưu thế này phù hợp với giả thuyết rằng một hàm mất mát gần thước đo xếp hạng có lợi. Khi dữ liệu thưa, ưu thế chủ yếu đến từ việc DFHF dựa vào hệ số chặn và đạt gần mốc độ phổ biến, thay vì cố cá nhân hóa từ một tương tác như các baseline. Đổi lại, DFHF huấn luyện chậm nhất nhóm và cần dừng sớm.
+
+\FloatBarrier
+\subsection{Hệ thống demo}
+\label{sec:demo}
+
+\subsubsection{Cài đặt môi trường và khởi động}
+
+Ứng dụng được xây dựng bằng Streamlit, sử dụng dữ liệu đã xử lý và checkpoint của các mô hình để tạo gợi ý. Các lệnh cài đặt được thực hiện tại thư mục gốc của dự án. Trước hết, tạo và kích hoạt môi trường Python bằng Conda:
+
+\begin{DemoCommand}
+conda create -n AML python=3.11
+conda activate AML
+\end{DemoCommand}
+
+Tiếp theo, cài các thư viện được khai báo trong \texttt{requirements.txt}:
+
+\begin{DemoCommand}
+python -m pip install -r requirements.txt
+\end{DemoCommand}
+
+Sau khi đã chuẩn bị dữ liệu và các checkpoint, khởi động ứng dụng bằng lệnh:
+
+\begin{DemoCommand}
+python -m streamlit run app/streamlit_app.py
+\end{DemoCommand}
+
+Người dùng mở địa chỉ hiển thị trong cửa sổ lệnh để truy cập giao diện. Ứng dụng nạp các mô hình đã lưu, không huấn luyện lại khi đổi người dùng hoặc tỉ lệ dữ liệu. Các bảng, biểu đồ và hình được đọc từ kết quả đã lưu trên tập kiểm tra, nên trùng với số liệu trong báo cáo. Gợi ý cho người dùng có sẵn theo đúng giao thức đánh giá trên tập kiểm tra: lịch sử đầu vào là các tương tác huấn luyện, sản phẩm của tập xác thực bị loại khỏi danh sách, và mười gợi ý đầu trùng với dự đoán đã lưu của từng mô hình.
+
+\FloatBarrier
+\subsubsection{Gợi ý cho người dùng có sẵn}
+
+Thẻ ``Gợi ý cho khách'' cho phép chọn một người dùng trong danh sách hoặc nhấn ``Ngẫu nhiên'', sau đó chọn tỉ lệ tương tác huấn luyện được giữ lại. Bên trái là lịch sử tương tác và sản phẩm mục tiêu của tập kiểm tra; bên phải là 10 gợi ý đầu của bảy mô hình, mỗi mô hình một cột, thứ tự từ trên xuống tương ứng các hạng trong danh sách. Các cột được xếp theo hai nhóm như trong báo cáo: nhóm giải trực tiếp gồm GRNR, EASE và GF-CF, nhóm cần huấn luyện gồm DFHF, LightGCN, XSimGCL và DirectAU. Đầu mỗi cột ghi mô hình là đề xuất hay baseline và NDCG@20 của mô hình trên tập kiểm tra; cột EASE dùng bản top-128, vì ma trận đầy đủ không được lưu thành checkpoint. \Figref{fig:demo-existing} là màn hình của thẻ này với toàn bộ dữ liệu huấn luyện.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\linewidth]{anh_1.png}
+\caption{Giao diện gợi ý cho người dùng có sẵn}
+\label{fig:demo-existing}
+\end{figure}
+
+Các nút ``Giải trực tiếp'' và ``Cần huấn luyện'' giúp thu gọn số cột cần xem. Nhãn $\times k$ cạnh sản phẩm cho biết có bao nhiêu mô hình đang hiển thị cùng gợi ý sản phẩm đó; khi rê chuột lên một sản phẩm chung, các ô tương ứng được làm sáng. Sản phẩm mục tiêu, nếu có trong danh sách, được tô xanh. Nút ``Hiển thị'' cho phép ẩn sản phẩm không rõ tên; bộ lọc này chỉ phục vụ giao diện và cần tắt khi đối chiếu danh sách với dự đoán đã lưu. Với GRNR, ô ``Vì sao GRNR gợi ý \#1?'' liệt kê các sản phẩm trong lịch sử có đóng góp dương vào gợi ý đầu tiên; phần này phản ánh các hệ số đã học, không xác nhận quan hệ nhân quả giữa sản phẩm.
+
+Người dùng trong \figref{fig:demo-existing} có bốn sản phẩm trong lịch sử: một bộ chọn tín hiệu âm thanh--hình ảnh Sima, một cáp HDMI Mediabridge, một tai nghe AKG K99 và một loa di động X-Mini II; sản phẩm mục tiêu trên tập kiểm tra là một bộ sạc xe hơi micro-USB của Motorola. Chỉ LightGCN đưa bộ sạc này vào danh sách, ở hạng 6, nên chỉ một ô được tô xanh. Trường hợp này phản ánh đúng mức NDCG@20 khoảng 0,027--0,028 của các mô hình tốt nhất trên tập kiểm tra: với phần lớn người dùng, sản phẩm mục tiêu không nằm trong danh sách của mô hình nào, và việc một mô hình trúng ở một người dùng cụ thể không nói lên thứ hạng chung. Gợi ý đầu tiên của GRNR là một cáp quang Toslink cũng của Mediabridge, và ô giải thích cho thấy toàn bộ đóng góp dương đến từ chiếc cáp HDMI Mediabridge trong lịch sử. Nhiều sản phẩm được bốn đến năm mô hình cùng gợi ý, như cáp Toslink và cáp loa siêu trầm của Mediabridge, cáp HDMI của AmazonBasics hay dây loa RCA; đây đều là phụ kiện âm thanh--hình ảnh gắn với lịch sử của người dùng, nên các mô hình vẫn chia sẻ một phần danh sách dù dùng cơ chế khác nhau.
+
+\FloatBarrier
+\subsubsection{Gợi ý từ lịch sử nhập mới}
+
+Ở thẻ ``Khách mới'', người dùng tìm sản phẩm theo từ khóa rồi nhấn ``Thêm'' để tạo lịch sử. \Figref{fig:demo-new} minh họa việc tìm bằng từ khóa ``Headphone'' và chọn một sản phẩm. GRNR, DFHF, EASE top-128 và GF-CF có thể chấm điểm lịch sử vừa nhập; ba baseline LightGCN, XSimGCL và DirectAU hiển thị thông báo không hỗ trợ khách mới vì các cài đặt này dùng embedding của người dùng đã có trong lúc huấn luyện. Tỉ lệ dữ liệu và bộ lọc hiển thị được dùng tiếp từ thẻ ``Gợi ý cho khách''.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\linewidth]{anh_2.png}
+\caption{Tìm sản phẩm và tạo lịch sử cho người dùng mới}
+\label{fig:demo-new}
+\end{figure}
+
+Trong \figref{fig:demo-new}, lịch sử chỉ gồm tai nghe Yamaha RH1C, và dòng ``4/7 hỗ trợ khách mới'' cho biết bốn mô hình trả về danh sách. Ba mô hình của nhóm giải trực tiếp cho danh sách gần giống nhau, với nhiều sản phẩm mang nhãn $\times 3$ như màn hình máy tính xách tay HP, máy ảnh Pentax hay chân máy ảnh Deluxe. Những sản phẩm này không cùng loại với tai nghe; chúng phản ánh đồng xuất hiện trong lịch sử của những người dùng đã tương tác với chiếc tai nghe này, đúng với cách ba mô hình xây toán tử sản phẩm--sản phẩm. Danh sách của DFHF khác hẳn, gồm thẻ nhớ SanDisk, cáp HDMI và các phụ kiện phổ biến khác. Lý do là lịch sử chỉ có một sản phẩm, nên với $\omega_1=0$ vector lịch sử bằng 0 và DFHF xếp hạng chỉ bằng hệ số chặn, cùng cơ chế đã phân tích với người dùng bậc 1 ở mục kết quả của nhóm cần huấn luyện.
+
+Chức năng này minh họa khả năng nhận lịch sử mới mà không cần huấn luyện lại, chưa phải một phép đánh giá định lượng chất lượng gợi ý cho người dùng mới.
+
+\FloatBarrier
+\subsubsection{Tra cứu kết quả thực nghiệm}
+
+Thẻ ``Đánh giá mô hình'' cho phép chọn tỉ lệ dữ liệu và thước đo cần tra cứu, rồi xem kết quả theo hai thẻ con ``Nhóm giải trực tiếp'' và ``Nhóm cần huấn luyện''. Mỗi thẻ con chỉ chứa mô hình đề xuất của nhóm đó cùng các baseline cùng nhóm, nên GRNR và DFHF không xuất hiện trong cùng một bảng so sánh. Nút ``Tải bảng kết quả (CSV)'' xuất bảng tổng hợp các lần chạy. Mục ``Tổng quan'' hiển thị các nhận xét tóm tắt, chỉ số xếp hạng và chi phí tính toán; \figref{fig:demo-overview} minh họa màn hình của nhóm giải trực tiếp khi giữ lại 25\% tương tác huấn luyện.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\linewidth]{anh_4.png}
+\caption{Màn hình tổng quan của nhóm giải trực tiếp tại tỉ lệ dữ liệu 25\%}
+\label{fig:demo-overview}
+\end{figure}
+
+Ở mức này, GRNR có giá trị cao nhất nhóm ở cả bốn thước đo, với NDCG@20 bằng 0,00703 so với 0,00557 của EASE đầy đủ, và cao hơn có ý nghĩa thống kê so với cả ba baseline, đúng như \tabref{tab:closed-form}. Màn hình cũng đặt chất lượng cạnh chi phí: GRNR chiếm 5,5 MiB, EASE top-128 chiếm 24,6 MiB, còn ma trận của EASE đầy đủ khoảng 7,5 GiB.
+
+Mục ``Biểu đồ'' thể hiện chất lượng theo tỉ lệ dữ liệu và chất lượng theo chi phí tại mức đang chọn, như ở \figref{fig:demo-charts}. Với nhóm giải trực tiếp, chi phí là dung lượng lưu trữ; với nhóm cần huấn luyện, chi phí là thời gian huấn luyện. Ở biểu đồ bên trái, ba mô hình hồi quy đi sát nhau trên toàn dải dữ liệu, còn GF-CF nằm thấp hẳn. Ở biểu đồ bên phải, trục dung lượng dùng thang log: tại 25\% dữ liệu, GRNR nằm ở góc trên bên trái, tức chất lượng cao nhất với dung lượng nhỏ nhất nhóm, còn EASE đầy đủ nằm tận cùng bên phải. Thời gian chạy cần được đọc cùng loại thiết bị ghi trên giao diện.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\linewidth]{anh_5.png}
+\caption{Biểu đồ chất lượng theo dữ liệu và theo dung lượng, nhóm giải trực tiếp}
+\label{fig:demo-charts}
+\end{figure}
+
+Mục ``Kiểm định'' hiển thị, cho mô hình đề xuất của nhóm đang chọn so với từng baseline cùng nhóm, chênh lệch NDCG@20, khoảng tin cậy 95\%, giá trị $p$ một phía và giá trị sau hiệu chỉnh Holm trên 3 so sánh, theo đúng giao thức của báo cáo. \Figref{fig:demo-tests-full} là màn hình của nhóm cần huấn luyện khi giữ 100\% dữ liệu huấn luyện: DFHF cao hơn cả ba baseline với khoảng tin cậy không chứa 0 và $p_{\mathrm{Holm}}=0{,}0003$, đúng giá trị sàn đã nêu ở giao thức kiểm định; chênh lệch nhỏ nhất là so với XSimGCL, $+0{,}00163$.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\linewidth]{anh_3.png}
+\caption{Màn hình kiểm định của nhóm cần huấn luyện tại tỉ lệ dữ liệu 100\%}
+\label{fig:demo-tests-full}
+\end{figure}
+
+\Figref{fig:demo-tests-sparse} là cùng màn hình khi giữ 25\% dữ liệu huấn luyện. DFHF vẫn cao hơn cả ba baseline với $p_{\mathrm{Holm}}=0{,}0003$, và chênh lệch so với XSimGCL tăng lên $+0{,}00691$; như đã phân tích ở phần kết quả của nhóm này, ưu thế ở mức thưa chủ yếu đến từ người dùng chỉ còn một tương tác.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\linewidth]{anh_6.png}
+\caption{Màn hình kiểm định của nhóm cần huấn luyện tại tỉ lệ dữ liệu 25\%}
+\label{fig:demo-tests-sparse}
+\end{figure}
+
+Mục ``Hình'' hiển thị chính các hình của báo cáo cho nhóm đang chọn và thước đo đang chọn, như ở \figref{fig:demo-gallery} với nhóm cần huấn luyện và NDCG@20. Các hình gồm chất lượng theo tỉ lệ dữ liệu, so sánh với MostPop, tỉ lệ duy trì, chất lượng theo độ dài lịch sử, NDCG@K, đường học và hàm mất mát; nhóm giải trực tiếp có thêm hình dung lượng lưu trữ. Đây chính là các tệp hình của báo cáo; riêng đường học và hàm mất mát được đo trên tập xác thực trong lúc huấn luyện. Các ảnh giao diện minh họa thao tác sử dụng; hệ thống chưa được đánh giá với người dùng thật, và thời gian phản hồi trong demo chưa đại diện cho độ trễ của một dịch vụ triển khai thực tế.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\linewidth]{anh_7.png}
+\caption{Thư viện hình của nhóm cần huấn luyện trong ứng dụng}
+\label{fig:demo-gallery}
+\end{figure}
+
+\FloatBarrier
+
+\subsection{Thảo luận và hạn chế}
+\label{sec:discussion}
+
+\FloatBarrier
+\subsubsection{Hai chế độ dữ liệu}
+ Đặt kết quả của hai nhóm cạnh nhau, dữ liệu này chia thành hai chế độ khá rõ.
+\begin{itemize}
+\item Khi dữ liệu còn dày, tức $d\ge0{,}75$, cá nhân hóa chiếm ưu thế. Mô hình tốt nhất của mỗi nhóm vượt MostPop 54--60\% ở $d=1$ và vẫn vượt 25--31\% ở $d=0{,}75$, và khác biệt giữa các mô hình có ý nghĩa thực tế.
+\item Khi dữ liệu thưa, tức $d\le0{,}5$, tín hiệu cá nhân hóa gần như biến mất. Ở $d=0{,}5$, chỉ DFHF còn vượt MostPop, khoảng 11\%, còn mọi mô hình khác đã xuống dưới mốc này. Ở mức thưa nhất, không mô hình nào vượt MostPop, và DFHF chỉ còn ngang mốc.
+\end{itemize}
+
+Chuyển tiếp giữa hai chế độ trùng với hai thay đổi trong dữ liệu, thể hiện ở \tabref{tab:sparsity} và \tabref{tab:cooccurrence}: khi $d$ giảm từ 0,75 xuống 0,5, tỉ lệ người dùng chỉ còn một tương tác tăng từ 6\% lên 27\%, còn số cặp đồng xuất hiện giảm từ 56\% xuống 24\% so với ở $d=1$. Hai thay đổi này giải thích chung cho cả hai nhóm. Mô hình giải trực tiếp mất nguyên liệu, vì đồng xuất hiện cạn nhanh hơn số tương tác; mô hình cần huấn luyện mất ngữ cảnh, vì phần lớn người dùng không còn lịch sử để biểu diễn. Câu hỏi thứ hai, về độ thưa, vì thế có câu trả lời chủ yếu là âm tính: không mô hình nào trong báo cáo, kể cả hai mô hình đề xuất, khai thác được tín hiệu cá nhân hóa ở mức thưa nhất.
+
+\FloatBarrier
+\subsubsection{Khác biệt giữa tập xác thực và tập kiểm tra}
+
+Kết quả trên tập kiểm tra thấp hơn rõ so với trên tập xác thực dùng để chọn mô hình. Khi có đủ dữ liệu, NDCG@20 của các mô hình cá nhân hóa trên tập kiểm tra chỉ bằng 72--82\% giá trị trên tập xác thực, trong khi MostPop vẫn giữ 98\%, nên mức vượt MostPop giảm khoảng một nửa. Sai lệch do chọn cấu hình không đủ giải thích mức giảm này, vì EASE đầy đủ và GF-CF không được chọn lại trên tập xác thực mà vẫn giảm 26\% và 32\%. Một giải thích hợp lý nằm ở giao thức đánh giá ở Mục~\ref{sec:evaluation-unit}: khi dự đoán tương tác cuối, mô hình không thấy tương tác áp cuối, vốn gần nhất về thời gian với lần tương tác cần đoán, còn MostPop không dùng lịch sử nên không chịu ảnh hưởng này. Ở mức thưa nhất, tỉ lệ giữa hai tập tăng lên 80--97\%, phù hợp với việc các mô hình khi đó dựa nhiều vào độ phổ biến. Nhóm chưa kiểm chứng giải thích này bằng một lần đánh giá có đưa tương tác áp cuối vào lịch sử.
+
+Dù giá trị tuyệt đối giảm, thứ tự trong từng nhóm phần lớn giữ nguyên giữa hai tập: GRNR vẫn chưa phân biệt được với EASE đầy đủ khi dữ liệu dày, vẫn thua ở $d=0{,}5$ và thắng ở mức thưa nhất; DFHF vẫn dẫn nhóm ở cả bốn mức. Hai thay đổi đáng kể là GRNR không còn thua EASE top-128 ở $d=0{,}5$, và LightGCN thay DirectAU ở vị trí thứ hai của nhóm cần huấn luyện tại cùng mức. Cả hai đều xảy ra ở mức chuyển tiếp giữa hai chế độ dữ liệu, nơi các mô hình đứng sát nhau nhất, nên kết luận về thứ tự ở mức này cần được đọc thận trọng.
+
+\FloatBarrier
+\subsubsection{Ý nghĩa đối với từng mô hình đề xuất}
+ Với GRNR, giá trị thực tế nằm ở chế độ dữ liệu dày. Tại đó, GRNR thay được EASE đầy đủ mà không có bằng chứng mất chất lượng, với dung lượng nhỏ hơn hai bậc, và tốt hơn cách đơn giản là cắt ma trận EASE. Ưu điểm này có ý nghĩa khi danh mục lớn đến mức ma trận đầy đủ không còn vừa bộ nhớ.
+
+Với DFHF, giá trị nằm ở hai điểm. Thứ nhất, DFHF có điểm cao nhất nhóm ở mọi mức dữ liệu. Thứ hai, DFHF là mô hình duy nhất còn vượt MostPop ở $d=0{,}5$, và ở mức thưa nhất vẫn giữ được ngang mốc này thay vì rơi xuống dưới như các baseline. Điều này đến từ việc người dùng chỉ còn một tương tác được xếp hạng bằng hệ số chặn, dù chất lượng gần nhau chưa chứng minh thứ tự gợi ý giống MostPop. Một hệ thống thực tế có thể áp dụng cùng nguyên tắc cho bất kỳ mô hình nào: khi lịch sử quá ngắn, chuyển sang xếp hạng theo độ phổ biến.
+
+\FloatBarrier
+\subsubsection{Các giải thích cạnh tranh}
+ Báo cáo chưa có thí nghiệm loại bỏ từng thành phần, nên các giải thích cơ chế đều là giả thuyết.
+\begin{enumerate}[label=(\roman*)]
+\item DFHF vượt các baseline cùng nhóm ở $d\ge0{,}5$ có thể nhờ softmax toàn danh mục, nhờ bộ lọc khuếch tán, hoặc nhờ cả hai. Muốn tách đóng góp của từng thành phần, cần thử DFHF với $F=I$ và với BPR thay cho softmax.
+\item GRNR hơn EASE top-128 có thể nhờ ước lượng lại hệ số trên tập láng giềng, hoặc nhờ trọng số mẫu và điều chuẩn đồ thị. So GRNR với một biến thể không có điều chuẩn đồ thị sẽ tách được hai yếu tố này.
+\item So sánh giữa GRNR và EASE đầy đủ đổi chiều theo $d$. Điều này có thể do giới hạn láng giềng có lợi khi rất thưa nhưng bó hẹp ở mức trung bình, hoặc chỉ là nhiễu của một lần lấy mẫu ở mỗi mức $d$. Chênh lệch ở $d=0{,}5$ cùng chiều trên cả hai tập, $-0{,}00202$ trên tập xác thực và $-0{,}00141$ trên tập kiểm tra, nhưng cả hai đều đo trên cùng một lần lấy mẫu dữ liệu huấn luyện; lặp lại việc lấy mẫu với nhiều seed mới cho biết chênh lệch này có ổn định hay không.
+\item GRNR ít tệ nhất nhóm ở $d=0{,}25$ có thể vì mô hình dựa nhiều hơn vào hệ số chặn. Nhưng danh sách của GRNR khi đó lại gồm các sản phẩm ít phổ biến hơn so với ở $d=1$ theo \tabref{tab:closed-popularity}, trái với điều cách giải thích này dự đoán. Chấm điểm GRNR chỉ bằng hệ số chặn ở $d=0{,}25$, rồi so với mô hình đầy đủ, sẽ cho biết phần chất lượng còn lại đến từ đâu.
+\end{enumerate}
+
+\FloatBarrier
+\subsubsection{Đối chiếu với tài liệu}
+
+\begin{itemize}
+\item Việc một xếp hạng theo độ phổ biến trở nên khó vượt khi dữ liệu thưa phù hợp với cảnh báo của Dacrema và cộng sự: các mô hình phức tạp thường không vượt được các phương pháp đơn giản được thiết lập cẩn thận~\cite{dacrema2019progress}.
+\item EASE đầy đủ là đối thủ khó nhất của GRNR, phù hợp với nhận định của Steck rằng mô hình tuyến tính nông này là một baseline rất mạnh~\cite{steck2019ease}.
+\item Dự án xếp hạng trên toàn bộ danh mục thay vì trên mẫu, nên tránh được sai lệch thứ tự do lấy mẫu mà Krichene và Rendle đã chỉ ra~\cite{krichene2020sampled}.
+\item Dự án sử dụng tập xác thực để lựa chọn cấu hình và checkpoint, đồng thời đánh giá kết quả cuối cùng trên tập kiểm tra độc lập nhằm hạn chế sai lệch do lựa chọn mô hình~\cite{sun2020rigorous}.  Tuy nhiên, giao thức chia dữ liệu theo từng người dùng và thời gian chỉ chính xác đến ngày vẫn chưa bảo đảm một mốc thời gian toàn cục cho việc dự đoán tương lai~\cite{ji2023leakage}.
+\end{itemize}
+
+\FloatBarrier
+\subsubsection{Hạn chế}
+\label{sec:limitations}
+ Các hạn chế được sắp theo loại mối đe dọa đối với kết luận.
+\begin{enumerate}
+\item Độ tin cậy nội tại.
+  \begin{itemize}
+  % \item Checkpoint và cấu hình được chọn trên chính tập xác thực dùng để báo cáo, nên mọi giá trị tuyệt đối đều lạc quan~\cite{cawley2010selection}.
+  \item Checkpoint và cấu hình được lựa chọn dựa trên kết quả của tập xác thực, sau đó được cố định trước khi đánh giá trên tập kiểm tra độc lập. Quy trình này hạn chế sai lệch do lựa chọn mô hình trên cùng dữ liệu đánh giá.
+  \item Ngân sách tinh chỉnh không cân bằng: GRNR và DFHF được tinh chỉnh trong quá trình phát triển, còn baseline dùng cấu hình cố định.
+  \item DirectAU có dấu hiệu chưa hội tụ.
+  \item GF-CF cho kết quả thấp bất thường và biến đổi không đều theo $d$, nên nhiều khả năng cấu hình hoặc cài đặt chưa phù hợp.
+  \end{itemize}
+\item Độ tin cậy thống kê.
+  \begin{itemize}
+  \item Mỗi mô hình và mỗi mức $d$ chỉ chạy một lần, nên khoảng tin cậy chỉ phản ánh biến động theo người dùng.
+  \item Các phép kiểm định, nhất là của nhóm cần huấn luyện, được thiết kế sau khi đã xem kết quả trên tập xác thực, dù được áp dụng nguyên vẹn khi đánh giá trên tập kiểm tra.
+  \item Phân tích theo nhóm người dùng và so sánh với MostPop chỉ mang tính mô tả, không hiệu chỉnh đa so sánh.
+  \end{itemize}
+\item Khả năng khái quát.
+  \begin{itemize}
+  \item Chỉ có một bộ dữ liệu.
+  \item Bộ lọc 5-core làm dữ liệu nghiêng về người dùng và sản phẩm hoạt động nhiều.
+  \item Thời gian chỉ chính xác đến ngày, và việc chia theo từng người dùng không có mốc thời gian chung, nên tập huấn luyện có thể chứa tương tác của người dùng khác xảy ra sau thời điểm cần dự đoán~\cite{ji2023leakage}; giao thức vì vậy không mô phỏng chặt chẽ việc dự đoán tương lai.
+  \item Phần tổng quan tài liệu chỉ gồm các tài liệu nhóm đã đọc, không phải một tổng quan có hệ thống. Các phương pháp chỉ được nêu làm bối cảnh, gồm lọc cộng tác lân cận, SLIM, BSPM, Turbo-CF, PolyCF, FISM và Mult-VAE, không được chạy, nên chưa biết hai mô hình đề xuất đứng ở đâu so với chúng.
+  \end{itemize}
+\item Độ đúng của phép đo.
+  \begin{itemize}
+  \item Mỗi người dùng chỉ có một sản phẩm mục tiêu, nên một gợi ý phù hợp nhưng không trùng mục tiêu vẫn bị tính là sai.
+  \item Khi đánh giá trên tập kiểm tra, tương tác của tập xác thực không được đưa vào lịch sử đầu vào và mô hình không được huấn luyện lại, nên giá trị tuyệt đối thấp hơn so với một hệ thống thực tế luôn dùng lịch sử mới nhất.
+  \item Thời gian chạy được đo trên các máy khác nhau, nên chỉ mang tính tham khảo.
+  \end{itemize}
+\end{enumerate}

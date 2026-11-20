@@ -1,0 +1,195 @@
+\section{Cơ sở lý thuyết và nghiên cứu liên quan}
+\label{sec:background}
+
+\subsection{Phát biểu bài toán và ký hiệu}
+\label{sec:notation}
+
+\begin{dn}[Dữ liệu phản hồi ngầm]
+\label{def:implicit}
+Cho tập người dùng $\mathcal{U}$ và tập sản phẩm $\mathcal{I}$. Phản hồi ngầm được biểu diễn bằng ma trận nhị phân $X\in\{0,1\}^{|\mathcal{U}|\times|\mathcal{I}|}$, trong đó $X_{ui}=1$ nếu dữ liệu ghi nhận một tương tác được xem là tích cực giữa người dùng $u$ và sản phẩm $i$, và $X_{ui}=0$ nếu chưa ghi nhận tương tác như vậy.
+\end{dn}
+
+Các đại lượng sau được dùng trong toàn báo cáo:
+\begin{itemize}
+\item $x_u\in\{0,1\}^{|\mathcal{I}|}$ là hàng $u$ của $X$, tức lịch sử của người dùng $u$ dưới dạng vector;
+\item $H_u=\{i: X_{ui}=1\}$ là lịch sử của người dùng $u$, và $n_u=|H_u|$ là độ dài lịch sử;
+\item $c_i=\sum_{u}X_{ui}$ là số người dùng đã tương tác với sản phẩm $i$, gọi là độ phổ biến của $i$;
+\item $C_{ji}=\sum_u X_{uj}X_{ui}$ là số người dùng chung của hai sản phẩm $j$ và $i$;
+\item $D_U=\mathrm{diag}(n_u)$ và $D_I=\mathrm{diag}(c_i)$ là ma trận đường chéo chứa độ dài lịch sử và độ phổ biến;
+\item $E=\{(u,i): X_{ui}=1\}$ là tập tương tác, $|E|$ là số tương tác.
+\end{itemize}
+Các lũy thừa nghịch đảo của $D_U$ và $D_I$ chỉ xét trên những người dùng và sản phẩm có ít nhất một tương tác.
+
+\begin{dn}[Bài toán khuyến nghị top-$K$]
+\label{def:topk}
+Một mô hình khuyến nghị là một hàm điểm $s:\mathcal{U}\times\mathcal{I}\to\mathbb{R}$. Cho tập ứng viên $\mathcal{C}_u\subseteq\mathcal{I}\setminus H_u$ và số nguyên $1\le K\le|\mathcal{C}_u|$, danh sách top-$K$ của người dùng $u$ gồm $K$ phần tử của $\mathcal{C}_u$ có điểm lớn nhất, xếp theo điểm giảm dần.
+\end{dn}
+
+Bài toán có hai đặc điểm mà phương pháp nào cũng phải tính đến. Thứ nhất, một ô $X_{ui}=0$ chưa đủ để nói người dùng không thích sản phẩm, vì có thể họ chưa biết hoặc chưa có dịp tương tác với nó~\cite{hu2008wmf}. Thứ hai, danh sách top-$K$ chỉ phụ thuộc vào thứ tự của điểm số. Vì vậy, bên cạnh các mục tiêu khớp giá trị từng ô, có những phương pháp học thẳng thứ tự giữa sản phẩm đã tương tác và sản phẩm chưa quan sát~\cite{rendle2009bpr}.
+
+Theo cách học tham số, các baseline chia thành hai nhóm. Nhóm giải trực tiếp gồm EASE và GF-CF, có tham số xác định bằng nghiệm đóng hoặc phép lọc đồ thị, không tối ưu bằng gradient. Nhóm cần huấn luyện gồm LightGCN, XSimGCL và DirectAU, học tham số bằng gradient qua nhiều epoch.
+
+\subsection{Nhóm giải trực tiếp}
+\label{sec:closed-form-models}
+
+EASE và GF-CF đều chấm điểm từ lịch sử thông qua một toán tử sản phẩm--sản phẩm. Vector điểm của người dùng $u$ trên toàn bộ danh mục có dạng
+\begin{equation}
+s_u=x_u\,B ,
+\label{eq:item-item}
+\end{equation}
+trong đó $B\in\mathbb{R}^{|\mathcal{I}|\times|\mathcal{I}|}$ và $B_{ji}$ là phần sản phẩm $j$ trong lịch sử đóng góp vào điểm của sản phẩm $i$. Cột $i$ chứa các hệ số dùng để dự đoán sản phẩm $i$, và những sản phẩm có hệ số khác 0 trong cột đó là láng giềng của $i$. Khi $B$ đã cố định, một lịch sử mới được chấm điểm ngay bằng~\eqref{eq:item-item} mà không cần học thêm tham số nào cho người dùng~\cite{steck2019ease,shen2021gfcf}.
+
+\subsubsection{Lân cận sản phẩm và hồi quy thưa}
+\label{sec:item-neighborhood}
+
+Lọc cộng tác lân cận theo sản phẩm~\cite{sarwar2001itembased} lấy hệ số từ độ tương tự giữa hai sản phẩm, chẳng hạn cosin giữa hai cột của $X$, và chỉ giữ một số láng giềng giống nhất cho mỗi sản phẩm, nên $B$ được lưu ở dạng thưa. Cách này có hai điểm yếu. Độ tương tự được tính cho từng cặp riêng lẻ, không xét đến việc các láng giềng cùng tham gia một dự đoán có thể mang thông tin trùng nhau~\cite{koren2008factorization}. Độ tương tự cũng kém tin cậy khi hai sản phẩm có ít người dùng chung: hai sản phẩm chỉ do đúng một người dùng tương tác đã có cosin bằng 1.
+
+Để xử lý điểm yếu thứ hai, Koren nhân hệ số tương quan với $C_{ji}/(C_{ji}+\lambda_s)$, với $\lambda_s>0$ điều khiển mức co, nên cặp càng ít người dùng chung càng bị kéo mạnh về 0~\cite{koren2008factorization}. Ý tưởng ở đây là tách độ lớn của một quan hệ khỏi lượng dữ liệu đứng sau quan hệ đó.
+
+Sparse Linear Methods (SLIM)~\cite{ning2011slim} học hệ số bằng cách khớp $X\approx XB$, với phạt $\ell_1$ để $B$ thưa, phạt bình phương để giữ hệ số nhỏ, cùng hai ràng buộc $B\ge0$ và $\mathrm{diag}(B)=0$; ràng buộc sau ngăn một sản phẩm tự dự đoán chính nó. Bài toán tách được theo từng cột nhưng phải giải bằng tối ưu lặp, và biến thể fsSLIM chọn trước các láng giềng ứng viên theo độ tương tự để giảm chi phí~\cite{ning2011slim}. SLIM ở đây là tiền đề của hồi quy sản phẩm--sản phẩm chứ không phải một baseline. Trong mục tiêu bình phương của SLIM, ô đã tương tác và ô chưa quan sát có cùng trọng số~\cite{ning2011slim,steck2019ease}.
+
+\subsubsection{Embarrassingly Shallow Autoencoder}
+\label{sec:ease}
+
+Embarrassingly Shallow Autoencoder (EASE)~\cite{steck2019ease} giữ bài toán hồi quy của SLIM nhưng bỏ phạt $\ell_1$ và ràng buộc không âm, chỉ giữ phạt bình phương và ràng buộc đường chéo. Bài toán trở thành một hồi quy ridge~\cite{hoerl1970ridge}:
+\begin{equation}
+\min_B\;\|X-XB\|_F^2+\lambda\|B\|_F^2 \quad\text{với}\quad \mathrm{diag}(B)=0 ,
+\label{eq:ease}
+\end{equation}
+trong đó $\|\cdot\|_F$ là chuẩn Frobenius, tức căn bậc hai của tổng bình phương các phần tử, và $\lambda>0$ là hệ số điều chuẩn. Nhờ bỏ hai thành phần kia, bài toán có nghiệm đóng duy nhất: với $Q=(X^\top X+\lambda I)^{-1}$, ta có $B^\star_{jj}=0$ và $B^\star_{ji}=-Q_{ji}/Q_{ii}$ khi $j\ne i$~\cite{steck2019ease}. Một phép nghịch đảo cho nghiệm của mọi cột cùng lúc, thay vì phải tối ưu lặp từng cột như SLIM.
+
+Cái giá là phép nghịch đảo ma trận $|\mathcal{I}|\times|\mathcal{I}|$ tốn $O(|\mathcal{I}|^3)$ phép tính, còn $B^\star$ đầy đủ tốn $O(|\mathcal{I}|^2)$ bộ nhớ; với $|\mathcal{I}|\approx45.000$, ma trận này ở dạng số thực 32 bit chiếm khoảng 7,5 GiB. Nghiệm của EASE thường không thưa dù $X$ thưa: một cặp sản phẩm chưa có người dùng chung nào vẫn có thể nhận hệ số khác 0 qua các quan hệ gián tiếp trong ma trận nghịch đảo~\cite{steck2019ease}. Biến thể EASE top-128 giữ 128 hệ số lớn nhất của mỗi cột sau khi giải. Phép cắt này giảm số hệ số phải lưu nhưng không ước lượng lại các hệ số còn lại, nên chúng không còn là nghiệm tối ưu cho tập láng giềng đã giữ.
+
+Mục tiêu hồi quy của EASE còn hai đặc điểm đáng chú ý. Thứ nhất, mọi ô của $X$ có cùng trọng số trong~\eqref{eq:ease}, trong khi Hu và cộng sự cho rằng phản hồi đã quan sát đáng tin hơn ô chưa quan sát~\cite{hu2008wmf}. Thứ hai, phạt ridge dùng chung một mức và kéo mọi hệ số về 0; nó không phụ thuộc vào số người dùng chung của từng cặp, cũng không xét độ chênh giữa hệ số của các láng giềng liên quan với nhau. EASE cũng không có hệ số chặn riêng cho từng sản phẩm.
+
+\subsubsection{Graph Filter based Collaborative Filtering}
+\label{sec:gfcf}
+
+Graph Filter based Collaborative Filtering (GF-CF)~\cite{shen2021gfcf} xây toán tử sản phẩm--sản phẩm bằng lọc tín hiệu trên đồ thị. Lịch sử $x_u$ được xem như một tín hiệu trên đồ thị sản phẩm; thành phần thay đổi chậm dọc theo các cạnh gọi là tần số thấp, và bộ lọc thông thấp giữ lại thành phần đó~\cite{shuman2013graph}. GF-CF dựa trên giả định rằng sở thích thay đổi trơn trên đồ thị sản phẩm.
+
+Với ma trận chuẩn hóa $\tilde R=D_U^{-1/2}XD_I^{-1/2}$, phần tử
+\[
+(\tilde R^\top\tilde R)_{ji}=\frac{1}{\sqrt{c_jc_i}}\sum_{u} \frac{X_{uj}X_{ui}}{n_u}
+\]
+là trọng số cạnh giữa hai sản phẩm: mỗi người dùng chung đóng góp nghịch đảo độ dài lịch sử của mình, và tổng được chuẩn hóa theo độ phổ biến của hai sản phẩm. GF-CF chấm điểm bằng
+\begin{equation}
+s_u = x_u\,\tilde R^\top\tilde R + \alpha_{\mathrm{GF}}\, x_u\, D_I^{-1/2} V_r V_r^\top D_I^{1/2},
+\label{eq:gfcf}
+\end{equation}
+trong đó $V_r$ chứa $r$ vector kỳ dị phải ứng với các giá trị kỳ dị lớn nhất của $\tilde R$, và $\alpha_{\mathrm{GF}}\ge0$ cân bằng hai số hạng. Đối với Laplacian $I-\tilde R^\top\tilde R$, các vector này ứng với những tần số thấp nhất. Số hạng đầu là một bộ lọc thông thấp tuyến tính, còn số hạng sau giữ lại không gian phổ hạng $r$ sau một phép đổi tọa độ theo $D_I$, tức một bộ lọc thông thấp lý tưởng~\cite{shen2021gfcf}. Như vậy GF-CF cũng có dạng~\eqref{eq:item-item}, với $B$ là ma trận của bộ lọc.
+
+Đồ thị và $V_r$ được tính từ dữ liệu, nhưng dạng đáp ứng của bộ lọc thì định sẵn và chỉ điều chỉnh qua hai siêu tham số chung $r$ và $\alpha_{\mathrm{GF}}$~\cite{shen2021gfcf}. GF-CF vì thế phụ thuộc vào dữ liệu nhưng không ước lượng một bộ hệ số riêng cho từng sản phẩm. Phần tuyến tính tính được bằng các phép nhân với ma trận thưa $\tilde R$, còn phần phổ cần tìm và lưu $V_r$, tốn $O(|\mathcal{I}|\,r)$ bộ nhớ. Công thức~\eqref{eq:gfcf} cũng không gán trọng số cho từng ô như một mục tiêu hồi quy.
+
+Hướng lọc đồ thị đã được mở rộng theo nhiều cách. Blurring-Sharpening Process Models (BSPM)~\cite{choi2023bspm} kết hợp một quá trình làm mờ với một quá trình làm sắc nét tín hiệu. Turbo-CF~\cite{park2024turbocf} dùng bộ lọc đa thức để khỏi phải phân rã ma trận. PolyCF~\cite{qin2025polycf} thì học các tham số của bộ lọc bằng tối ưu, nên dù dùng bộ lọc đồ thị, nó thuộc loại cần huấn luyện.
+
+\subsubsection{Tổng hợp và câu hỏi thiết kế}
+\label{sec:closed-form-gap}
+
+\Tabref{tab:closed-form-family} cho thấy hai cách tiếp cận khác nhau: EASE hồi quy trên toàn danh mục, còn GF-CF lọc tín hiệu trên đồ thị mà không ước lượng hệ số riêng cho từng sản phẩm. Những gì cần để xây một hồi quy trên tập láng giềng nhỏ đều đã có riêng lẻ trong tài liệu: chọn láng giềng trước khi giải~\cite{sarwar2001itembased,ning2011slim}, gán trọng số theo độ tin cậy~\cite{hu2008wmf}, co quan hệ theo lượng dữ liệu đứng sau nó~\cite{koren2008factorization}, phạt sự chênh lệch giữa các đỉnh liên kết chặt trên đồ thị~\cite{shuman2013graph}, và giải bằng nghiệm đóng như EASE~\cite{steck2019ease}. Trong các tài liệu nhóm đã đọc, chưa thấy phương pháp nào kết hợp tất cả những thành phần này trong một bài toán hồi quy nhỏ, giải chính xác cho từng sản phẩm.
+
+\begin{table}[H]
+\centering
+\small
+\renewcommand{\arraystretch}{1.1}
+\begin{tabularx}{\textwidth}{@{}p{2.4cm}>{\raggedright\arraybackslash}X>{\raggedright\arraybackslash}X>{\raggedright\arraybackslash}X@{}}
+\toprule
+Baseline & Cách xác định hệ số & Xử lý ô bằng 0 & Điều chuẩn hoặc bộ lọc \\
+\midrule
+EASE đầy đủ & Hồi quy trên mọi sản phẩm khác; có cả quan hệ gián tiếp & Cùng trọng số với ô có tương tác & Ridge, cùng mức phạt, kéo về 0 \\
+EASE top-128 & 128 hệ số lớn nhất, cắt sau khi giải, không ước lượng lại & Như EASE đầy đủ & Như EASE đầy đủ, áp dụng trước khi cắt \\
+GF-CF & Toán tử tính từ dữ liệu, dạng đáp ứng định sẵn & Không có trọng số cho từng ô & Bộ lọc tuyến tính và bộ lọc lý tưởng; $r$, $\alpha_{\mathrm{GF}}$ dùng chung \\
+\bottomrule
+\end{tabularx}
+\caption{Các baseline của nhóm giải trực tiếp}
+\label{tab:closed-form-family}
+\end{table}
+
+Câu hỏi thiết kế vì thế là một kết hợp như vậy có đạt chất lượng ngang EASE đầy đủ trong khi chỉ lưu một phần nhỏ số hệ số hay không. Graph-Regularized Neighborhood Regression (GRNR) được đề xuất cho câu hỏi này và được so với ba baseline: EASE đầy đủ là mốc của hồi quy toàn danh mục, EASE top-128 có cùng giới hạn 128 hệ số cho mỗi sản phẩm, còn GF-CF đại diện cho hướng lọc đồ thị.
+
+\subsection{Nhóm cần huấn luyện}
+\label{sec:trained-models}
+
+Ba baseline của nhóm này học các vector biểu diễn trong $\mathbb{R}^{f}$, gọi là embedding, với $f$ là số chiều, và cập nhật tham số bằng gradient qua nhiều epoch. Mỗi bước cập nhật dùng một lô $\mathcal{Q}\subseteq E$, tức một tập tương tác; $\mathcal{U}_{\mathcal{Q}}$ và $\mathcal{I}_{\mathcal{Q}}$ là tập người dùng và tập sản phẩm có mặt trong lô, mỗi phần tử tính một lần. Sản phẩm chưa tương tác được lấy ra để so với sản phẩm đã tương tác gọi là mẫu âm. Ba baseline là LightGCN, XSimGCL và DirectAU với bộ mã hóa LightGCN.
+
+\subsubsection{Phân rã ma trận và các hướng mở rộng}
+\label{sec:mf-extensions}
+
+Trong phân rã ma trận, mỗi người dùng $u$ và mỗi sản phẩm $i$ có một vector nhân tố $p_u$, $q_i\in\mathbb{R}^{f}$, và thành phần tương tác của điểm là $s(u,i)=p_u^\top q_i$~\cite{koren2009mf}. Người dùng ít tương tác có ít bằng chứng để ước lượng $p_u$. Khi các vector đã cố định, người dùng có thêm tương tác thì điểm số cũng không tự thay đổi, còn người dùng mới thì chưa có vector nào trong bảng tham số; cả hai trường hợp đều cần một cơ chế cập nhật riêng.
+
+Một hướng mở rộng là suy ra biểu diễn người dùng từ lịch sử. SVD++ của Koren cộng vào vector người dùng một tổng chuẩn hóa các vector của sản phẩm đã tương tác~\cite{koren2008factorization}. Factored Item Similarity Models (FISM)~\cite{kabbur2013fism} đi xa hơn: không có vector người dùng, mà dùng hai bảng nhân tố sản phẩm cho hai vai trò, sản phẩm nguồn trong lịch sử và sản phẩm đích cần dự đoán. Điểm là tích vô hướng giữa tổng chuẩn hóa các vector nguồn với vector đích, nên khi lịch sử thay đổi, chỉ cần tính lại tổng đó với các bảng sản phẩm giữ nguyên. FISM học được quan hệ gián tiếp qua các nhân tố dùng chung, nhưng không có bước lan truyền tường minh trên đồ thị như LightGCN~\cite{kabbur2013fism}.
+
+Một hướng khác thay đổi mục tiêu học. Variational Autoencoders for Collaborative Filtering~\cite{liang2018multvae} giới thiệu Mult-VAE, mô hình dùng bộ mã hóa để suy ra phân phối biến ẩn từ lịch sử và học bằng mục tiêu biến phân; tên gọi lấy từ hàm hợp lý đa thức (multinomial) của bộ giải mã. Bộ giải mã cho ra một phân phối đa thức trên toàn danh mục qua softmax, tức mọi sản phẩm cùng chia nhau một tổng xác suất bằng 1, khác hẳn cách so từng cặp của BPR. Wu và cộng sự nghiên cứu softmax lấy mẫu, trong đó tập sản phẩm để so được lấy mẫu, và phân tích mối liên hệ của nó với thước đo xếp hạng cùng khả năng nhấn mạnh các mẫu âm khó~\cite{wu2024sampledsoftmax}.
+
+\subsubsection{Light Graph Convolution Network}
+\label{sec:lightgcn}
+
+Light Graph Convolution Network (LightGCN)~\cite{he2020lightgcn} giữ cách biểu diễn của phân rã ma trận nhưng làm trơn các embedding trên đồ thị hai phía người dùng--sản phẩm trước khi chấm điểm. Mô hình học embedding ban đầu $e_u^{(0)}, e_i^{(0)}$ cho mọi người dùng và sản phẩm, rồi lan truyền chúng qua $\nu$ lớp bằng phép trung bình có chuẩn hóa; khác với mạng tích chập đồ thị thông thường, nó bỏ biến đổi phi tuyến và ma trận trọng số ở mỗi lớp. Với $t=0,\dots,\nu-1$,
+\begin{equation}
+e_u^{(t+1)} = \sum_{i\in H_u}\frac{1}{\sqrt{n_u}\sqrt{c_i}}\,e_i^{(t)}, \qquad
+e_i^{(t+1)} = \sum_{u:\,i\in H_u}\frac{1}{\sqrt{c_i}\sqrt{n_u}}\,e_u^{(t)}.
+\label{eq:lightgcn}
+\end{equation}
+Biểu diễn cuối là trung bình đều của mọi lớp, kể cả lớp ban đầu: $e_u=\frac{1}{\nu+1}\sum_{t=0}^{\nu}e_u^{(t)}$, tương tự cho $e_i$, và điểm là $s(u,i)=e_u^\top e_i$~\cite{he2020lightgcn}. Nhờ vậy embedding mang thông tin từ nhiều bước trên đồ thị, thay vì chỉ là các vector nhân tố trực tiếp như trong phân rã ma trận.
+
+LightGCN được huấn luyện bằng Bayesian Personalized Ranking (BPR)~\cite{rendle2009bpr}, hàm mất mát giả định người dùng thích một sản phẩm đã tương tác $i$ hơn một sản phẩm chưa tương tác $j$:
+\begin{equation}
+\mathcal{L}_{\mathrm{BPR}}=-\sum_{(u,i,j)\in\mathcal{D}}\ln\sigma\bigl(s(u,i)-s(u,j)\bigr)+\lambda_\Theta\|\Theta\|^2 ,
+\label{eq:bpr}
+\end{equation}
+trong đó $\mathcal{D}$ gồm các bộ ba với $(u,i)\in E$ và mẫu âm $j\notin H_u$ lấy ngẫu nhiên, $\sigma(z)=1/(1+e^{-z})$ là hàm sigmoid, $\Theta$ là toàn bộ embedding ban đầu, và $\lambda_\Theta>0$ là hệ số điều chuẩn. Mỗi lớp lan truyền tốn $O(|E|\,f)$, nên một lượt lan truyền tốn $O(\nu\,|E|\,f)$.
+
+Mỗi người dùng trong LightGCN vẫn có một vector ban đầu riêng~\cite{he2020lightgcn}. Khi đồ thị thay đổi, có thể lan truyền lại để biểu diễn thay đổi theo mà vẫn giữ nguyên tham số ban đầu, nhưng việc này khác với huấn luyện lại và không tạo được vector cho người dùng chưa có trong bảng tham số. Về phía hàm mất mát, đạo hàm của $-\ln\sigma(\Delta)$ theo $\Delta=s(u,i)-s(u,j)$ là $-(1-\sigma(\Delta))$, gần bằng 0 khi mẫu âm đã dễ phân biệt. Những bộ ba như vậy gần như không đóng góp vào cập nhật, nên hiệu quả học phụ thuộc nhiều vào cách lấy mẫu âm~\cite{rendle2009bpr,wu2024sampledsoftmax}.
+
+\subsubsection{eXtremely Simple Graph Contrastive Learning}
+\label{sec:xsimgcl}
+
+eXtremely Simple Graph Contrastive Learning (XSimGCL)~\cite{yu2023xsimgcl} kết hợp lan truyền đồ thị, hàm BPR và học tương phản. Khi huấn luyện, sau mỗi lớp lan truyền, mô hình cộng vào embedding một nhiễu có chuẩn $\epsilon$, cùng dấu với embedding ở từng tọa độ. Biểu diễn dùng để chấm điểm là trung bình các lớp $1,\ldots,\nu$, không tính lớp ban đầu: $\bar e'_v=\frac{1}{\nu}\sum_{t=1}^{\nu}e_v^{\prime(t)}$. Một lần lan truyền cho ra cả $\bar e'_v$ lẫn biểu diễn ở một lớp được chọn $l^*$; chuẩn hóa hai vector này về độ dài 1 được $z'_v$ và $z''_v$, tạo thành một cặp dương của cùng nút $v$.
+
+Hàm InfoNCE~\cite{oord2018cpc} so cặp dương với các nút cùng loại trong lô. Viết ở dạng trung bình như trong cài đặt của tác giả,
+\begin{equation}
+\begin{aligned}
+\ell(\mathcal{S})&=-\frac{1}{|\mathcal{S}|}\sum_{v\in\mathcal{S}}\log\frac{\exp\bigl(z'^{\top}_{v}z''_v/\tau\bigr)}{\sum_{w\in\mathcal{S}}\exp\bigl(z'^{\top}_{v}z''_w/\tau\bigr)},\\
+\ell_{\mathrm{NCE}}&=\ell(\mathcal{U}_{\mathcal{Q}})+\ell(\mathcal{I}_{\mathcal{Q}}),
+\end{aligned}
+\label{eq:infonce}
+\end{equation}
+trong đó $\mathcal{S}$ lần lượt là tập người dùng và tập sản phẩm của lô, $\tau>0$ là tham số nhiệt độ, và mẫu số tính cả cặp dương $w=v$. Mục tiêu học là BPR có điều chuẩn cộng thêm $\lambda_{\mathrm{cl}}\ell_{\mathrm{NCE}}$~\cite{yu2023xsimgcl}.
+
+XSimGCL dùng chung một lần lan truyền cho cả xếp hạng lẫn tương phản, và nhiễu chỉ có khi huấn luyện. Riêng phần tương phản tốn thêm $O((|\mathcal{U}_{\mathcal{Q}}|^2+|\mathcal{I}_{\mathcal{Q}}|^2)f)$ cho mỗi lô~\cite{yu2023xsimgcl}, đổi lại có thêm bốn lựa chọn phải chỉnh: độ lớn nhiễu $\epsilon$, nhiệt độ $\tau$, trọng số $\lambda_{\mathrm{cl}}$ và lớp $l^*$. InfoNCE ở đây so các nút cùng loại với nhau; việc xếp hạng sản phẩm cho người dùng vẫn do BPR đảm nhận, và mỗi người dùng vẫn có vector riêng như trong LightGCN.
+
+\subsubsection{DirectAU}
+\label{sec:directau}
+
+DirectAU~\cite{wang2022directau} là một mục tiêu học tối ưu trực tiếp hai tính chất của biểu diễn: tính căn chỉnh (alignment), kéo người dùng và sản phẩm có tương tác lại gần nhau, và tính đồng đều (uniformity), giữ cho các biểu diễn trải rộng trên mặt cầu đơn vị. Với embedding khác 0 được chuẩn hóa thành $\tilde e_v=e_v/\|e_v\|$, hai đại lượng có dạng
+\begin{equation}
+\ell_{\mathrm{align}}=\mathbb{E}_{(u,i)\in E}\bigl\|\tilde e_u-\tilde e_i\bigr\|^2, \qquad
+\ell_{\mathrm{uniform}}=\log\mathbb{E}_{v,v'}\,e^{-2\|\tilde e_v-\tilde e_{v'}\|^2} ,
+\label{eq:align-uniform}
+\end{equation}
+trong đó $\mathbb{E}$ là kỳ vọng, ước lượng trên lô tương tác. Tính căn chỉnh lấy trên các cặp người dùng--sản phẩm có tương tác, còn tính đồng đều lấy riêng trên các cặp người dùng và các cặp sản phẩm theo tần suất xuất hiện trong dữ liệu~\cite{wang2022directau}. Mục tiêu là $\ell_{\mathrm{align}}+\tfrac{\gamma_{\mathrm{AU}}}{2}\bigl(\ell_{\mathrm{uniform}}^{\mathcal{U}}+\ell_{\mathrm{uniform}}^{\mathcal{I}}\bigr)$, với $\gamma_{\mathrm{AU}}>0$ cân bằng hai thành phần.
+
+DirectAU chỉ dùng các cặp dương trong lô, không cần lấy thêm mẫu âm, vì tính đồng đều tự đẩy các biểu diễn ra xa nhau; thành phần này tốn $O(|\mathcal{Q}|^2f)$ cho mỗi lô. Bài gốc dùng bảng embedding theo mã người dùng và mã sản phẩm làm bộ mã hóa mặc định, và có khảo sát thêm bộ mã hóa đồ thị~\cite{wang2022directau}. Baseline DirectAU trong báo cáo dùng bộ mã hóa LightGCN, nên giữ nguyên cách lan truyền và vector người dùng của LightGCN, chỉ thay BPR bằng căn chỉnh và đồng đều.
+
+\subsubsection{Tổng hợp và câu hỏi thiết kế}
+\label{sec:trained-gap}
+
+\Tabref{tab:trained-family} cho thấy cả ba baseline đều học một vector ban đầu riêng cho mỗi người dùng và đều khai thác đồ thị; chúng chỉ khác nhau ở cách tổng hợp các lớp, ở nhiễu và ở mục tiêu học. Không baseline nào so sản phẩm đúng với toàn bộ danh mục. Những hướng đi khác nằm rải rác trong tài liệu: FISM biểu diễn người dùng bằng lịch sử nhưng không lan truyền trên đồ thị~\cite{kabbur2013fism}, Mult-VAE dùng softmax trên toàn danh mục nhưng không dùng đồ thị~\cite{liang2018multvae}, còn Wu và cộng sự ghép softmax lấy mẫu với mô hình đồ thị nhưng các mô hình đó vẫn có vector người dùng~\cite{wu2024sampledsoftmax}. Trong các tài liệu nhóm đã đọc, chưa thấy mô hình nào đồng thời biểu diễn người dùng bằng lịch sử, làm trơn embedding sản phẩm trên đồ thị và huấn luyện bằng softmax trên toàn danh mục.
+
+\begin{table}[H]
+\centering
+\small
+\renewcommand{\arraystretch}{1.1}
+\begin{tabularx}{\textwidth}{@{}p{2.4cm}>{\raggedright\arraybackslash}X>{\raggedright\arraybackslash}X>{\raggedright\arraybackslash}X@{}}
+\toprule
+Baseline & Tham số người dùng & Lan truyền và tổng hợp & Hàm mất mát \\
+\midrule
+LightGCN & Vector ban đầu riêng & Trung bình các lớp $0,\ldots,\nu$ & BPR có điều chuẩn \\
+XSimGCL & Vector ban đầu riêng & Trung bình các lớp $1,\ldots,\nu$; thêm nhiễu khi học & BPR có điều chuẩn, cộng InfoNCE theo từng loại nút \\
+DirectAU & Vector ban đầu riêng & Bộ mã hóa LightGCN & Căn chỉnh và đồng đều, không lấy mẫu âm \\
+\bottomrule
+\end{tabularx}
+\caption{Các baseline của nhóm cần huấn luyện}
+\label{tab:trained-family}
+\end{table}
+
+Câu hỏi thiết kế là một mô hình như vậy có cạnh tranh được với LightGCN, XSimGCL và DirectAU hay không. Diffusion-Filtered History Factorization (DFHF) được đề xuất cho câu hỏi này và chỉ được so với ba baseline trên. Ba baseline dùng ba mục tiêu học khác nhau trên cùng một cách biểu diễn, nên nếu DFHF vượt cả ba thì ưu thế đó không chỉ là lợi thế trước một mục tiêu học cụ thể.

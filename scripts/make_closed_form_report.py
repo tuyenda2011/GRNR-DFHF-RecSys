@@ -93,7 +93,7 @@ def figures(table, scores, full_train, folder, notes):
     for metric in FIGURE_METRICS:
         bar_figure(lookup(metric), metric, f"H1_closed_form_density_{slug(metric)}", folder, notes, **kwargs)
         bar_figure(lambda m, d, metric=metric: 100 * values.at[(m, d), metric] / values.at[(m, 1.0), metric],
-                   f"{metric} so với mật độ 1.00 (%)", f"H4_closed_form_retention_{slug(metric)}", folder, notes,
+                   f"{metric} so với $d$ = 1 (%)", f"H4_closed_form_retention_{slug(metric)}", folder, notes,
                    fmt="{:.1f}", extra=lambda ax: ax.axhline(100, color=MUTED, linestyle="--", linewidth=.8, zorder=0),
                    **kwargs)
         figure_groups(scores, full_train, metric, folder, notes, name="H5_closed_form_user_groups", **kwargs)
@@ -101,7 +101,7 @@ def figures(table, scores, full_train, folder, notes):
     bar_figure(lookup("train_seconds"), "Thời gian huấn luyện (giây, thang log)\nTất cả chạy trên CPU; "
                "EASE top-128 = EASE + cắt", "H7a_closed_form_train_time", folder, notes, fmt="{:,.0f}", log=True,
                **kwargs)
-    bar_figure(lookup("Checkpoint (MB)"), "Dung lượng checkpoint (MB, thang log)\nEASE đầy đủ: ma trận float32, "
+    bar_figure(lookup("Checkpoint (MB)"), "Dung lượng checkpoint (MiB, thang log)\nEASE đầy đủ: ma trận float32, "
                "không lưu", "H7c_closed_form_checkpoint_size", folder, notes, fmt="{:,.1f}", log=True, **kwargs)
 
 

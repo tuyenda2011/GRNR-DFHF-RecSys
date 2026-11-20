@@ -1,30 +1,36 @@
 """Benchmark tab back end, split into the report's two groups; the proposed models are never compared directly.
 
-Trained group: DFHF against LightGCN, XSimGCL and DirectAU; paired tests recomputed per density with the
-report's method (scripts/compare_val_runs.py: per-user metrics from val_predictions.npy, paired user bootstrap,
-one-sided p), Holm over the three comparisons of each density.
-Closed-form group: GRNR against full EASE, EASE top-128 and GF-CF, read from the tables
-scripts/make_closed_form_report.py writes, so the page always shows the report's own numbers.
-Validation split only.
+Test split, as in the report. Quality comes from results/test/summary_test.csv (scripts/evaluate_test.py);
+training time and inference latency are those measured during training (results/val/summary.csv).
+Paired tests are read from the report's test tables (reports/test/tables): B3 for DFHF against LightGCN,
+XSimGCL and DirectAU, B5/B6 for GRNR against full EASE, EASE top-128 and GF-CF, so the page always shows
+the report's own numbers.
 """
 from __future__ import annotations
 
 import numpy as np
 import pandas as pd
 
-from app.recommender import KINDS, LABELS, RESULTS, ROOT, run_dir
+from app.recommender import KINDS, LABELS, ROOT
 from src.utils.model_names import canonical_model_name
 
 MAIN = ("dfhf", "lightgcn", "xsimgcl", "directau")  # the trained group
 PROPOSED, GRAPH = ("dfhf",), ("lightgcn", "xsimgcl", "directau")
 METRICS = ("NDCG@20", "NDCG@10", "Recall@20", "Recall@10", "MRR@20")
-TABLES = ROOT / "reports/val/tables"
+TABLES = ROOT / "reports/test/tables"
+SUMMARY = ROOT / "results/test/summary_test.csv"
+COSTS = ROOT / "results/val/summary.csv"  # training time and latency, recorded when the models were trained
 
 
 def read_summary(summary_path=None):
-    """Normalize model IDs for display/download without rewriting stored results."""
-    summary = pd.read_csv(summary_path or RESULTS / "summary.csv")
+    """Test metrics per run, with the training cost of the same run; model IDs normalized for display."""
+    summary = pd.read_csv(summary_path or SUMMARY)
     summary["model"] = summary.model.map(canonical_model_name)
+    if COSTS.exists() and "train_seconds" not in summary:
+        costs = pd.read_csv(COSTS)
+        costs["model"] = costs.model.map(canonical_model_name)
+        costs = costs.groupby(["model", "density"], as_index=False)[["train_seconds", "inference_ms_per_user"]].mean()
+        summary = summary.merge(costs, on=["model", "density"], how="left")
     return summary
 
 
@@ -60,38 +66,22 @@ def by_density(summary_path=None):
     return summary.groupby(["model", "density"], as_index=False)[[*METRICS, "train_seconds"]].mean()
 
 
-def per_user(model, density, targets):
-    """Per-user NDCG@20, Recall@20 and NDCG@10 of the stored validation predictions, keyed by user."""
-    from scripts.compare_val_runs import per_user_metrics
-    folder = run_dir(model, density)
-    if not (folder / "val_predictions.npy").exists():
-        return None
-    users = np.load(folder / "val_users.npy")
-    predictions = np.load(folder / "val_predictions.npy").astype(np.int64, copy=False)
-    values = per_user_metrics(predictions, np.array([targets[int(u)] for u in users], dtype=np.int64))
-    return pd.DataFrame(values, index=users)
-
-
-def significance(density, targets, metric="NDCG@20", repeats=10_000):
-    """DFHF minus each baseline of its group: bootstrap CI, one-sided p, Holm over the three comparisons."""
-    from scripts.compare_val_runs import holm_adjust, paired_bootstrap
-    scores = {model: per_user(model, density, targets) for model in MAIN}
-    rows = []
-    for proposed in PROPOSED:
-        for baseline in GRAPH:
-            a, b = scores[baseline], scores[proposed]
-            if a is None or b is None:
-                continue
-            common = a.index.intersection(b.index)
-            rows.append({"proposed": proposed, "baseline": baseline,
-                         **paired_bootstrap(a.loc[common, metric].to_numpy(float),
-                                            b.loc[common, metric].to_numpy(float), repeats=repeats)})
-    if not rows:
+def significance(density, targets=None):
+    """Report table B3 at this density: DFHF minus each baseline of its group (bootstrap CI, one-sided p, Holm)."""
+    path = TABLES / "B3_trained_significance.csv"
+    if not path.exists():
         return pd.DataFrame()
-    for row, p in zip(rows, holm_adjust([row["p_one_sided"] for row in rows])):
-        row["p_holm"] = p
-        row["verdict"] = (f"{LABELS[row['proposed']]} tốt hơn" if p < .05
-                          else "Baseline tốt hơn" if row["ci95"][1] < 0 else "Chưa khác biệt có ý nghĩa")
+    table = current_report_labels(pd.read_csv(path, encoding="utf-8-sig"))
+    table = table[np.isclose(table["Mật độ"], density)]
+    keys = {label.lower(): model for model, label in LABELS.items()}
+    rows = []
+    for _, row in table.iterrows():
+        baseline = keys[row["So sánh"].split(" - ")[-1].strip().lower()]
+        p, low, high = row["p Holm"], row["KTC 95% dưới"], row["KTC 95% trên"]
+        rows.append({"proposed": "dfhf", "baseline": baseline, "delta": row["Delta NDCG@20"], "ci95": (low, high),
+                     "p_one_sided": row["p một phía"], "p_holm": p, "n_users": int(row["Số user"]),
+                     "verdict": "DFHF tốt hơn" if p < .05 and low > 0 else "Baseline tốt hơn" if high < 0
+                     else "Chưa khác biệt có ý nghĩa"})
     return pd.DataFrame(rows)
 
 
@@ -110,6 +100,6 @@ def closed_form(density):
     b6 = current_report_labels(pd.read_csv(tests, encoding="utf-8-sig"))
     b5, b6 = b5[np.isclose(b5["Mật độ"], density)], b6[np.isclose(b6["Mật độ"], density)]
     b6 = b6.assign(**{"Kết luận": [
-        "GRNR tốt hơn" if p < .05 else "Mô hình này tốt hơn" if high < 0 else "Chưa khác biệt có ý nghĩa"
-        for p, high in zip(b6["p Holm"], b6["KTC 95% trên"])]})
+        "GRNR tốt hơn" if p < .05 and low > 0 else "Mô hình này tốt hơn" if high < 0 else "Chưa khác biệt có ý nghĩa"
+        for p, low, high in zip(b6["p Holm"], b6["KTC 95% dưới"], b6["KTC 95% trên"])]})
     return b5.reset_index(drop=True), b6.reset_index(drop=True)

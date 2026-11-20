@@ -1,6 +1,6 @@
 """NDCG@20 versus training density for each comparison group, with the MostPop reference as a dashed line.
 
-  python scripts/make_mostpop_reference_figures.py   # -> report/image/H9_mostpop_{closed,trained}_ndcg20.png
+  python scripts/make_mostpop_reference_figures.py   # -> report/image/val/H9_mostpop_{closed,trained}_ndcg20.png
 
 Inputs (validation only): reports/val/tables/B5_closed_form.csv, reports/val/tables/B2b_by_density.csv and
 report/planning/phan_tich_bo_sung/t6g_mostpop.json (MostPop ranks retained-train candidates by retained count).
@@ -26,7 +26,7 @@ from scripts.make_closed_form_report import STYLE as CLOSED_STYLE  # noqa: E402
 from scripts.make_report import MUTED, STYLE, setup, style_axes  # noqa: E402
 
 DENSITIES = (0.25, 0.5, 0.75, 1.0)
-OUT = ROOT / "report" / "image"
+OUT = ROOT / "report" / "image" / "val"
 
 
 def draw(series, styles, mostpop, name, folder=OUT):

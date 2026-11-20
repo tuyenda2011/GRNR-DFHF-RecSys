@@ -1,0 +1,58 @@
+\section{Kết luận và hướng phát triển}
+\label{sec:conclusion}
+
+\subsection{Kết luận}
+
+Báo cáo đã đề xuất và đánh giá hai mô hình khuyến nghị biểu diễn người dùng hoàn toàn bằng lịch sử tương tác, mỗi mô hình trong nhóm phương pháp của nó, trên bộ dữ liệu Amazon Electronics. Câu trả lời cho bốn câu hỏi nghiên cứu như sau.
+
+Câu hỏi thứ nhất: chất lượng trong nhóm.
+\begin{itemize}
+\item Graph-Regularized Neighborhood Regression. Khi có đủ dữ liệu, GRNR có NDCG@20 cao nhất nhóm giải trực tiếp, 0,02843, nhưng chưa phân biệt được với EASE đầy đủ. Kết quả có ý nghĩa nhất là so với EASE top-128, mô hình có cùng ngân sách hệ số: GRNR tốt hơn ở ba trong bốn mức $d$, còn ở $d=0{,}5$ hai mô hình chưa phân biệt được. Khoảng cách lớn với GF-CF cần đọc thận trọng, vì baseline này có dấu hiệu chưa được thiết lập đúng.
+\item Diffusion-Filtered History Factorization. DFHF có NDCG@20 cao nhất nhóm cần huấn luyện ở cả bốn mức $d$, đạt 0,02724 khi có đủ dữ liệu, và hơn cả ba baseline với khoảng tin cậy không chứa 0.
+\end{itemize}
+
+Câu hỏi thứ hai: ảnh hưởng của dữ liệu thưa. Đây là câu hỏi có câu trả lời chủ yếu là âm tính.
+\begin{itemize}
+\item Ở cả hai nhóm, phần chất lượng có được nhờ cá nhân hóa giảm nhanh khi bớt dữ liệu. Khi có đủ dữ liệu, mô hình tốt nhất mỗi nhóm vượt mốc độ phổ biến 54--60\%. Ở $d=0{,}5$, chỉ DFHF còn vượt mốc này. Ở mức thưa nhất, không mô hình nào vượt MostPop, và DFHF chỉ còn ngang mốc.
+\item Với nhóm giải trực tiếp, báo cáo chỉ ra một nguyên nhân đo được: số cặp đồng xuất hiện giảm nhanh hơn nhiều so với số tương tác. Ở $d=0{,}25$, tập huấn luyện còn 25\% số tương tác nhưng chỉ còn 4,2\% số cặp đồng xuất hiện.
+\item Ưu thế lớn của DFHF ở mức thưa nhất chủ yếu đến từ người dùng chỉ còn một tương tác: những người dùng này nhận vector lịch sử bằng 0 nên chỉ được xếp hạng bằng hệ số chặn, và đạt NDCG@20 gần mốc độ phổ biến, trong khi các baseline rơi xuống dưới mốc đó. Ưu thế này không phản ánh khả năng cá nhân hóa tốt hơn.
+\item Giữa GRNR và EASE đầy đủ, kết quả không đơn điệu theo $d$, và EASE đầy đủ tốt hơn rõ ở $d=0{,}5$.
+\end{itemize}
+
+Câu hỏi thứ ba: chi phí.
+\begin{itemize}
+\item Ưu điểm rõ nhất của GRNR là dung lượng: checkpoint 40,5 MiB, so với khoảng 7.671 MiB của ma trận EASE đầy đủ, tức nhỏ hơn khoảng 190 lần. Khoảng cách này còn tăng theo quy mô danh mục, vì bộ nhớ của EASE tăng theo bình phương còn của GRNR tăng tuyến tính.
+\item DFHF chậm nhất nhóm khi huấn luyện, với 37,9 giây mỗi epoch, nhưng thời gian suy luận cùng cỡ với các baseline. Đường học cho thấy phần lớn số epoch là thừa.
+\item Số đo thời gian lẫn với khác biệt phần cứng, nên chỉ mang tính tham khảo.
+\end{itemize}
+
+Câu hỏi thứ tư: phục vụ lịch sử mới và giải thích. Cả hai mô hình đều chấm điểm được một lịch sử mới mà không cần huấn luyện lại. Hệ thống demo minh họa điều này, và hiển thị phân rã đại số của điểm GRNR thành đóng góp của từng sản phẩm trong lịch sử. Phân rã này là một mô tả trung thực về cách mô hình tính điểm, không phải một giải thích nhân quả về sở thích của người dùng. Hệ thống cũng chưa được đánh giá với người dùng thật.
+
+Bài học chung.
+\begin{itemize}
+\item Trên dữ liệu này, khả năng cá nhân hóa phụ thuộc vào độ dày dữ liệu nhiều hơn vào lựa chọn mô hình.
+\item Khi dữ liệu dày, hai mô hình đề xuất có khác biệt đo được so với baseline cùng nhóm. Việc giải thích khác biệt này bằng giới hạn láng giềng trong bài toán hoặc bằng hàm mất mát gần thước đo xếp hạng vẫn là giả thuyết, vì chưa có thí nghiệm loại bỏ thành phần.
+\item Khi dữ liệu thưa, kết quả gợi ý rằng xếp hạng theo độ phổ biến cho lịch sử quá ngắn có lợi hơn cố cá nhân hóa từ một tương tác. Nhận định này chưa được kiểm tra bằng cách cho baseline dùng cùng phương án dự phòng.
+\item So mọi mô hình với một mốc không cá nhân hóa là cần thiết. Thiếu mốc này, ưu thế của DFHF ở mức thưa nhất đã có thể bị hiểu sai.
+\end{itemize}
+
+Mọi kết luận trên được rút ra từ tập kiểm tra độc lập, sau khi cấu hình và checkpoint đã được chọn trên tập xác thực. Giá trị tuyệt đối trên tập kiểm tra thấp hơn trên tập xác thực khoảng một phần tư, nhưng thứ tự trong từng nhóm phần lớn giữ nguyên giữa hai tập. Phạm vi thực nghiệm vẫn giới hạn ở một bộ dữ liệu, một seed và ngân sách tinh chỉnh chưa cân bằng giữa mô hình đề xuất và baseline, nên các kết quả cần được kiểm chứng thêm trên nhiều bộ dữ liệu và nhiều lần chạy độc lập.
+
+
+\subsection{Hướng phát triển}
+
+Các hướng dưới đây được sắp theo mức độ ảnh hưởng đến độ tin cậy của kết luận.
+\begin{enumerate}
+% \item Xác nhận trên dữ liệu chưa dùng để chọn. Đánh giá các cấu hình đã khóa trên tập kiểm tra, hoặc trên một nửa tập xác thực chưa tham gia vào việc chọn. Việc này cho một ước lượng không bị nâng lạc quan, và cho biết ưu thế của DFHF có còn khi không được chọn checkpoint trên cùng tập hay không.
+\item Đánh giá trong điều kiện triển khai thực tế. Mở rộng giao thức thực nghiệm sang đánh giá theo dòng thời gian với một mốc thời gian toàn cục, bảo đảm các tương tác được sử dụng để huấn luyện đều xảy ra trước thời điểm dự đoán. Đồng thời, đánh giá khả năng cập nhật lịch sử người dùng, độ trễ suy luận và chất lượng khuyến nghị trong điều kiện dữ liệu thay đổi liên tục. Hướng này giúp xác định mức độ phù hợp của GRNR và DFHF khi triển khai trong hệ thống thương mại điện tử thực tế.
+\item Kiểm tra lại GF-CF và tinh chỉnh baseline cân bằng. Đối chiếu cài đặt GF-CF với kết quả đã công bố. Cho mọi baseline cùng ngân sách tinh chỉnh và đủ số epoch để hội tụ, đặc biệt là DirectAU.
+\item Nhiều seed. Lặp lại việc huấn luyện và việc lấy mẫu tập huấn luyện để biết các chênh lệch nhỏ, như $-0{,}00141$ giữa GRNR và EASE đầy đủ ở $d=0{,}5$, có ổn định hay không.
+\item Thí nghiệm loại bỏ thành phần.
+  \begin{itemize}
+  \item Với GRNR: bỏ điều chuẩn đồ thị, bỏ trọng số mẫu, và so với EASE được giải lại trên đúng tập láng giềng của GRNR.
+  \item Với DFHF: thay bộ lọc bằng $F=I$, thay softmax bằng BPR, và gán trọng số khác 0 cho lịch sử đơn.
+  \end{itemize}
+  Mục tiêu là kiểm tra các giả thuyết cơ chế ở Mục~\ref{sec:discussion}.
+\item Kết hợp có chủ đích với độ phổ biến. Từ phát hiện ở câu hỏi thứ hai, một hướng tự nhiên là chuyển sang xếp hạng theo độ phổ biến, hoặc trộn với nó, khi lịch sử quá ngắn, rồi đánh giá xem cách này có vượt được mốc MostPop ở mức thưa hay không.
+\item Mở rộng dữ liệu. Thêm bộ dữ liệu khác, và thiết kế một đánh giá riêng cho người dùng mới thay cho thẻ minh họa trong ứng dụng demo.
+\end{enumerate}

@@ -1,0 +1,378 @@
+\section{Phương pháp và thuật toán đề xuất}
+\label{sec:method}
+\label{sec:problem}
+
+Graph-Regularized Neighborhood Regression (GRNR) và Diffusion-Filtered History Factorization (DFHF) đều tính điểm từ lịch sử thay vì học một vector tham số riêng cho từng người dùng. Vì vậy, khi hệ số hồi quy hoặc các bảng embedding sản phẩm đã cố định, một lịch sử mới được chấm điểm ngay mà không phải học thêm tham số nào. Ký hiệu chung tuân theo Mục~\ref{sec:notation}.
+
+\subsection{Công cụ toán học}
+\label{sec:tools}
+
+\subsubsection{Hồi quy có trọng số và điều chuẩn}
+\label{sec:ridge}
+
+\begin{dn}[Hồi quy có trọng số và có điều chuẩn]
+\label{def:wls}
+Cho ma trận đặc trưng $\Phi\in\mathbb{R}^{N\times m}$ gồm $N$ mẫu và $m$ đặc trưng, vector mục tiêu $y\in\mathbb{R}^N$, ma trận trọng số mẫu $\Omega=\mathrm{diag}(w_1,\ldots,w_N)$ với $w_n\ge0$, ma trận phạt đối xứng nửa xác định dương $P\in\mathbb{R}^{m\times m}$ và điểm neo $\theta^0\in\mathbb{R}^m$. Bài toán hồi quy có trọng số và có điều chuẩn là
+\begin{equation}
+\min_{\theta\in\mathbb{R}^m}\;J(\theta)=\frac12(y-\Phi\theta)^\top\Omega(y-\Phi\theta)
++\frac12(\theta-\theta^0)^\top P(\theta-\theta^0).
+\label{eq:wls}
+\end{equation}
+\end{dn}
+
+Trọng số $\Omega$ cho phép tin các quan sát ở những mức khác nhau, theo hướng xử lý phản hồi ngầm của Hu, Koren và Volinsky~\cite{hu2008wmf}. Ma trận $P$ quy định mức phạt theo từng hướng của tham số, còn $\theta^0$ là điểm mà tham số bị kéo về~\cite[Mục~6.3]{boyd2004convex}.
+
+Đặt $G=\Phi^\top\Omega\Phi+P$. Khi $G$ xác định dương, chẳng hạn khi $P$ xác định dương, bài toán~\eqref{eq:wls} có nghiệm duy nhất, là nghiệm của phương trình chuẩn~\cite[Mục~4.4]{boyd2004convex}
+\begin{equation}
+G\theta^\star=\Phi^\top\Omega y+P\theta^0 .
+\label{eq:normal-generic}
+\end{equation}
+Hệ này được giải bằng phân rã Cholesky $G=RR^\top$, với $R$ tam giác dưới, rồi hai lần thế tam giác. Riêng bước phân rã đã tốn khoảng $m^3/3$ phép tính, nên giới hạn số đặc trưng là cách trực tiếp để giảm chi phí~\cite[Phụ lục~C.2--C.3]{boyd2004convex}.
+
+\subsubsection{Đồng xuất hiện}
+\label{sec:cooccurrence}
+
+\begin{dn}[Đồng xuất hiện ngoài đường chéo]
+\label{def:cooccurrence}
+Với ma trận đồng xuất hiện $C$ ở Mục~\ref{sec:notation}, nhóm ký hiệu $C^\circ$ là ma trận nhận được khi đặt đường chéo của $C$ bằng 0. Các phần tử ngoài đường chéo vẫn giữ số người dùng chung của từng cặp sản phẩm.
+\end{dn}
+
+Với $c_i,c_j>0$, tỷ số lift so đồng xuất hiện với mức kỳ vọng dưới giả định độc lập:
+\begin{equation}
+\mathrm{lift}(i,j)=\frac{C_{ij}}{c_i c_j/|\mathcal{U}|} .
+\end{equation}
+Lift lớn hơn 1 nghĩa là hai sản phẩm xuất hiện cùng nhau nhiều hơn kỳ vọng. Đây là chỉ số mô tả, không phải kiểm định thống kê; GRNR dùng một điểm dư khác, trình bày ở Mục~\ref{sec:grnr-neighbors}.
+
+\subsubsection{Laplacian của đồ thị}
+\label{sec:graph-filters}
+
+\begin{dn}[Laplacian chuẩn hóa]
+\label{def:laplacian}
+Cho đồ thị vô hướng với tập đỉnh $\mathcal{V}$, ma trận kề đối xứng không âm $A$ và bậc $\delta_v=\sum_w A_{vw}$. Gọi $D_A=\mathrm{diag}(\delta_v)$. Khi mọi đỉnh có bậc dương, ma trận kề chuẩn hóa và Laplacian chuẩn hóa là
+\begin{equation}
+\tilde A = D_A^{-1/2}AD_A^{-1/2}, \qquad L = I-\tilde A .
+\label{eq:laplacian}
+\end{equation}
+Khi có đỉnh cô lập, quy ước $(D_A^{-1/2})_{vv}=0$ và thay $I$ bằng ma trận đường chéo có giá trị 1 ở các đỉnh có bậc dương. Một tín hiệu trên đồ thị là một vector $\mathbf g\in\mathbb{R}^{|\mathcal{V}|}$.
+\end{dn}
+
+Đặt $z_v=g_v/\sqrt{\delta_v}$ khi $\delta_v>0$ và $z_v=0$ ở đỉnh cô lập. Khi đó,
+\begin{equation}
+\mathbf g^\top L\,\mathbf g=\frac12\sum_{v,w}A_{vw}(z_v-z_w)^2 ,
+\label{eq:laplacian-quadratic}
+\end{equation}
+và mọi giá trị riêng của $L$ thuộc $[0,2]$~\cite[Mục~1.2--1.4]{chung1997spectral}. Đại lượng này nhỏ khi các đỉnh nối với nhau bằng cạnh nặng có giá trị đã chuẩn hóa gần nhau, nên nó đo mức trơn của tín hiệu trên đồ thị.
+
+\subsubsection{Ma trận chuyển hai bước}
+
+Đặt $\mathcal{U}_+=\{u:n_u>0\}$ và $\mathcal{I}_+=\{i:c_i>0\}$ là tập người dùng và sản phẩm có tương tác. Trên đồ thị này, một bước chuyển sản phẩm $\to$ người dùng $\to$ sản phẩm, với mỗi chặng chọn đều một láng giềng, có ma trận chuyển
+\begin{equation}
+T=D_I^{-1}X^\top D_U^{-1}X ,
+\label{eq:transition}
+\end{equation}
+với $T_{ij}$ là xác suất đi từ sản phẩm $i$ tới sản phẩm $j$. Nhân $T$ với một tín hiệu trên sản phẩm là lấy trung bình tín hiệu trên các sản phẩm mà cùng nhóm người dùng đã tương tác.
+
+\begin{nx}
+\label{rem:transition-filter}
+Mỗi hàng của $T$ không âm và có tổng bằng 1, vì $\sum_jT_{ij}=\frac1{c_i}\sum_uX_{ui}\frac1{n_u}\sum_jX_{uj}=1$. Ngoài ra $D_I^{1/2}TD_I^{-1/2}=\tilde R^\top\tilde R$ với $\tilde R$ như ở Mục~\ref{sec:gfcf}, nên $T$ đồng dạng với một ma trận đối xứng nửa xác định dương; kết hợp với tính ngẫu nhiên theo hàng, mọi giá trị riêng của $T$ là số thực thuộc $[0,1]$~\cite[Mục~1.5]{chung1997spectral}. Hệ quả là một đa thức $F=\sum_t a_tT^t$ với $a_t\ge0$ và $\sum_ta_t=1$ cũng có các hàng không âm, tổng bằng 1, tức là một phép lấy trung bình có trọng số, và có giá trị riêng thuộc $[a_0,1]$.
+\end{nx}
+
+$T$ đồng dạng với toán tử Gram chuẩn hóa của Graph Filter based Collaborative Filtering (GF-CF) ở Mục~\ref{sec:gfcf}, nhưng có thể hiểu như một phép chuyển ngẫu nhiên. Nhóm tính bộ lọc đa thức của $T$ bằng các phép nhân ma trận thay vì phân rã phổ, theo nguyên tắc của Turbo-CF~\cite{park2024turbocf}. Với sản phẩm cô lập, DFHF mở rộng $T$ bằng phép đồng nhất để giữ nguyên vector của sản phẩm đó.
+
+\subsubsection{Hàm mất mát softmax trên toàn danh mục}
+\label{sec:losses}
+
+Hàm mất mát softmax so sản phẩm dương với một tập $\mathcal{A}_{ui}$ chứa $i$. Với truy vấn $(u,i)$, đặt $p_{ui'}^{\mathrm{sm}}=\exp s(u,i')\big/\sum_{i''\in\mathcal{A}_{ui}}\exp s(u,i'')$ cho $i'\in\mathcal{A}_{ui}$. Khi đó,
+\begin{equation}
+\ell(u,i)=-\log p_{ui}^{\mathrm{sm}} ,\qquad
+\frac{\partial\ell(u,i)}{\partial s(u,i')}=p_{ui'}^{\mathrm{sm}}-\mathbb{1}[i'=i],
+\label{eq:softmax-ce}
+\end{equation}
+với $i'\in\mathcal{A}_{ui}$ và $\mathbb{1}[\cdot]$ là hàm chỉ báo. Công thức này suy ra từ đạo hàm của hàm log-sum-exp~\cite[Mục~3.1.5]{boyd2004convex}. Nó cho thấy sản phẩm khác đích nào đang được gán xác suất cao sẽ bị đẩy xuống mạnh nhất.
+
+\subsection{Graph-Regularized Neighborhood Regression}
+\label{sec:grnr}
+
+Để trả lời câu hỏi thiết kế ở Mục~\ref{sec:closed-form-gap}, GRNR chọn cho mỗi sản phẩm một tập láng giềng nhỏ rồi ước lượng đồng thời các hệ số bằng hồi quy có trọng số. Mô hình kế thừa hồi quy sản phẩm--sản phẩm từ Sparse Linear Methods (SLIM)~\cite{ning2011slim} và Embarrassingly Shallow Autoencoder (EASE)~\cite{steck2019ease}, cùng cách phân biệt độ tin cậy của phản hồi ngầm từ Hu và cộng sự~\cite{hu2008wmf}. Mỗi bài toán hồi quy được điều chuẩn bằng ba thành phần: phạt theo lượng dữ liệu của sản phẩm nguồn, phạt đồ thị có điều chỉnh phần biên, và điểm neo cho hệ số chặn.
+
+Giới hạn $k=128$ nguồn giữ cho hệ phương trình nhỏ và số hệ số cần lưu ít, đổi lại các sản phẩm ngoài tập nguồn không tham gia hồi quy. Khác với EASE~\cite{steck2019ease}, vốn hồi quy trên toàn danh mục, GRNR ước lượng hệ số ngay trên tập nguồn đã chọn. \Figref{fig:grnr-diagram} tóm tắt hai giai đoạn: hàng trên là bước khớp mô hình, chạy một lần; hàng dưới là bước chấm điểm, chạy cho mỗi người dùng, kể cả người dùng có lịch sử mới.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\linewidth]{grnr_diagram.png}
+\caption{Sơ đồ hoạt động của GRNR}
+\label{fig:grnr-diagram}
+\end{figure}
+
+Đồ thị sản phẩm được dựng một lần trên toàn danh mục, và mỗi bài toán hồi quy lấy khối ứng với tập nguồn của nó. Sau khi giải, hệ số và hệ số chặn được giữ cố định; khi có lịch sử mới, mô hình tính điểm, điều chỉnh theo độ phổ biến rồi chọn top-$K$.
+
+
+\subsubsection{Lựa chọn láng giềng và đồ thị sản phẩm}
+\label{sec:grnr-neighbors}
+
+GRNR làm việc với ma trận đồng xuất hiện đã xóa đường chéo $C^\circ$ theo Định nghĩa~\ref{def:cooccurrence}. Với sản phẩm đích $i$, xác suất nền đã làm trơn là
+\begin{equation}
+p_i = \frac{c_i+1}{|\mathcal{U}|+2}.
+\end{equation}
+Với mỗi sản phẩm nguồn $j\ne i$, mức đồng xuất hiện vượt kỳ vọng và điểm dư đã làm trơn là
+\begin{equation}
+e_{ij} = C^\circ_{ji} - c_j\,p_i, \qquad \mathrm{lift}_{ij} = \frac{e_{ij}}{c_j+\kappa_{\mathrm{lift}}}, \quad \kappa_{\mathrm{lift}} = 10.
+\label{eq:grnr-lift}
+\end{equation}
+Điểm dư $\mathrm{lift}_{ij}$ này khác với tỉ số lift ở Mục~\ref{sec:cooccurrence}. Với mỗi đích, nhóm chọn tối đa $k=128$ nguồn có điểm dương, xếp theo $e_{ij}$ giảm dần, và theo chỉ số sản phẩm khi bằng điểm. Phép trừ $c_jp_i$ loại phần đồng xuất hiện chỉ do độ phổ biến mà có, còn việc xếp theo $e_{ij}$ ưu tiên những nguồn vượt kỳ vọng nhiều nhất về số lượng tuyệt đối. Cosin hay tỉ số lift chuẩn hóa đồng xuất hiện theo cách khác nên có thể chọn ra các nguồn khác. Vì $c_j+\kappa_{\mathrm{lift}}>0$, tham số $\kappa_{\mathrm{lift}}$ chỉ ảnh hưởng đến trọng số đồ thị, không làm đổi dấu hay thứ tự chọn nguồn.
+
+Các trọng số lift dương tạo thành một đồ thị sản phẩm có hướng, $W^{\mathrm{dir}}_{ij}=\mathrm{lift}_{ij}$ với $j\in N_i$. Đồ thị được đối xứng hóa bằng $W=\max(W^{\mathrm{dir}}, W^{\mathrm{dir}\top})$, rồi lấy Laplacian chuẩn hóa
+\begin{equation}
+L = \Delta_W - D_W^{-1/2}\, W\, D_W^{-1/2},
+\end{equation}
+trong đó $W$ đóng vai trò ma trận kề $A$ ở Định nghĩa~\ref{def:laplacian}, $D_W$ là ma trận bậc, và $\Delta_W$ có đường chéo bằng 1 ở đỉnh có bậc dương, bằng 0 ở đỉnh cô lập; nghịch đảo căn bậc tại đỉnh cô lập được quy ước bằng 0. Phép lấy max giữ một cạnh nếu ít nhất một trong hai hướng được chọn, với trọng số lớn hơn của hai hướng; lấy trung bình cũng là một lựa chọn hợp lệ nhưng cho mức phạt khác.
+
+Dùng Laplacian chuẩn hóa nghĩa là nhóm phạt chênh lệch giữa các hệ số đã chia cho căn bậc trên những cạnh mạnh. Đại lượng này khác với chênh lệch hệ số thô trong Laplacian không chuẩn hóa, và khác với phạt ridge, vốn co từng hệ số về điểm neo một cách độc lập~\cite[Mục~1.2, 1.4]{chung1997spectral}.
+
+\subsubsection{Hàm mục tiêu và phương pháp giải}
+\label{sec:grnr-objective}
+
+Với sản phẩm $i$, mỗi người dùng $u$ được mô tả bởi vector đặc trưng gồm các láng giềng có trong lịch sử, chuẩn hóa theo độ dài lịch sử, và một hệ số chặn:
+\begin{equation}
+\phi_u^{(i)} = \left[\, \frac{X_{u,N_i}}{\sqrt{\max(n_u - X_{ui},\,1)}} \;;\; 1 \,\right] \in \mathbb{R}^{|N_i|+1}.
+\label{eq:grnr-feature}
+\end{equation}
+Mẫu số dùng $n_u-X_{ui}$ để không tính chính sản phẩm đích vào độ dài lịch sử khi tạo mẫu dương, cho khớp với lúc dự đoán một sản phẩm chưa thấy. Chuẩn hóa theo căn độ dài làm giảm đóng góp của lịch sử dài so với tổng thô, nhưng giảm ít hơn phép lấy trung bình, như phân tích ở Mục~\ref{sec:dfhf-representation}. Với $c_i>0$, tham số $\theta_i=[\beta_i;b_i]$ được ước lượng bằng bình phương tối thiểu có trọng số:
+\begin{equation}
+\min_{\theta_i}\; \frac12\sum_{u\in\mathcal{U}} w_{ui}\bigl(X_{ui} - \phi_u^{(i)\top}\theta_i\bigr)^2 \;+\; \frac12(\theta_i-\theta_i^0)^\top M P_i\,(\theta_i-\theta_i^0),
+\label{eq:grnr-objective}
+\end{equation}
+với $w_{ui}=\omega_+=10$ nếu $X_{ui}=1$, $w_{ui}=1$ trong trường hợp còn lại, và $M=|\mathcal{U}|$. Trọng số 10 cho mẫu dương thể hiện rằng tương tác đã quan sát đáng tin hơn ô chưa quan sát, theo hướng của Hu và cộng sự~\cite{hu2008wmf}. Nhân phạt với $M$ tương đương với chia phần sai số dữ liệu cho số người dùng và giữ nguyên ma trận phạt $P_i$.
+
+Khi tập láng giềng đã cố định, hàm mục tiêu là bậc hai theo $\theta_i$, nên nghiệm có được bằng cách giải một hệ tuyến tính. Hồi quy logistic hợp với nhãn nhị phân hơn nhưng thường cần tối ưu lặp; thêm phạt $L_1$ có thể làm hệ số thưa trong tập nguồn nhưng cũng làm mất dạng một hệ Cholesky~\cite[Mục~6.1, 6.3]{boyd2004convex}. Nhóm chọn cấu trúc bậc hai để giải trực tiếp; điểm dự đoán chỉ dùng để xếp hạng nên không cần nằm trong $[0,1]$. Ma trận phạt là
+\begin{equation}
+P_i = \begin{bmatrix} \eta\,\mathrm{diag}(s_j)_{j\in N_i} + \lambda_g\bigl(L_{N_iN_i} - (1-\beta)B_i\bigr) & 0 \\ 0 & \eta_b \end{bmatrix},
+\label{eq:grnr-precision}
+\end{equation}
+trong đó $\eta=10^{-5}$, $\eta_b=10^{-3}$, $\lambda_g=10^{-3}$ và $\beta=0{,}5$; ở đây $\beta$ là hệ số biên vô hướng, khác vector hồi quy $\beta_i$. Hệ số phạt riêng của từng nguồn là $s_j=\min\bigl((c_j/(c_j+\alpha_s))^{-2},s_{\max}\bigr)$, với $\alpha_s=2$ và $s_{\max}=10$. Khi $c_j$ tăng, $s_j$ giảm dần về 1, nghĩa là nguồn càng ít dữ liệu càng bị co mạnh; số mũ 2 quy định tốc độ giảm. Vì $c_j\ge1$ nên $s_j\le9$, và ngưỡng 10 không có tác dụng trong cấu hình này.
+
+$L_{N_iN_i}$ là khối con của Laplacian toàn cục ứng với tập nguồn, còn $B_i\in\mathbb{R}^{|N_i|\times|N_i|}$ là ma trận đường chéo chứa phần năng lượng của các liên kết ra ngoài $N_i$. Hệ số $\beta$ nội suy giữa việc bỏ hẳn phần biên khi $\beta=0$ và giữ đủ khi $\beta=1$; giá trị $0{,}5$ giữ một nửa và chưa được chứng minh là tối ưu. Điểm neo $\theta_i^0$ có các hệ số láng giềng bằng 0 và hệ số chặn đặt theo xác suất nền đã làm trơn:
+\begin{equation}
+b_i^0 = \frac{\omega_+\,p_i}{1+(\omega_+-1)\,p_i}, \quad \omega_+=10.
+\end{equation}
+
+Nếu chỉ khớp một hằng số với dữ liệu gốc dưới trọng số $\omega_+$, nghiệm của phần sai số là $\omega_+c_i/(M+(\omega_+-1)c_i)$. Thay $c_i/M$ bằng $p_i$ đã làm trơn cho ra điểm neo trên; với $0<p_i<1$, điểm neo thỏa $b_i^0/(1-b_i^0)=\omega_+p_i/(1-p_i)$. Như vậy hệ số chặn được kéo về xác suất nền đã điều chỉnh theo trọng số, thay vì về 0.
+
+Để áp dụng kết quả về nghiệm duy nhất ở Mục~\ref{sec:ridge}, cần kiểm tra $P_i$ xác định dương. Gọi $\delta_j=\sum_kW_{jk}$ là bậc toàn cục. Với $j\in N_i$, phần tử đường chéo của $B_i$ là $\sum_{k\notin N_i}W_{jk}/\delta_j$ nếu $\delta_j>0$, và bằng 0 nếu $\delta_j=0$. Với vector hệ số $z$ trên $N_i$, đặt $a_j=z_j/\sqrt{\delta_j}$ khi bậc dương, bằng 0 trong trường hợp còn lại. Từ công thức năng lượng~\eqref{eq:laplacian-quadratic},
+\begin{equation}
+\begin{aligned}
+z^\top\bigl(L_{N_iN_i}-(1-\beta)B_i\bigr)z
+={}&\frac12\sum_{j,k\in N_i}W_{jk}(a_j-a_k)^2\\
+&+\beta\sum_{j\in N_i}(B_i)_{jj}z_j^2\ge0.
+\end{aligned}
+\label{eq:grnr-penalty-energy}
+\end{equation}
+Bất đẳng thức đúng với $\beta\in[0,1]$. Vì $\eta>0$, $s_j>0$, $\eta_b>0$ và $\lambda_g\ge0$, hai khối của $P_i$ đều xác định dương; nếu không có láng giềng, chỉ còn khối chặn $\eta_b$. Như vậy $P_i\succ0$. Áp dụng kết quả ở Mục~\ref{sec:ridge} với ma trận phạt $MP_i$ và điểm neo $\theta_i^0$, bài toán có nghiệm duy nhất thỏa
+\begin{equation}
+\bigl(\Phi_i^\top \Omega_i \Phi_i + M P_i\bigr)\,\theta_i = \Phi_i^\top \Omega_i\, x_i + M P_i\,\theta_i^0,
+\label{eq:grnr-normal}
+\end{equation}
+với $\Phi_i$ là ma trận xếp các hàng $\phi_u^{(i)}$, $\Omega_i=\mathrm{diag}(w_{ui})$ và $x_i$ là cột $i$ của $X$. Hệ~\eqref{eq:grnr-normal} có kích thước tối đa $129\times129$ và được giải bằng Cholesky ở độ chính xác số thực 64 bit. Cài đặt kiểm tra sai số dư tương đối $\|G_i\theta_i-r_i\|/\max(\|r_i\|,10^{-15})<10^{-8}$ cho từng sản phẩm có tương tác, với $G_i,r_i$ là ma trận và vế phải của hệ.
+
+Với $c_i=0$, GRNR không giải hồi quy mà dùng luôn điểm neo, $\theta_i\leftarrow\theta_i^0$. Các sản phẩm này không thuộc tập ứng viên $\mathcal{I}_+$, nên quy tắc dự phòng này không ảnh hưởng đến đánh giá.
+
+\subsubsection{Thuật toán huấn luyện và suy luận}
+\label{sec:grnr-algorithm}
+
+Ma trận Gram $\Phi_i^\top\Omega_i\Phi_i$ của mỗi bài toán được lấy từ một ma trận dùng chung rồi hiệu chỉnh ở các mẫu dương. Phần lớn người dùng có $X_{ui}=0$ và trọng số 1, nên đóng góp của họ có sẵn trong Gram toàn cục $G=\tilde X^\top\tilde X$ của lịch sử chuẩn hóa $\tilde X_{uj}=X_{uj}/\sqrt{\max(n_u,1)}$. Với người dùng có $X_{ui}=1$, nhóm thay đúng hàng đặc trưng đã loại $i$ khỏi mẫu số và gán trọng số 10, như ở Thuật toán~\ref{alg:grnr}.
+
+\begin{algorithm}[H]
+\caption{Huấn luyện và chấm điểm GRNR}
+\label{alg:grnr}
+\KwIn{Ma trận tương tác giữ lại $X$; siêu tham số ở \tabref{tab:grnr-hparams}}
+\KwOut{Ma trận hệ số thưa $\mathcal{B}\in\mathbb{R}^{|\mathcal{I}|\times|\mathcal{I}|}$, vector chặn $b$}
+Tính $c$, $p$, $n$; kiểm tra cận $H=\sum_u n_u^2\le5\cdot10^7$\;
+Tính đồng xuất hiện $C=X^\top X$ và xóa đường chéo\;
+\ForEach{sản phẩm $i$}{
+  Chọn $N_i$ theo \eqref{eq:grnr-lift}; ghi trọng số vào $W^{\mathrm{dir}}$\;
+}
+Đối xứng hóa $W=\max(W^{\mathrm{dir}},W^{\mathrm{dir}\top})$; tính Laplacian $L$\;
+Tính lịch sử chuẩn hóa $\tilde X$ và Gram toàn cục $G=\tilde X^\top\tilde X$\;
+\ForEach{sản phẩm $i$}{
+  \eIf{$c_i=0$}{$\theta_i\leftarrow\theta_i^0$\;}{
+  Lấy khối Gram của $N_i$ từ $G$, thay chính xác các hàng của người dùng có $X_{ui}=1$\;
+  Lập $P_i$ theo \eqref{eq:grnr-precision}; giải \eqref{eq:grnr-normal} bằng Cholesky; kiểm tra sai số dư\;}
+  Ghi $\beta_i$ vào cột $i$ của $\mathcal{B}$ và $b_i$ vào $b$\;
+}
+Chấm điểm: $s(u,i)=\tilde X_{u,:}\,\mathcal{B}_{:,i}+b_i$; khi xếp hạng dùng $s(u,i)\cdot(1+c_i)^{-0{,}1}$\;
+\end{algorithm}
+
+Với quy ước $\mathcal{B}_{ji}=\beta_{ij}$ khi $j\in N_i$ và bằng 0 ngoài tập nguồn, điểm của người dùng $u$ cho sản phẩm $i$ khi suy luận là
+\begin{equation}
+s(u,i)=\sum_{j\in H_u\cap N_i}\beta_{ij}/\sqrt{\max(n_u,1)}+b_i.
+\end{equation}
+Khi xếp hạng, điểm được nhân với $(1+c_i)^{\rho_{\mathrm{pop}}}$, với $\rho_{\mathrm{pop}}=-0{,}1$. Hàm lũy thừa điều chỉnh liên tục theo số đếm, và việc cộng 1 giữ biểu thức xác định tại $c_i=0$. Với điểm dương, phép nhân hạ điểm của sản phẩm phổ biến nhiều hơn; với điểm âm, tác động có thể ngược chiều. Bước điều chỉnh diễn ra sau hồi quy nên không tham gia~\eqref{eq:grnr-objective}. Khi lịch sử rỗng, điểm chỉ còn hệ số chặn trước khi điều chỉnh.
+
+Vì điểm là một tổng tuyến tính, có thể tách riêng đóng góp $\beta_{ij}/\sqrt{n_u}$ của từng sản phẩm $j$ trong lịch sử. Phân rã này giải thích điểm số bằng các thành phần đại số, không cho biết vì sao người dùng thích sản phẩm.
+
+
+\subsection{Diffusion-Filtered History Factorization}
+\label{sec:dfhf}
+
+Để trả lời câu hỏi ở Mục~\ref{sec:trained-gap}, DFHF xây biểu diễn người dùng từ lịch sử bằng cách kết hợp hai bảng embedding nguồn và đích với bộ lọc khuếch tán và hàm mất mát softmax. Mô hình kế thừa cách tổng hợp lịch sử của Factored Item Similarity Models (FISM)~\cite{kabbur2013fism} và biểu diễn bất đối xứng của Koren~\cite{koren2008factorization}; bộ lọc đa thức theo nguyên tắc tránh phân rã phổ của Turbo-CF~\cite{park2024turbocf}, còn việc cho các sản phẩm cạnh tranh xác suất trên toàn danh mục có tiền lệ ở Multinomial Variational Autoencoder (Mult-VAE)~\cite{liang2018multvae}. Điểm riêng của DFHF là lọc cả hai bảng sản phẩm, học từ ngữ cảnh đã bỏ sản phẩm đích, và có quy tắc riêng cho lịch sử chỉ gồm một sản phẩm. \Figref{fig:dfhf-diagram} tóm tắt quy trình: hàng trên là vòng huấn luyện, hàng dưới là bước gợi ý từ lịch sử. Vì lịch sử đơn có trọng số bằng 0, người dùng chỉ có một tương tác được chấm điểm bằng hệ số chặn $b$.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=\linewidth]{dfhf_diagram.png}
+\caption{Sơ đồ hoạt động của DFHF}
+\label{fig:dfhf-diagram}
+\end{figure}
+
+Trong vòng huấn luyện, mỗi lô tính lại hai bảng đã lọc rồi cập nhật tham số từ ngữ cảnh đã bỏ đích. Khi gợi ý, các bảng lấy từ checkpoint, tức bản lưu tham số tại một epoch, được giữ cố định và lịch sử được tổng hợp theo~\eqref{eq:dfhf-score}. Nhờ các bảng sản phẩm cố định, biểu diễn được tính lại ngay khi lịch sử thay đổi mà không cần vector tham số riêng cho người dùng. Cấu hình cụ thể ở \tabref{tab:dfhf-hparams}.
+
+
+\subsubsection{Biểu diễn lịch sử và bộ lọc khuếch tán}
+\label{sec:dfhf-representation}
+
+DFHF có hai bảng sản phẩm, mỗi bảng $f=64$ chiều: bảng nguồn $S\in\mathbb{R}^{|\mathcal{I}|\times f}$ mô tả sản phẩm khi nằm trong lịch sử, bảng đích $V\in\mathbb{R}^{|\mathcal{I}|\times f}$ mô tả sản phẩm khi được chấm điểm, cùng vector chặn $b\in\mathbb{R}^{|\mathcal{I}|}$. Hai bảng độc lập cho phép quan hệ không đối xứng, tức $\tilde S_j^\top\tilde V_i$ có thể khác $\tilde S_i^\top\tilde V_j$; nếu buộc $S=V$, thành phần sản phẩm--sản phẩm sẽ là một ma trận Gram đối xứng. Sự linh hoạt này phải trả bằng một bảng tham số thứ hai, theo hướng nhân tố hóa của FISM~\cite{kabbur2013fism}.
+
+Toán tử $T$ ở~\eqref{eq:transition} lấy trung bình qua hai bước sản phẩm--người dùng--sản phẩm. Nhờ chia cho bậc, mỗi hàng của $T$ có tổng bằng 1, khác với đồng xuất hiện thô vốn còn mang quy mô số đếm. Bộ lọc là
+\begin{equation}
+F = \tfrac12 I + \tfrac14 T + \tfrac14 T^2
+\label{eq:dfhf-filter}
+\end{equation}
+và được áp cho cả hai bảng: $\tilde S=FS$, $\tilde V=FV$. Thành phần $I$ giữ lại một nửa vector gốc, còn $T$ và $T^2$ thêm hai mức lan truyền giữa các sản phẩm; dừng ở bậc hai giới hạn chi phí ở hai lần áp $T$ cho mỗi bảng. Vì các hệ số không âm và có tổng bằng 1, $F$ vẫn là một phép lấy trung bình và không làm tăng giá trị lớn nhất theo từng chiều, theo Nhận xét~\ref{rem:transition-filter}. Sản phẩm cô lập giữ nguyên vector gốc. So với $F=I$, bộ lọc đưa thông tin đồng tương tác vào tham số hóa; so với $\tfrac12I+\tfrac12T$, nó thêm một mức lan truyền với giá thêm một lần áp $T$. Các tính chất này giải thích hành vi và chi phí của bộ lọc, nhưng chưa xác nhận bộ hệ số $(1/2,1/4,1/4)$ tốt hơn các lựa chọn khác.
+
+Gọi $\zeta_{\mathrm{hist}}=0{,}5$ là số mũ chuẩn hóa lịch sử và $\omega_1=0$ là trọng số của lịch sử đơn. Số mũ 0 ứng với tổng thô, số mũ 1 ứng với trung bình, và căn độ dài nằm giữa hai cách này. FISM khảo sát số mũ trong $[0,1]$ và báo cáo kết quả tốt quanh $0{,}4$--$0{,}5$~\cite[Mục~4, 7.2]{kabbur2013fism}; đây là tiền lệ để chọn $0{,}5$ chứ không chứng minh giá trị này tối ưu cho DFHF. Chia cho căn độ dài chỉ ổn định phương sai khi các vector thỏa một số giả thiết về tương quan, mà các vector đã học không nhất thiết thỏa. Với các giá trị đang dùng,
+\begin{equation}
+q_u=\begin{cases}
+\displaystyle \frac{1}{n_u^{\zeta_{\mathrm{hist}}}}\sum_{j\in H_u}\tilde S_j,&n_u\ge2,\\
+0,&n_u\le1,
+\end{cases}
+\qquad s(u,i)=q_u^\top\tilde V_i+b_i.
+\label{eq:dfhf-score}
+\end{equation}
+Khi $n_u\le1$, điểm chỉ còn $b_i$, dù danh sách cuối vẫn có thể khác nhau vì lịch sử đã được loại khỏi ứng viên. Với $n_u=0$, không có gì để tổng hợp. Với $n_u=1$, đặt $\omega_1=0$ là chủ động bỏ thông tin của sản phẩm duy nhất; giữ trọng số khác 0 cũng là một phương án. Đây là một lựa chọn thiết kế, không phải hệ quả bắt buộc của việc không dùng vector người dùng.
+
+Với giá trị riêng $\lambda_T\in[0,1]$ của $T$, đáp ứng của bộ lọc $h(\lambda_T)=\tfrac12+\tfrac14\lambda_T+\tfrac14\lambda_T^2$ thuộc $[1/2,1]$, nên $F$ khả nghịch. Nếu bỏ qua phạt và giới hạn chuẩn, hai bảng tự do $S,V$ vẫn biểu diễn được mọi cặp $\tilde S,\tilde V$ qua phép đổi biến này. Bộ lọc vì thế tác động qua tham số hóa, điều chuẩn và quá trình tối ưu, chứ không áp một ràng buộc cứng buộc nghiệm phải trơn.
+
+\subsubsection{Hàm mục tiêu và phương pháp tối ưu}
+\label{sec:dfhf-objective}
+
+Mỗi truy vấn huấn luyện $(u,i)$ được lấy qua hai bước: chọn đều một người dùng $u\in\mathcal{U}_+$, rồi chọn đều một sản phẩm $i\in H_u$. Xác suất lấy một truy vấn cụ thể là $1/(|\mathcal{U}_+|n_u)$, nên các cạnh không được lấy đều nhau khi độ dài lịch sử khác nhau. Với $n_u>1$, ngữ cảnh huấn luyện bỏ chính sản phẩm dương ra khỏi lịch sử:
+\begin{equation}
+q_{u\setminus i} = \frac{1}{(n_u-1)^{\zeta_{\mathrm{hist}}}}\Bigl(\sum_{j\in H_u}\tilde S_j - \tilde S_i\Bigr).
+\end{equation}
+Với $n_u=1$, ngữ cảnh bằng 0 vì bỏ sản phẩm dương thì lịch sử rỗng. Khi $n_u=2$, ngữ cảnh vẫn tổng hợp sản phẩm còn lại theo công thức trên, vì quy tắc lịch sử đơn căn cứ vào độ dài lịch sử $n_u$ chứ không phải độ dài sau khi bỏ đích. Tập so sánh khi học là $\mathcal{A}_{ui}=(\mathcal{I}_+\setminus H_u)\cup\{i\}$: tập này giữ đích dương, loại các tương tác khác của người dùng và các sản phẩm cô lập. Hàm mất mát entropy chéo là
+\begin{equation}
+\ell(u,i) = -\log\frac{\exp\bigl((q_{u\setminus i}^\top\tilde V_i + b_i)/\tau_{\mathrm{sm}}\bigr)}{\sum_{i'\in\mathcal{A}_{ui}}\exp\bigl((q_{u\setminus i}^\top\tilde V_{i'} + b_{i'})/\tau_{\mathrm{sm}}\bigr)},
+\label{eq:dfhf-loss}
+\end{equation}
+với nhiệt độ $\tau_{\mathrm{sm}}=1$. Softmax đặt mọi ứng viên vào cùng một mẫu số, nên tăng điểm của một sản phẩm khác đích sẽ làm giảm xác suất của đích. Entropy chéo nhị phân thì xét riêng từng nhãn, còn Bayesian Personalized Ranking (BPR) so từng cặp dương--âm. Tính đủ mẫu số giúp tránh lấy mẫu một tập âm nhỏ như softmax lấy mẫu, đổi lại phải tính điểm trên toàn danh mục. Mult-VAE là tiền lệ cho kiểu cạnh tranh xác suất đa thức này~\cite{liang2018multvae}, nhưng DFHF dùng ngữ cảnh xác định và tập ứng viên đã loại lịch sử, nên kết quả của bài đó không trở thành bảo đảm cho hàm mất mát ở đây.
+
+Tập $\mathcal{A}_{ui}$ được xác định từ dữ liệu huấn luyện, còn tập ứng viên khi đánh giá tuân theo Mục~\ref{sec:evaluation-unit}.
+
+Gọi $\pi_i$ là xác suất sản phẩm $i$ được chọn làm đích dưới quy tắc lấy mẫu trên. Khi đó,
+\begin{equation}
+\pi_i=\frac{1}{|\mathcal{U}_+|}\sum_{u\in\mathcal{U}_+}\frac{X_{ui}}{n_u},
+\qquad \sum_{i\in\mathcal{I}}\pi_i=1.
+\label{eq:dfhf-exposure}
+\end{equation}
+Mục tiêu kỳ vọng theo phân phối truy vấn, cộng phạt trên hai bảng tham số gốc và vector chặn, là
+\begin{equation}
+\begin{aligned}
+\mathcal{L}={}&\frac{1}{|\mathcal{U}_+|}\sum_{u\in\mathcal{U}_+}\frac{1}{n_u}\sum_{i\in H_u}\ell(u,i)\\
+&+\frac{\lambda_{\mathrm{emb}}}{2}\sum_i\pi_i\frac{\|V_i\|^2+\|S_i\|^2}{2}
++\frac{\lambda_b}{2}\|b\|^2,
+\end{aligned}
+\label{eq:dfhf-objective}
+\end{equation}
+với $\lambda_{\mathrm{emb}}=0{,}1$ và $\lambda_b=10^{-4}$. Trung bình hàm mất mát trên lô ước lượng thành phần xếp hạng. Trọng số $\pi_i$ làm cho phạt bằng kỳ vọng mức phạt tại sản phẩm được lấy làm đích, thay vì phạt đều mọi hàng. Nhóm dùng cùng $\pi_i$ cho cả $S$ và $V$, dù tần suất một sản phẩm xuất hiện trong lịch sử nguồn có thể khác $\pi_i$; cả hai số hạng phạt được tính trên toàn bảng ở mỗi bước.
+
+Tham số được cập nhật bằng Adaptive Moment Estimation (Adam), thuật toán điều chỉnh bước cập nhật theo các mômen của gradient~\cite{kingma2015adam}. Sau mỗi bước Adam, gọi $z\in\mathbb{R}^f$ là một hàng vừa cập nhật của $S$ hoặc $V$, và $\hat v_{t,i}$ là mômen bậc hai đã hiệu chỉnh sai lệch của hàng đó tại bước $t$. Với $\epsilon=10^{-8}$, ma trận khoảng cách đường chéo là $D_{t,i}^{\mathrm{Adam}}=\mathrm{diag}(\sqrt{\hat v_{t,i}}+\epsilon)$, với căn và phép cộng tính theo từng tọa độ. Phép chiếu được định nghĩa bởi
+\begin{equation}
+\Pi_{R}^{D}(z)=\underset{\|x\|_2\le R}{\arg\min}\;
+\frac12(x-z)^\top D(x-z),\qquad R=R_{\mathrm{emb}}=100.
+\label{eq:dfhf-metric-projection}
+\end{equation}
+Nếu $z$ nằm trong cầu thì giữ nguyên; nếu nằm ngoài, nghiệm có tọa độ $x_k=D_{kk}z_k/(D_{kk}+\mu)$, với $\mu>0$ tìm bằng chia đôi sao cho $\|x\|_2=R$. Vì $D$ thường không tỉ lệ với $I$, phép chiếu này khác với việc co vector về tâm theo khoảng cách Euclid. Giới hạn chuẩn khống chế độ lớn của từng hàng tham số, còn phạt ridge vẫn hoạt động bên trong miền đó. Vector chặn chỉ chịu phạt $\lambda_b$, không bị chiếu. Bán kính 100 là giá trị được dùng, chưa được xác nhận tối ưu bằng phân tích độ nhạy.
+
+\subsubsection{Thuật toán huấn luyện và suy luận}
+\label{sec:dfhf-algorithm}
+
+DFHF được huấn luyện bằng Adam với tốc độ học $\mathrm{lr}=0{,}0003$, hai hệ số mômen $\beta_{1,\mathrm{Adam}}=0{,}9$, $\beta_{2,\mathrm{Adam}}=0{,}999$, lô tối đa $Q_{\mathrm{batch}}=2048$ truy vấn và $N_{\mathrm{ep}}=200$ epoch. Mỗi epoch lấy độc lập $|E|$ truy vấn theo quy tắc chọn người dùng rồi chọn sản phẩm, nên một cạnh có thể được lấy nhiều lần hoặc không được lấy. Thuật toán~\ref{alg:dfhf} tóm tắt toàn bộ vòng huấn luyện.
+
+\begingroup
+\setlength{\intextsep}{6pt}
+\SetAlgoSkip{smallskip}
+\begin{algorithm}[H]
+\caption{Huấn luyện DFHF}
+\label{alg:dfhf}
+\KwIn{Tập cạnh giữ lại $E$; siêu tham số ở \tabref{tab:dfhf-hparams}}
+\KwOut{Checkpoint $(S,V,b)$ có NDCG@20 tập xác thực cao nhất}
+Khởi tạo $V\sim\mathcal{N}(0,1/f)$, $S\leftarrow V$ (sau đó cập nhật độc lập), $b\leftarrow0$\;
+\For{epoch $=1,\dots,N_{\mathrm{ep}}$}{
+  Lấy một dãy $|E|$ truy vấn độc lập: $u\sim\mathrm{Unif}(\mathcal{U}_+)$, rồi $i\sim\mathrm{Unif}(H_u)$\;
+  Chia dãy thành các lô tối đa $Q_{\mathrm{batch}}$ truy vấn, cho phép truy vấn lặp\;
+  \ForEach{lô truy vấn trong dãy}{
+    Tính $\tilde S=FS$, $\tilde V=FV$ theo \eqref{eq:dfhf-filter}\;
+    Tính ngữ cảnh $q_{u\setminus i}$ và hàm mất mát \eqref{eq:dfhf-loss} cộng phạt\;
+    Cập nhật Adam với $\mathrm{lr}$; chiếu hàng của $S,V$ về bán kính $R_{\mathrm{emb}}$ theo khoảng cách của Adam\;
+  }
+  Đánh giá NDCG@20 trên tập xác thực; lưu checkpoint nếu tốt hơn\;
+}
+\end{algorithm}
+
+Khi suy luận, các bảng sản phẩm từ checkpoint được giữ cố định và lịch sử được tổng hợp theo~\eqref{eq:dfhf-score}, với quy tắc riêng cho lịch sử rỗng và lịch sử đơn. Cách chọn checkpoint và siêu tham số được trình bày ở Mục~\ref{sec:protocol}.
+
+\endgroup
+
+\subsection{Phân tích tính chất và chi phí tính toán}
+\label{sec:complexity}
+
+\Tabref{tab:complexity} so sánh GRNR với EASE: GRNR lưu tối đa $(k+1)|\mathcal{I}|$ hệ số kể cả hệ số chặn, còn EASE đầy đủ có $|\mathcal{I}|(|\mathcal{I}|-1)$ hệ số ngoài đường chéo. \Tabref{tab:complexity-trained} so sánh DFHF với Light Graph Convolution Network (LightGCN): DFHF chỉ lưu bảng sản phẩm, còn LightGCN có thêm bảng người dùng. Với $k=128$ và $f=64$, GRNR có tối đa $129|\mathcal{I}|$ hệ số, còn DFHF học đúng $129|\mathcal{I}|$ tham số.
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabularx}{\textwidth}{@{}p{3cm}>{\raggedright\arraybackslash}X>{\raggedright\arraybackslash}X@{}}
+\toprule
+ & GRNR & EASE đầy đủ \\
+\midrule
+Vector tham số người dùng & Không & Không \\
+Số hệ số và chặn & $\le(k+1)|\mathcal{I}|$ & $|\mathcal{I}|(|\mathcal{I}|-1)$ hệ số ngoài đường chéo \\
+Cách xác định hệ số & Các hệ tuyến tính kích thước tối đa $(k+1)\times(k+1)$ & Một phép nghịch đảo cỡ $|\mathcal{I}|\times|\mathcal{I}|$ \\
+Khi lịch sử thay đổi & Tính lại điểm với hệ số cố định & Tính lại điểm với hệ số cố định \\
+\bottomrule
+\end{tabularx}
+\caption{Đặc điểm lý thuyết của GRNR và EASE}
+\label{tab:complexity}
+\end{table}
+
+Với GRNR, phần giải các hệ tốn $O(|\mathcal{I}|(k+1)^3)$, nhưng đây chỉ là một phần của giai đoạn khớp mô hình. Ngoài ra còn các bước dựng đồng xuất hiện $C$ và Gram $G$, chọn láng giềng và hiệu chỉnh mẫu dương. Đặt $H=\sum_u n_u^2$; việc tạo $C$ và $G$ duyệt các cặp sản phẩm trong từng lịch sử nên tốn $O(H)$. Nếu hàng $i$ của $C^\circ$ có $t_i$ phần tử khác 0, việc xếp nguồn để chọn láng giềng tốn tối đa $O(\sum_i t_i\log\max(t_i,1))$, còn hiệu chỉnh Gram theo mẫu dương tốn $O(|E|(k+1)^2)$.
+
+Cài đặt kiểm tra trước cận $H\le5\cdot10^7$ và dừng lại nếu vượt, trước khi tạo ma trận đồng xuất hiện. Đây là điều kiện để phép tính được thực hiện, không phải cắt ma trận xuống một số phần tử cố định. Bộ nhớ tạm khi tạo $C$ hoặc $G$ có thể lớn hơn phần hệ số cuối cùng, vốn được lưu thưa ở mức $O(k|\mathcal{I}|)$, chưa kể dữ liệu lịch sử và đồ thị.
+
+EASE~\cite{steck2019ease} tốn $O(|\mathcal{I}|^3)$ cho phép nghịch đảo và $O(|\mathcal{I}|^2)$ bộ nhớ cho ma trận đầy đủ, dù đường chéo của nghiệm bằng 0. Khi suy luận, cả hai phương pháp đều nhân lịch sử với hệ số đã lưu; GRNR còn cộng hệ số chặn và điều chỉnh theo độ phổ biến. Chi phí phép nhân thưa của GRNR phụ thuộc số hệ số trên các hàng ứng với sản phẩm có trong lịch sử.
+
+\begin{table}[H]
+\centering
+\small
+\begin{tabularx}{\textwidth}{@{}p{3cm}>{\raggedright\arraybackslash}X>{\raggedright\arraybackslash}X@{}}
+\toprule
+ & DFHF & LightGCN \\
+\midrule
+Vector tham số người dùng & Không & Có \\
+Số tham số được học & $(2f+1)|\mathcal{I}|$ & $f(|\mathcal{U}|+|\mathcal{I}|)$ \\
+Mục tiêu học & Softmax trên ứng viên hợp lệ, cộng phạt & BPR có điều chuẩn \\
+Khi lịch sử thay đổi & Tổng hợp lại lịch sử với bảng sản phẩm cố định, theo quy tắc lịch sử đơn & Phân biệt tính lại lan truyền khi đổi đồ thị với cập nhật các vector tham số \\
+\bottomrule
+\end{tabularx}
+\caption{Đặc điểm lý thuyết của DFHF và LightGCN}
+\label{tab:complexity-trained}
+\end{table}
+
+Số tham số học của DFHF không phụ thuộc số người dùng, còn LightGCN~\cite{he2020lightgcn} có một vector riêng cho mỗi người dùng. Tuy vậy, DFHF vẫn phải lưu lịch sử và các cấu trúc thưa, nên tổng bộ nhớ của cài đặt vẫn phụ thuộc $|E|$, $|\mathcal{U}|$ và $|\mathcal{I}|$.
+
+Gọi $Q_{\mathrm{batch}}=2048$ là số truy vấn tối đa trong lô và $B_{\mathrm{ep}}=\lceil |E|/Q_{\mathrm{batch}}\rceil$ là số lô mỗi epoch. Mỗi lô tính lại hai bảng đã lọc, mỗi bảng cần hai lần áp $T$, tức bốn lần áp toán tử. Một lần áp $T$ gồm hai phép nhân thưa, tốn $O(|E|f)$, cộng phần chuẩn hóa và xử lý hàng ở mức $O((|\mathcal{U}|+|\mathcal{I}|)f)$. Tính điểm chưa chuẩn hóa cho mọi sản phẩm rồi loại các phần tử ngoài $\mathcal{A}_{ui}$ tốn $O(Q_{\mathrm{batch}}|\mathcal{I}|f)$ mỗi lô. Gộp các hạng chính, chi phí một epoch huấn luyện là
+\begin{equation}
+O\!\left(|E|\,|\mathcal{I}|\,f
++B_{\mathrm{ep}}(|E|+|\mathcal{U}|+|\mathcal{I}|)f\right),
+\label{eq:dfhf-epoch-cost}
+\end{equation}
+trong đó phép lọc được lặp lại ở mọi lô chứ không chỉ một lần đầu epoch. Khi tham số đã cố định, các bảng chỉ cần lọc và lịch sử chỉ cần tổng hợp một lần trước khi chấm điểm. Với $N_{\mathrm{val}}$ người dùng cần chấm điểm, phần tính điểm đầy đủ tốn $O(N_{\mathrm{val}}|\mathcal{I}|f)$, chưa kể chi phí tạo bảng và biểu diễn. Khi phục vụ lịch sử mới, các bảng đã lọc được giữ nguyên để tính tổng lịch sử và điểm ứng viên.

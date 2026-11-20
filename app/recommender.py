@@ -1,9 +1,9 @@
 """Scoring back end of the demo app: load the trained models of one density and rank items.
 
-Reads only train + validation (scripts/validation_io.py) and the item metadata; never the test split.
-Rankings follow the Evaluator: candidates are the items of the density's training graph and the user's
-full-train history is masked, so a demo top-20 equals the run's stored val_predictions.npy row
-(except EASE, whose checkpoint keeps only the top-128 weights per item of the full matrix).
+Reads train, validation and test (as scripts/evaluate_test.py) and the item metadata. Models load from their
+validation-selected checkpoints in results/val; the shown target is the user's test item and the mask is the
+full-train history plus the validation item, i.e. the test protocol, so a demo top-20 equals the run's stored
+results/test test_predictions.npy row (EASE: the top-128 checkpoint, results/test/ease128).
 GRNR, DFHF, EASE and GF-CF score any item history directly (no user table), which is what the "new user" tab shows.
 """
 from __future__ import annotations
@@ -38,7 +38,8 @@ DENSITIES = (1.0, 0.75, 0.5, 0.25)
 SEED = 42
 # DEMO_RESULTS points the demo at another results tree, e.g. results\preview (1-epoch checkpoints).
 PREVIEW = os.environ.get("DEMO_RESULTS")
-RESULTS = Path(PREVIEW) if PREVIEW else ROOT / "results/val"
+RESULTS = Path(PREVIEW) if PREVIEW else ROOT / "results/val"  # checkpoints
+TEST_RESULTS = ROOT / "results/test"  # test metrics of those checkpoints (scripts/evaluate_test.py)
 
 
 def run_dir(model, density, results=None, seed=SEED):
@@ -47,12 +48,12 @@ def run_dir(model, density, results=None, seed=SEED):
 
 
 def checkpoint_ndcg(model, density, results=None):
-    """Validation NDCG@20 of the checkpoint the demo loads (EASE: its top-128 version), or None."""
-    path = run_dir(model, density, results) / "metrics.json"
+    """Test NDCG@20 of the checkpoint the demo loads (EASE: its top-128 version), or None."""
+    name = "ease128" if model == "ease" else model
+    path = TEST_RESULTS / name / f"d{round(density * 100)}" / f"seed{SEED}" / "metrics.json"
     if not path.exists():
         return None
-    run = json.loads(path.read_text(encoding="utf-8"))
-    return (run.get("checkpoint_val_metrics") or run["val_metrics"])["NDCG@20"]
+    return json.loads(path.read_text(encoding="utf-8"))["test_metrics"]["NDCG@20"]
 
 
 @dataclass
@@ -62,8 +63,9 @@ class DemoData:
     num_users: int
     num_items: int
     metadata: pd.DataFrame  # indexed by i_idx: title, brand, leaf, has_title, labeled
-    history: dict  # user -> sorted array of full-train items (the Evaluator's mask)
-    target: dict  # user -> validation item
+    history: dict  # user -> sorted array of full-train items (the model input)
+    target: dict  # user -> test item
+    holdout: dict  # user -> validation item (masked with the history, never a model input)
 
 
 def load_metadata(path, num_items):
@@ -78,16 +80,17 @@ def load_metadata(path, num_items):
 
 
 def load_data(root=ROOT):
-    from scripts.validation_io import load_validation_inputs
-    _, full_train, validation, stats = load_validation_inputs(None, Path(root))
+    from scripts.evaluate_test import load_inputs
+    _, full_train, validation, test, stats = load_inputs(None)
     metadata = load_metadata(Path(root) / "data/processed/csv/metadata.csv", stats["num_items"])
-    return make_data(full_train, validation, stats["num_users"], stats["num_items"], metadata)
+    return make_data(full_train, validation, test, stats["num_users"], stats["num_items"], metadata)
 
 
-def make_data(full_train, validation, num_users, num_items, metadata):
+def make_data(full_train, validation, test, num_users, num_items, metadata):
     history = {int(u): np.sort(g.to_numpy()) for u, g in full_train.groupby("u_idx").i_idx}
-    target = dict(zip(validation.u_idx.astype(int), validation.i_idx.astype(int)))
-    return DemoData(full_train, validation, num_users, num_items, metadata, history, target)
+    target = dict(zip(test.u_idx.astype(int), test.i_idx.astype(int)))
+    holdout = dict(zip(validation.u_idx.astype(int), validation.i_idx.astype(int)))
+    return DemoData(full_train, validation, num_users, num_items, metadata, history, target, holdout)
 
 
 def sample_users(data, per_group=3, seed=SEED):
@@ -275,10 +278,13 @@ def load_ranker(model, density, data, results=None):
 
 
 def recommend(ranker, data, user=None, items=None, k=10, hide_untitled=True):
-    """Top-k for an existing user (mask = full-train history) or a new history; returns items and ms."""
+    """Top-k for an existing user (mask = full-train history + validation item) or a new history; items and ms."""
     started = time.perf_counter()
     if user is not None:
-        scores, exclude = ranker.score_users([user])[0], data.history.get(user, np.array([], dtype=np.int64))
+        exclude = data.history.get(user, np.array([], dtype=np.int64))
+        if user in data.holdout:
+            exclude = np.append(exclude, data.holdout[user])
+        scores = ranker.score_users([user])[0]
     else:
         scores, exclude = ranker.score_history(items), np.asarray(items, dtype=np.int64)
     allowed = data.metadata.has_title.to_numpy() if hide_untitled else None

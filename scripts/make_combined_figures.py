@@ -7,7 +7,7 @@ import numpy as np
 from matplotlib.ticker import MaxNLocator
 
 from scripts.make_report import (INK, MUTED, ORDER, PROPOSED, SIZE, STYLE, model_average,
-                                 read_history, slug, style_axes)
+                                 read_history, slug, style_axes, vn, vn_density)
 from scripts.train_model import DENSITIES
 
 ASCENDING = sorted(DENSITIES)                # bar groups, sparse to full (as H1)
@@ -51,12 +51,12 @@ def density_bars(ax, value, fmt="{:.4f}", densities=ASCENDING, order=ORDER, styl
                 missing.append(x)
                 continue
             ax.bar(x, result, width=width, color=spec["color"], edgecolor="white", linewidth=1.5, hatch=hatch(model))
-            ax.annotate(fmt.format(result), (x, result), xytext=(0, 2), textcoords="offset points", ha="center",
+            ax.annotate(vn(fmt.format(result)), (x, result), xytext=(0, 2), textcoords="offset points", ha="center",
                         va="bottom", fontsize=LABEL, rotation=90)
             tops.append(result)
-    ax.set_xticks(range(len(densities)), [f"{d:.2f}" for d in densities])
+    ax.set_xticks(range(len(densities)), [vn_density(d) for d in densities])
     ax.set_xlim(-.6, len(densities) - .4)
-    ax.set_xlabel("Mật độ dữ liệu huấn luyện (tỉ lệ tương tác được giữ lại)")
+    ax.set_xlabel("Tỉ lệ tương tác huấn luyện được giữ lại $d$")
     return tops, missing
 
 
@@ -89,7 +89,7 @@ def grid(size=SIZE):
     fig, axes = plt.subplots(2, 2, figsize=size, layout="constrained", sharex=True, sharey=True)
     for ax, density in zip(axes.flat, PANELS):
         style_axes(ax)
-        ax.set_title(f"Mật độ {density:.2f}", fontsize=9)
+        ax.set_title(f"$d$ = {vn_density(density)}", fontsize=9)
         ax.tick_params(labelsize=8)
     return fig, axes
 
@@ -179,11 +179,11 @@ def figure_loss(summary, folder, notes, seed=42):
     for ax in axes[1]:
         ax.xaxis.set_major_locator(MaxNLocator(integer=True))
     shared_xlabel(fig, axes, "Epoch")
-    fig.supylabel("Loss huấn luyện", fontsize=9)
+    fig.supylabel("Hàm mất mát huấn luyện", fontsize=9)
     handles = [plt.Line2D([], [], color=INK, linestyle=DENSITY_LINES[d], linewidth=1.3) for d in PANELS]
     handles.append(plt.Line2D([], [], color=MUTED, marker="o", linestyle="none", markersize=5,
                               markeredgecolor="white"))
-    legend(fig, handles, [f"Mật độ {d:.2f}" for d in PANELS] + ["Epoch tốt nhất theo NDCG@20"], ncol=5)
+    legend(fig, handles, [f"$d$ = {vn_density(d)}" for d in PANELS] + ["Epoch tốt nhất theo NDCG@20"], ncol=5)
     save(fig, folder, "H3c_loss", notes)
 
 
@@ -206,17 +206,17 @@ def figure_groups(scores, full_train, metric, folder, notes, order=ORDER, style=
                 x, mean = g + (k - (len(order) - 1) / 2) * width, values[mask].mean()
                 ax.bar(x, mean, width=width, color=style[model]["color"], edgecolor="white", linewidth=1,
                        hatch=hatch(model))
-                ax.annotate(f"{mean:.4f}", (x, mean), xytext=(0, 1.5), textcoords="offset points", ha="center",
+                ax.annotate(vn(f"{mean:.4f}"), (x, mean), xytext=(0, 1.5), textcoords="offset points", ha="center",
                             va="bottom", fontsize=LABEL, rotation=90)
                 tops.append(mean)
             drawn += 1
         if not drawn:
             unavailable(ax)
         # The same users in every panel, so the bottom row's labels (shared x axis) serve all four.
-        ax.set_xticks(range(len(BINS)), [name if sizes is None else f"{name}\n(n = {size:,})"
+        ax.set_xticks(range(len(BINS)), [name if sizes is None else f"{name}\n(n = {vn(f'{size:,}')})"
                                          for (name, _, _), size in zip(BINS, sizes or [0] * len(BINS))])
     axes[0, 0].set_ylim(0, (max(tops) if tops else 1) * 1.3)  # room for the value labels (shared y)
-    shared_xlabel(fig, axes, "Số tương tác của user trong tập huấn luyện gốc", pad=38)
+    shared_xlabel(fig, axes, "Số tương tác của người dùng trong tập huấn luyện gốc", pad=38)
     fig.supylabel(metric, fontsize=9)
     handles = [plt.Rectangle((0, 0), 1, 1, facecolor=style[m]["color"], edgecolor="white", hatch=hatch(m))
                for m in order]

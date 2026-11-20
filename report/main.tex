@@ -1,0 +1,529 @@
+% !TEX program = xelatex
+\documentclass[12pt,a4paper]{article}
+\setcounter{tocdepth}{3}
+\setcounter{secnumdepth}{3}
+\usepackage{caption}
+\captionsetup[table]{position=bottom}
+\captionsetup[figure]{position=bottom}
+\usepackage{float}
+\usepackage{placeins} % \FloatBarrier: hình không trôi qua ranh giới tiểu mục
+% Hình được đặt cùng văn bản thay vì dồn sang trang chỉ có hình còn trống nhiều.
+\renewcommand{\topfraction}{0.85}
+\renewcommand{\bottomfraction}{0.6}
+\renewcommand{\textfraction}{0.1}
+\renewcommand{\floatpagefraction}{0.75}
+\usepackage{fontspec}
+% Times New Roman trên máy cá nhân; Overleaf không có font này nên dùng TeX Gyre Termes, bản sao của Times.
+\IfFontExistsTF{Times New Roman}{%
+  \setmainfont{Times New Roman}%
+  \setmonofont{Times New Roman}%
+}{%
+  \setmainfont{TeX Gyre Termes}%
+  \setmonofont{TeX Gyre Termes}%
+}
+\renewcommand{\figurename}{Hình}
+\renewcommand{\tablename}{Bảng}
+\renewcommand{\refname}{TÀI LIỆU THAM KHẢO}
+\usepackage{tocloft,calc}
+\usepackage[top=3.5cm, bottom=3.0cm, left=3.5cm, right=2.0cm]{geometry} % căn lề theo quy chuẩn KLTN
+\usepackage{amsmath,latexsym,amscd,amsfonts,mathrsfs,enumerate} \usepackage{ upgreek }
+\usepackage[thref,thmmarks,standard,amsmath,hyperref]{ntheorem}
+\usepackage[mathscr]{eucal}
+\usepackage[unicode,colorlinks=true, bookmarks=true, pdfstartview=FitH,]{hyperref} %pagebackref=true,
+\hypersetup{
+pdftitle={Hệ thống khuyến nghị sản phẩm điện tử bằng hồi quy lân cận và khuếch tán trên đồ thị},
+pdfauthor={Đặng Anh Tuyền;},
+colorlinks = true,
+linkcolor = black,
+citecolor = blue,
+urlcolor = blue,
+}
+\usepackage{fancyhdr}
+\usepackage{graphicx}
+\graphicspath{{image/}}
+\usepackage{fancybox,cite}
+\usepackage{subcaption}
+\usepackage[ruled,linesnumbered,lined,longend]{algorithm2e}
+% Trình bày mã giả: đường dọc theo khối, số dòng nhỏ, dòng tiếp nối thụt vào.
+\SetAlFnt{\fontsize{11}{13.5}\selectfont}
+\SetAlgoNlRelativeSize{-2}
+\SetNlSty{bfseries}{}{}
+\SetNlSkip{0.7em}
+\SetInd{0.5em}{1.1em}
+\SetAlgoHangIndent{1.5em}
+\SetAlgoSkip{medskip}
+\SetAlCapFnt{\bfseries}
+\SetAlCapNameFnt{\bfseries}
+\SetAlgorithmName{Thuật toán}{thuật toán}{Danh sách thuật toán}
+\SetKwInput{KwIn}{Đầu vào}
+\SetKwInput{KwOut}{Đầu ra}
+\SetKwFor{For}{với}{thực hiện}{kết thúc}
+\SetKwFor{ForEach}{với mỗi}{thực hiện}{kết thúc}
+\SetKwFor{While}{trong khi}{thực hiện}{kết thúc}
+\SetKwIF{If}{ElseIf}{Else}{nếu}{thì}{ngược lại nếu}{ngược lại}{kết thúc}
+%\usepackage{refcheck}
+ 
+\allowdisplaybreaks
+%Môi trường định nghĩa
+\theoremheaderfont{\bfseries} % In ra chữ "định nghĩa": đậm, thẳng đứng.
+\theorembodyfont{} % Nội dung của định nghia được viết bằng chữ thẳng đứng.
+\theoremseparator {}         % Ngăn cách giữa định nghĩa và nội dung định nghĩa bởi dấu chấm.
+\newtheorem{dn}{Định nghĩa}[section] % Lệnh này để trong file kết quả in ra chữ nhận xét thay vì nếu ta để mặc định.
+
+%Môi trường Ví dụ
+\theoremheaderfont{\bfseries} % In ra chữ "Ví dụ": đậm, thẳng đứng.
+\theorembodyfont{\normalfont} % Nội dung của ví dụ được viết bằng chữ thẳng đứng.
+\theoremseparator {.}         % Ngăn cách giữa Ví dụ và nội dung ví dụ bởi dấu chấm.
+\newtheorem{vd}{Ví dụ}[section] % Lệnh này để trong file kết quả in ra chữ Ví dụ thay vì Example nếu ta để mặc định.
+
+%Môi trường Chú ý
+\theoremstyle{plain} %Không đánh sỗ chú ý
+\theoremheaderfont{\bfseries} % In ra chữ "chú ý": đậm, thẳng đứng.
+\theorembodyfont{\normalfont} % Nội dung của chú ý được viết bằng chữ thẳng đứng.
+\theoremseparator {}         % Ngăn cách giữa "chú ý" và nội dung chú ý bởi dấu chấm.
+\newtheorem{cy}{Chú ý} % Lệnh này để trong file kết quả in ra chữ "chú ý" thay vì remark nếu ta để mặc định.
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{fvextra}
+\usepackage{enumitem}
+\setlist{itemsep=3pt,topsep=5pt,parsep=0pt}
+\usepackage{tabularx}
+\usepackage{multirow}
+\usepackage{makecell}
+\usepackage{tikz}
+\usepackage{xurl}
+
+% Khối lệnh cài đặt: phông đơn cách chỉ áp dụng bên trong môi trường này.
+% Consolas trên Windows; Overleaf (TeX Live trên Linux) không có nên dùng DejaVu Sans Mono hoặc Latin Modern Mono.
+\IfFontExistsTF{Consolas}{%
+  \newfontfamily\DemoCommandFont{Consolas}[Scale=MatchLowercase]%
+}{%
+  \IfFontExistsTF{DejaVu Sans Mono}{%
+    \newfontfamily\DemoCommandFont{DejaVu Sans Mono}[Scale=MatchLowercase]%
+  }{%
+    \newfontfamily\DemoCommandFont{Latin Modern Mono}[Scale=MatchLowercase]%
+  }%
+}
+\definecolor{DemoCommandBackground}{RGB}{247,248,250}
+\definecolor{DemoCommandBorder}{RGB}{190,195,202}
+\DefineVerbatimEnvironment{DemoCommand}{Verbatim}{%
+    fontsize=\small,
+    formatcom=\DemoCommandFont,
+    baselinestretch=1.15,
+    frame=single,
+    framerule=0.4pt,
+    framesep=7pt,
+    rulecolor=\color{DemoCommandBorder},
+    bgcolor=DemoCommandBackground,
+    breaklines=true,
+    breakanywhere=false
+}
+
+\Urlmuskip=0mu plus 1mu
+\emergencystretch=3em
+\usetikzlibrary{arrows.meta,positioning,calc}
+
+% Kiểu dùng chung cho các sơ đồ vector ở Chương 3.
+\tikzset{
+    chthreeflow/.style={-{Latex[length=2.5mm,width=1.7mm]}, line width=0.9pt, draw=blue!35!black, shorten <=2pt, shorten >=2pt},
+    chthreedash/.style={-{Latex[length=2.3mm,width=1.5mm]}, line width=0.85pt, dashed, draw=blue!55!black, shorten <=2pt, shorten >=2pt},
+    chthreeblue/.style={draw=blue!70!black, fill=blue!4, rounded corners=5pt, line width=0.8pt, align=center, inner sep=6pt},
+    chthreegreen/.style={draw=green!55!black, fill=green!5, rounded corners=5pt, line width=0.8pt, align=center, inner sep=6pt},
+    chthreepurple/.style={draw=violet!70!black, fill=violet!5, rounded corners=5pt, line width=0.8pt, align=center, inner sep=6pt},
+    chthreeorange/.style={draw=orange!80!black, fill=orange!6, rounded corners=5pt, line width=0.8pt, align=center, inner sep=6pt}
+}
+
+% Hiển thị các số phương trình được dẫn lại bằng màu xanh.
+\renewcommand{\eqref}[1]{%
+    \hyperref[#1]{\textcolor{blue}{\textup{(\ref*{#1})}}}%
+}
+
+% Hiển thị số hình được dẫn lại bằng màu xanh, giữ chữ "hình" màu đen.
+% \figref viết thường dùng giữa câu; \Figref viết hoa dùng ở đầu câu hoặc đầu ô bảng.
+\newcommand{\figref}[1]{%
+    hình~\hyperref[#1]{\textcolor{blue}{\ref*{#1}}}%
+}
+\newcommand{\Figref}[1]{%
+    Hình~\hyperref[#1]{\textcolor{blue}{\ref*{#1}}}%
+}
+
+% Hiển thị số bảng được dẫn lại bằng màu xanh, giữ chữ "bảng" màu đen.
+% \tabref viết thường dùng giữa câu; \Tabref viết hoa dùng ở đầu câu hoặc đầu ô bảng.
+\newcommand{\tabref}[1]{%
+    bảng~\hyperref[#1]{\textcolor{blue}{\ref*{#1}}}%
+}
+\newcommand{\Tabref}[1]{%
+    Bảng~\hyperref[#1]{\textcolor{blue}{\ref*{#1}}}%
+}
+
+% Tô xanh toàn bộ cụm trích dẫn, gồm ngoặc vuông và phần chỉ vị trí (ví dụ [13, Mục 4.4]).
+\let\origcite\cite
+\renewcommand{\cite}[2][]{{\color{blue}\if\relax\detokenize{#1}\relax\origcite{#2}\else\origcite[#1]{#2}\fi}}
+
+%Môi trường Bài tập
+\theoremheaderfont{\bfseries} % In ra chữ "chú ý": đậm, thẳng đứng.
+\theorembodyfont{\normalfont} % Nội dung của chú ý được viết bằng chữ thẳng đứng.
+\theoremseparator {}         % Ngăn cách giữa "chú ý" và nội dung chú ý bởi dấu chấm.\newtheorem{bt}{Bài tập} % Lệnh này để trong file kết quả in ra chữ "chú ý" thay vì  remark nếu ta để mặc định.
+
+%Môi trường nhân xét
+\theoremheaderfont{\bfseries} % In ra chữ "Nhân xét": đậm, thẳng đứng.
+\theorembodyfont{\normalfont} % Nội dung của nhạn xét được viết bằng chữ thẳng đứng.
+\theoremseparator {}         % Ngăn cách giữa nhận xét và nội dung nhận xét bởi dấu chấm.
+\newtheorem{nx}{Nhận xét}[section] % Lệnh này để trong file kết quả in ra chữ nhận xét thay vì nếu ta để mặc định.
+
+%Môi trường định lý
+\theoremstyle{plain} %Sử dụng phong cách plain để đánh số Định lý, chẳng hạn: Định lý 1, Định lý 2,...
+\theoremheaderfont{\normalfont\bfseries} % In ra chữ "Định lý": đậm, thẳng đứng.
+\theorembodyfont{\normalfont} % Nội dung của Định lý được viết bằng chữ nghiêng.
+\theoremseparator {.}         % Ngăn cách giữa Định lý và nội dung định lý bởi dấu chấm.
+\renewtheorem{theorem}{Định lý} % Lệnh này để trong file kết quả in ra chữ Định lý thay vì theorem nếu ta để mặc định.
+%Môi trường Mệnh đề
+\theoremstyle{plain} %Sử dụng phong cách plain để đánh số Mệnh đề, chẳng hạn: Mệnh đề 1, Mệnh đề 2,...
+\theoremheaderfont{\normalfont\bfseries} % In ra chữ "Mệnh đề": đậm, thẳng đứng.
+\theorembodyfont{\normalfont} % Nội dung của Mệnh đề được viết bằng chữ thẳng đứng.
+\theoremseparator {.}         % Ngăn cách giữa Mệnh đề và nội dung mệnh đề bởi dấu chấm.
+\renewtheorem{proposition}{Mệnh đề}[section] % Lệnh này để trong file kết quả in ra chữ Mệnh đề thay vì proposition nếu ta để mặc định.
+%Môi trường Chứng minh
+\theoremstyle{nonumberplain}  % Kiểu định dạng dành cho chứng minh
+\theoremheaderfont{\normalfont\bfseries} % Tiêu đề "Chứng minh" in nghiêng
+\theorembodyfont{\normalfont}
+\theoremseparator{.} 
+\theoremsymbol{\ensuremath{\square}} % Dấu kết thúc chứng minh là ô vuông
+\newtheorem{cm}{Chứng minh}[section]
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\itshape Học máy nâng cao 1-1-26(N01)}
+\fancyfoot[L]{\fontsize{9}{11}\selectfont\itshape Hệ thống khuyến nghị sản phẩm điện tử bằng hồi quy lân cận và khuếch tán trên đồ thị}
+\fancyfoot[R]{\fontsize{9}{11}\selectfont\thepage}
+\setlength{\headheight}{16pt}
+\renewcommand{\headrulewidth}{1.2pt}
+\renewcommand{\footrulewidth}{1.2pt} % Tiêu đề chân trang
+\fancypagestyle{plain}{
+    \fancyhf{}
+    \fancyhead[L]{\itshape Học máy nâng cao 1-1-26(N01)}
+    \fancyfoot[L]{\fontsize{9}{11}\selectfont\itshape Hệ thống khuyến nghị sản phẩm điện tử bằng hồi quy lân cận và khuếch tán trên đồ thị}
+    \fancyfoot[R]{\fontsize{9}{11}\selectfont\thepage}
+    \renewcommand{\headrulewidth}{1.2pt}
+    \renewcommand{\footrulewidth}{1.2pt}
+}
+
+\numberwithin{equation}{section}
+\numberwithin{figure}{section}
+\numberwithin{table}{section}
+
+\begin{document}
+ \fontsize{13pt}{18pt}\selectfont
+ \hypersetup{pageanchor=false}
+ 
+ \thisfancypage{\setlength{\fboxsep}{0.2cm}\setlength{\fboxrule}{1pt}\doublebox}{}
+ \begin{titlepage}
+\begin{center}
+	\large
+	BỘ GIÁO DỤC VÀ ĐÀO TẠO\\
+	\textbf{ĐẠI HỌC PHENIKAA}\\
+	\textbf{TRƯỜNG CÔNG NGHỆ THÔNG TIN}\\[0.15cm]
+	\rule{3.2cm}{0.4pt}\,o0o\,\rule{3.2cm}{0.4pt}
+\end{center}
+\vspace{-0.5cm}
+\begin{center}
+    \includegraphics[scale=0.8]{image/Logo.png}\\[1cm] 
+\end{center} 
+\vspace{0.3 cm}
+\begin{center}
+    \bf\Large {BÁO CÁO BÀI TẬP LỚN}
+\end{center}
+\begin{center}
+    \bf\large {HỌC PHẦN: HỌC MÁY NÂNG CAO 1-1-26(N01)}
+\end{center}
+\vspace{0.3 cm}
+\begin{center}
+	\bf\large ĐỀ TÀI: HỆ THỐNG KHUYẾN NGHỊ SẢN PHẨM ĐIỆN TỬ BẰNG HỒI QUY LÂN CẬN VÀ KHUẾCH TÁN TRÊN ĐỒ THỊ
+\end{center}
+\begin{center}
+	\normalsize
+	\renewcommand{\arraystretch}{1.15}
+	\begin{tabular}{@{}p{5.2cm}l@{}}
+        \textbf{Đặng Anh Tuyền} & \textbf{MSSV:} 23010912 \\
+                                & \textbf{Lớp:} K17-KHMT(AI\&KHDL)\_1 \\[0.25cm]
+        \textbf{Phạm Văn Sự} & \textbf{MSSV:} 23010523 \\
+                                & \textbf{Lớp:} K17-KHMT(AI\&KHDL)\_1 \\[0.25cm]
+        \textbf{Nguyễn Chí Tài} & \textbf{MSSV:} 23010548 \\
+                                & \textbf{Lớp:} K17-KHMT(AI\&KHDL)\_1
+	\end{tabular}
+\end{center}
+
+\vskip 0.8 cm
+  \begin{center}
+   GVHD: PGS.TS. Phạm Tiến Lâm
+  \end{center}
+\vskip 0.5 cm
+  \begin{center}
+   {\large\textbf{Hà Nội, Năm 2026}}
+  \end{center}
+ \end{titlepage}
+
+% Bìa lót: bố cục học thuật theo mẫu, có khung đôi và không sử dụng logo.
+\begin{titlepage}
+\thispagestyle{empty}
+\thisfancypage{\setlength{\fboxsep}{0.2cm}\setlength{\fboxrule}{1pt}\doublebox}{}
+\begin{center}
+	\large
+	BỘ GIÁO DỤC VÀ ĐÀO TẠO\\
+	\textbf{ĐẠI HỌC PHENIKAA}\\
+	\textbf{TRƯỜNG CÔNG NGHỆ THÔNG TIN}\\[0.15cm]
+	\rule{4cm}{0.4pt}\,o0o\,\rule{4cm}{0.4pt}
+\end{center}
+\vspace{1.5cm}
+\begin{center}
+	\normalsize
+	\renewcommand{\arraystretch}{1.15}
+	\begin{tabular}{@{}p{5.2cm}l@{}}
+        \textbf{Đặng Anh Tuyền} & \textbf{MSSV:} 23010912 \\
+                                & \textbf{Lớp:} K17-KHMT(AI\&KHDL)\_1 \\[0.25cm]
+        \textbf{Phạm Văn Sự} & \textbf{MSSV:} 23010523 \\
+                                & \textbf{Lớp:} K17-KHMT(AI\&KHDL)\_1 \\[0.25cm]
+        \textbf{Nguyễn Chí Tài} & \textbf{MSSV:} 23010548 \\
+                                & \textbf{Lớp:} K17-KHMT(AI\&KHDL)\_1
+	\end{tabular}
+\end{center}
+\vspace{1.3cm}
+\begin{center}
+    \bf\Large {BÁO CÁO BÀI TẬP LỚN}
+\end{center}
+\begin{center}
+    \bf\large {HỌC PHẦN: HỌC MÁY NÂNG CAO 1-1-26(N01)}
+\end{center}
+\vspace{0.65cm}
+\begin{center}
+	\bf\Large HỆ THỐNG KHUYẾN NGHỊ SẢN PHẨM ĐIỆN TỬ BẰNG HỒI QUY LÂN CẬN VÀ KHUẾCH TÁN TRÊN ĐỒ THỊ
+\end{center}
+\vfill
+\begin{center}
+    GVHD: PGS.TS. Phạm Tiến Lâm
+\end{center}
+\vfill
+\begin{center}
+    {\large\textbf{Hà Nội, Năm 2026}}
+\end{center}
+\vspace{0.25cm}
+\end{titlepage}
+
+% Bảng phân chia công việc của nhóm.
+\begin{titlepage}
+\thispagestyle{empty}
+\begin{center}
+    {\bfseries\Large BẢNG PHÂN CHIA CÔNG VIỆC}
+\end{center}
+\vspace{0.45cm}
+
+\begingroup
+\fontsize{10.5pt}{12.5pt}\selectfont
+\setlength{\tabcolsep}{3.5pt}
+\setlength{\arrayrulewidth}{0.7pt}
+\renewcommand{\arraystretch}{1.08}
+\begin{center}
+\begin{tabularx}{\textwidth}{|
+    >{\centering\arraybackslash}m{0.8cm}|
+    >{\centering\arraybackslash}m{3.5cm}|
+    >{\centering\arraybackslash}p{1.75cm}|
+    >{\raggedright\arraybackslash}X|
+    >{\centering\arraybackslash}m{1.45cm}|}
+\hline
+\textbf{STT} & \centering\textbf{Họ và tên} & \textbf{Vai trò} & \centering\textbf{Nội dung công việc} & \textbf{Tỷ lệ} \\
+\hline
+1 & \makecell[c]{Đặng Anh Tuyền} & Trưởng nhóm &
+\begin{minipage}[t]{\linewidth}\raggedright\begin{itemize}[nosep,leftmargin=1.1em]
+\item Điều phối nhóm
+\item Tiền xử lý dữ liệu và chia tập theo thời gian
+\item Tạo các mức giảm dữ liệu huấn luyện
+\item Đề xuất và cài đặt GRNR
+\item Cài đặt EASE và GF-CF
+\item Tham gia xây dựng báo cáo và slide
+\end{itemize}\vspace{3pt}\end{minipage} & 33\% \\
+\hline
+2 & \makecell[c]{Phạm Văn Sự} & Thành viên &
+\begin{minipage}[t]{\linewidth}\raggedright\begin{itemize}[nosep,leftmargin=1.1em]
+\item Đề xuất và cài đặt DFHF
+\item Cài đặt LightGCN, XSimGCL và \mbox{DirectAU}
+\item Huấn luyện các mô hình nhóm cần huấn luyện trên Kaggle
+\item Tham gia xây dựng báo cáo và slide
+\end{itemize}\vspace{3pt}\end{minipage} & 33\% \\
+\hline
+3 & \makecell[c]{Nguyễn Chí Tài} & Thành viên &
+\begin{minipage}[t]{\linewidth}\raggedright\begin{itemize}[nosep,leftmargin=1.1em]
+\item Xây dựng giao thức đánh giá
+\item Cài đặt kiểm định bootstrap ghép cặp
+\item Phân tích kết quả và vẽ biểu đồ
+\item Xây dựng hệ thống demo
+\item Tham gia xây dựng báo cáo và slide
+\end{itemize}\vspace{3pt}\end{minipage} & 33\% \\
+\hline
+\end{tabularx}
+\end{center}
+\endgroup
+
+\vspace{0.5cm}
+{\fontsize{12pt}{15pt}\selectfont
+\noindent\textbf{Công khai sử dụng công cụ AI.} Nhóm sử dụng trợ lý AI Claude của Anthropic để:
+\begin{itemize}[nosep,leftmargin=1.5em]
+\item gợi ý chọn hướng đề tài hệ thống khuyến nghị;
+\item hỗ trợ tìm hiểu tài liệu và quy trình xây dựng dự án;
+\item thiết kế giao diện và trải nghiệm người dùng của ứng dụng demo;
+\item rà soát tính nhất quán giữa văn bản, bảng và hình;
+\item hỗ trợ kiểm tra và sửa lỗi mã nguồn của dự án.
+\end{itemize}
+\vspace{0.3cm}
+\noindent\textbf{Phần tự cài đặt và phần kế thừa.} Không dùng thư viện khuyến nghị dựng sẵn:
+\begin{itemize}[nosep,leftmargin=1.5em]
+\item GRNR và DFHF do nhóm tự thiết kế và cài đặt;
+\item EASE, GF-CF, LightGCN, XSimGCL và DirectAU được cài lại theo bài báo gốc và mã của tác giả;
+\item tiền xử lý, đánh giá, kiểm định và demo do nhóm tự viết trên PyTorch, NumPy, SciPy và Streamlit.
+\end{itemize}
+\vspace{0.3cm}
+\noindent\textbf{Giấy phép dữ liệu.} Bộ dữ liệu đánh giá sản phẩm Amazon được McAuley và cộng sự công bố công khai cho mục đích nghiên cứu~\cite{mcauley2015image,he2016ups}; nhóm chỉ dùng dữ liệu cho mục đích học thuật và không phân phối lại dữ liệu gốc.\par}
+
+\vspace{0.7cm}
+\begin{center}
+    {\fontsize{13pt}{16pt}\selectfont
+    \textbf{Repository dự án:}\quad
+    \href{https://github.com/tuyenda2011/GRNR-DFHF-RecSys}{\texttt{github.com/tuyenda2011/GRNR-DFHF-RecSys}}}
+\end{center}
+\end{titlepage}
+
+\pagestyle{fancy}
+\pagenumbering{arabic}
+\setcounter{page}{1}
+\hypersetup{pageanchor=true,linkcolor=black}
+
+% Chèn mục lục
+\renewcommand{\contentsname}{Mục lục}
+\tableofcontents
+
+% Ngắt trang tại đây để chuyển Danh mục hình ảnh sang trang mới
+\newpage 
+%\clearpage % (Bạn cũng có thể dùng \clearpage thay cho \newpage)
+
+% Chèn danh mục hình ảnh
+\renewcommand{\listfigurename}{Danh sách hình ảnh}
+\listoffigures
+
+% Chèn danh mục bảng
+\clearpage
+\renewcommand{\listtablename}{Danh sách bảng}
+\listoftables
+
+% Danh mục từ viết tắt
+\clearpage
+\section*{Danh mục từ viết tắt}
+\addcontentsline{toc}{section}{Danh mục từ viết tắt}
+\begingroup
+\renewcommand{\arraystretch}{1.15}
+\begin{longtable}{@{}l>{\raggedright\arraybackslash}p{0.72\linewidth}@{}}
+\toprule
+Viết tắt & Tên đầy đủ hoặc ý nghĩa \\
+\midrule
+\endhead
+BPR & Bayesian Personalized Ranking, hàm mất mát xếp hạng theo cặp \\
+BSPM & Blurring-Sharpening Process Models, mô hình lọc đồ thị gần đây, không chạy trong thực nghiệm \\
+CPU, GPU & Central Processing Unit (bộ xử lý trung tâm), Graphics Processing Unit (bộ xử lý đồ họa) \\
+DCG & Discounted Cumulative Gain, tổng lợi ích chiết khấu theo vị trí \\
+IDCG & Ideal Discounted Cumulative Gain, giá trị DCG của thứ tự lý tưởng \\
+DFHF & Diffusion-Filtered History Factorization, mô hình đề xuất thuộc nhóm cần huấn luyện \\
+DirectAU & Tên riêng, bài gốc không nêu dạng đầy đủ; hàm mục tiêu tối ưu trực tiếp tính căn chỉnh (alignment) và tính đồng đều (uniformity), baseline thuộc nhóm cần huấn luyện \\
+EASE & Embarrassingly Shallow Autoencoder, baseline thuộc nhóm giải trực tiếp \\
+FISM & Factored Item Similarity Models \\
+GF-CF & Graph Filter based Collaborative Filtering, baseline thuộc nhóm giải trực tiếp \\
+GRNR & Graph-Regularized Neighborhood Regression, mô hình đề xuất thuộc nhóm giải trực tiếp \\
+KTC & Khoảng tin cậy \\
+LightGCN & Light Graph Convolution Network, baseline thuộc nhóm cần huấn luyện \\
+GiB & Gibibyte ($2^{30}$ byte) \\
+MiB & Mebibyte ($2^{20}$ byte) \\
+MostPop & Xếp hạng theo độ phổ biến, mốc tham chiếu không cá nhân hóa \\
+Mult-VAE & Variational Autoencoder với phân phối đa thức \\
+NDCG@$K$ & Normalized Discounted Cumulative Gain at $K$ \\
+Recall@$K$ & Recall at $K$, tỉ lệ sản phẩm mục tiêu nằm trong $K$ vị trí đầu \\
+SLIM & Sparse Linear Methods \\
+XSimGCL & eXtremely Simple Graph Contrastive Learning, baseline thuộc nhóm cần huấn luyện \\
+\bottomrule
+\end{longtable}
+\endgroup
+
+% Danh mục ký hiệu
+\clearpage
+\section*{Danh mục ký hiệu}
+\addcontentsline{toc}{section}{Danh mục ký hiệu}
+Bảng dưới liệt kê các ký hiệu dùng xuyên suốt báo cáo. Ký hiệu chỉ dùng trong một công thức được giải thích ngay tại chỗ.
+
+\begingroup
+\fontsize{12}{15}\selectfont
+\renewcommand{\arraystretch}{1.00}
+\begin{longtable}{@{}l>{\raggedright\arraybackslash}p{0.56\linewidth}l@{}}
+\toprule
+Ký hiệu & Ý nghĩa & Định nghĩa \\
+\midrule
+\endhead
+$\mathcal{U}$, $\mathcal{I}$ & Tập người dùng, tập sản phẩm & Mục~\ref{sec:notation} \\
+$X$ & Ma trận tương tác nhị phân, $X_{ui}=1$ nếu đã quan sát được tương tác & Định nghĩa~\ref{def:implicit} \\
+$x_u$ & Hàng $u$ của $X$, tức lịch sử của người dùng $u$ dưới dạng vector & Mục~\ref{sec:notation} \\
+$H_u$, $n_u$ & Lịch sử của người dùng $u$ và độ dài lịch sử & Mục~\ref{sec:notation} \\
+$c_i$ & Số người dùng đã tương tác với sản phẩm $i$ (độ phổ biến) & Mục~\ref{sec:notation} \\
+$D_U$, $D_I$ & Ma trận bậc của người dùng và của sản phẩm & Mục~\ref{sec:notation} \\
+$E$, $|E|$ & Tập tương tác và số tương tác & Mục~\ref{sec:notation} \\
+$s(u,i)$ & Điểm mô hình gán cho cặp $(u,i)$ & Định nghĩa~\ref{def:topk} \\
+$\mathcal{C}_u$ & Tập sản phẩm ứng viên hợp lệ của người dùng $u$ & Định nghĩa~\ref{def:topk} \\
+$K$ & Số sản phẩm trong danh sách gợi ý & Định nghĩa~\ref{def:topk} \\
+$f$ & Số chiều embedding & Mục~\ref{sec:trained-models} \\
+$\lambda$ & Hệ số phạt ridge của EASE & Mục~\ref{sec:ease} \\
+$\kappa_{\mathrm{lift}}$ & Hằng số làm trơn điểm dư đồng xuất hiện của GRNR & \eqref{eq:grnr-lift} \\
+$\omega_+$ & Trọng số mẫu dương của GRNR & \eqref{eq:grnr-objective} \\
+$\rho_{\mathrm{pop}}$ & Số mũ điều chỉnh độ phổ biến của GRNR & Mục~\ref{sec:grnr-algorithm} \\
+$\lambda_{\mathrm{emb}}$ & Hệ số phạt ridge cho embedding của DFHF & \eqref{eq:dfhf-objective} \\
+$\Omega$, $P$ & Ma trận trọng số mẫu, ma trận phạt trong hồi quy có trọng số & Định nghĩa~\ref{def:wls} \\
+$C$, $C^\circ$ & Ma trận đồng xuất hiện và phiên bản có đường chéo bằng 0 & Mục~\ref{sec:notation}, Định nghĩa~\ref{def:cooccurrence} \\
+$A$, $D_A$ & Ma trận kề của một đồ thị và ma trận bậc của nó & Định nghĩa~\ref{def:laplacian} \\
+$\tilde A$, $L$ & Ma trận kề chuẩn hóa, Laplacian chuẩn hóa & Định nghĩa~\ref{def:laplacian} \\
+$T$ & Ma trận chuyển hai bước sản phẩm $\to$ người dùng $\to$ sản phẩm & \eqref{eq:transition} \\
+$\mathcal{B}$ & Ma trận hệ số sản phẩm--sản phẩm của GRNR & Mục~\ref{sec:grnr-algorithm} \\
+$S$, $V$ & Hai bảng embedding nguồn và đích của DFHF & Mục~\ref{sec:dfhf-representation} \\
+$b$, $b_i$ & Vector chặn theo sản phẩm và phần tử thứ $i$; dùng ở cả GRNR và DFHF, mỗi mô hình học vector riêng & Mục~\ref{sec:grnr-algorithm}, \ref{sec:dfhf-representation} \\
+$Q_{\mathrm{batch}}$ & Số truy vấn tối đa trong một lô huấn luyện của DFHF & Mục~\ref{sec:dfhf-algorithm} \\
+$F$, $\pi_i$ & Bộ lọc khuếch tán và xác suất sản phẩm $i$ được lấy làm đích & Mục~\ref{sec:dfhf-representation}, \ref{sec:dfhf-objective} \\
+$\mathcal{Q}$ & Lô, tập tương tác dùng trong một bước cập nhật & Mục~\ref{sec:trained-models} \\
+$\mathbb{E}$ & Kỳ vọng & Mục~\ref{sec:cooccurrence} \\
+$d$ & Tỉ lệ tương tác huấn luyện được giữ lại & Mục~\ref{sec:sparsity-protocol} \\
+\bottomrule
+\end{longtable}
+\endgroup
+
+% Ngắt trang để phần nội dung bài viết bắt đầu ở trang mới
+\clearpage
+% Tóm tắt
+\section*{\centering Tóm tắt}
+\addcontentsline{toc}{section}{Tóm tắt}
+Đề tài xét bài toán khuyến nghị top-$K$ từ phản hồi ngầm trên danh mục Electronics của bộ dữ liệu đánh giá sản phẩm Amazon, gồm 124.895 người dùng, 44.843 sản phẩm và khoảng 1,07 triệu tương tác. Nhóm đề xuất hai mô hình biểu diễn người dùng bằng lịch sử tương tác, nhờ đó chấm điểm được lịch sử mới mà không cần huấn luyện lại. Graph-Regularized Neighborhood Regression (GRNR) giải cho mỗi sản phẩm một bài toán hồi quy có điều chuẩn đồ thị trên tối đa 128 láng giềng; Diffusion-Filtered History Factorization (DFHF) học hai bảng embedding sản phẩm được làm trơn bằng bộ lọc khuếch tán và huấn luyện bằng softmax trên toàn danh mục. Mỗi mô hình chỉ được so với ba baseline cùng nhóm, ở bốn mức giữ lại dữ liệu huấn luyện, và được đối chiếu với mốc gợi ý theo độ phổ biến MostPop.
+
+Trên tập kiểm tra độc lập và với toàn bộ dữ liệu huấn luyện, GRNR đạt Normalized Discounted Cumulative Gain tại 20 vị trí đầu (NDCG@20) bằng 0,02843. Kết quả này chưa phân biệt được với Embarrassingly Shallow Autoencoder (EASE) đầy đủ, trong khi dung lượng của GRNR nhỏ hơn khoảng 190 lần. DFHF dẫn đầu nhóm cần huấn luyện ở cả bốn mức dữ liệu, đạt 0,02724 ở mức đầy đủ. Khi bớt dữ liệu, lợi thế cá nhân hóa mất nhanh: còn 50\% tương tác thì mọi mô hình trừ DFHF đã thấp hơn MostPop, còn 25\% thì DFHF chỉ ngang MostPop và các mô hình khác thấp hơn rõ. Trên dữ liệu này, khả năng cá nhân hóa phụ thuộc vào độ dày dữ liệu nhiều hơn vào lựa chọn mô hình. Các kết quả được đo với một seed, sau khi chọn cấu hình và checkpoint trên tập xác thực.
+
+\medskip
+\noindent Từ khóa: hệ thống khuyến nghị, phản hồi ngầm, hồi quy lân cận, lọc khuếch tán trên đồ thị, dữ liệu thưa.
+
+\clearpage
+
+\input{section/section1}
+\clearpage
+\input{section/section2}
+\clearpage
+\input{section/section3}
+\clearpage
+\input{section/section4}
+\clearpage
+\input{section/section5}
+\clearpage
+\input{section/section6}
+\clearpage
+\phantomsection
+\addcontentsline{toc}{section}{TÀI LIỆU THAM KHẢO}
+\input{section/ref}
+
+\end{document}

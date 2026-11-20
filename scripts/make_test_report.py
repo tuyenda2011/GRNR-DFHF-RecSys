@@ -16,7 +16,7 @@ reports/val, so each test file sits beside its validation file:
     are per-epoch validation traces; train time, latency and checkpoint size do not depend on the split).
     They are included so reports/test holds the full figure set.
   figures/H9_mostpop_{closed,trained}_ndcg20: as report/image/H9_*, with test NDCG@20 and test MostPop.
---report-image copies every figure to report/image/test/ under the same names as report/image/.
+--report-image copies every figure to report/image/ (the validation figures live in report/image/val/).
 B5 repeats train time and checkpoint size from the validation runs so its columns match reports/val.
 """
 from __future__ import annotations
@@ -73,7 +73,7 @@ def bar_figures(metrics, scores, full_train, folder, notes, group, order, style)
         mcf.bar_figure(lambda m, d, metric=metric: metrics[(m, d)][metric], metric,
                        f"H1_{group}_density_{slug(metric)}", folder, notes, **kwargs)
         mcf.bar_figure(lambda m, d, metric=metric: 100 * metrics[(m, d)][metric] / metrics[(m, 1.0)][metric],
-                       f"{metric} so với mật độ 1.00 (%)", f"H4_{group}_retention_{slug(metric)}", folder, notes,
+                       f"{metric} so với $d$ = 1 (%)", f"H4_{group}_retention_{slug(metric)}", folder, notes,
                        fmt="{:.1f}", extra=lambda ax: ax.axhline(100, color=MUTED, linestyle="--", linewidth=.8,
                                                                  zorder=0), **kwargs)
         mcf.figure_groups(scores, full_train, metric, folder, notes, name=f"H5_{group}_user_groups", **kwargs)
@@ -117,7 +117,7 @@ def training_figures(val_results, folder, notes, num_items):
     trained = {"order": TRAINED, "style": STYLE, **kwargs}
     mcf.bar_figure(column("train_seconds"), "Thời gian huấn luyện 200 epoch (giây, thang log)\nTesla T4",
                    "H7a_trained_train_time", folder, notes, fmt="{:,.0f}", log=True, **trained)
-    mcf.bar_figure(column("inference_ms_per_user"), "Thời gian suy luận (ms/user, thang log)\nTesla T4, theo batch",
+    mcf.bar_figure(column("inference_ms_per_user"), "Thời gian suy luận (ms/người dùng, thang log)\nTesla T4, theo batch",
                    "H7b_trained_inference_latency", folder, notes, fmt="{:.4f}", log=True, **trained)
 
     def closed(model, density):
@@ -126,7 +126,7 @@ def training_figures(val_results, folder, notes, num_items):
     mcf.bar_figure(lambda m, d: closed(m, d)["train_seconds"], "Thời gian huấn luyện (giây, thang log)\nTất cả chạy "
                    "trên CPU; EASE top-128 = EASE + cắt", "H7a_closed_form_train_time", folder, notes, fmt="{:,.0f}",
                    log=True, **closed_form)
-    mcf.bar_figure(lambda m, d: cf.checkpoint_mb(m, d, val_results, num_items), "Dung lượng checkpoint (MB, thang "
+    mcf.bar_figure(lambda m, d: cf.checkpoint_mb(m, d, val_results, num_items), "Dung lượng checkpoint (MiB, thang "
                    "log)\nEASE đầy đủ: ma trận float32, không lưu", "H7c_closed_form_checkpoint_size", folder, notes,
                    fmt="{:,.1f}", log=True, **closed_form)
 
@@ -201,8 +201,8 @@ def main(argv=None):
                         help="validation runs, for B5's train time and checkpoint size")
     parser.add_argument("--output", type=Path, default=ROOT / "reports/test")
     parser.add_argument("--bootstrap", type=int, default=10_000)
-    parser.add_argument("--report-image", type=Path, nargs="?", const=ROOT / "report/image/test", default=None,
-                        help="also copy the figures here for the LaTeX report (default report/image/test)")
+    parser.add_argument("--report-image", type=Path, nargs="?", const=ROOT / "report/image", default=None,
+                        help="also copy the figures here for the LaTeX report (default report/image)")
     args = parser.parse_args(argv)
     generate(args.results, args.val_results, args.output, bootstrap=args.bootstrap)
     if args.report_image:

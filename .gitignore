@@ -131,9 +131,13 @@ research_20261025/
 third_party/
 RecFlow/
 
-# Report: publish the compiled PDF and PNG figures; keep sources and notes local
+# Report: publish the compiled PDF, PNG figures and LaTeX sources; keep notes local
 report/*
 !report/main.pdf
+!report/main.tex
+!report/section/
+report/section/*
+!report/section/*.tex
 !report/image/
 report/image/*
 !report/image/*.png

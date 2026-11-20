@@ -4,12 +4,12 @@
 
 Laid out for a 1920x1080 desktop. Three tabs:
   Gợi ý cho khách     the top-10 of all seven models side by side (one column each, grouped as in the report:
-                      closed-form group, trained group) next to the user's history and validation target;
+                      closed-form group, trained group) next to the user's history and test target;
                       hovering a product lights it up in every column.
   Khách mới           the same grid for a history built from a product search (graph baselines cannot serve it).
   Đánh giá mô hình    per group: findings, leaderboard, charts, paired tests of the proposed model against the
                       baselines of its group, and the report figures. GRNR and DFHF are never compared directly.
-Validation data only; the test split is never opened.
+Test split, as in the report: checkpoints chosen on validation, target = test item, mask = train + validation item.
 """
 from __future__ import annotations
 
@@ -27,12 +27,12 @@ import numpy as np
 import pandas as pd
 import streamlit as st
 
-from app.benchmark import METRICS, by_density, closed_form, closed_form_all, leaderboard, read_summary, significance
-from app.recommender import (COLORS, DENSITIES, FAMILY_COLORS, GROUPS, LABELS, MODELS, PREVIEW, RESULTS,
+from app.benchmark import (METRICS, SUMMARY, by_density, closed_form, closed_form_all, leaderboard, read_summary,
+                           significance)
+from app.recommender import (COLORS, DENSITIES, FAMILY_COLORS, GROUPS, LABELS, MODELS, PREVIEW,
                              checkpoint_ndcg, load_data, load_ranker, recommend, sample_users)
 
-FIGURES = ROOT / "reports/val/figures"
-MOSTPOP_FIGURES = ROOT / "report/image"
+FIGURES = ROOT / "report/image"  # the report's own (test) figures
 CHART_FONT = "Be Vietnam Pro"  # same face as the page CSS, so Vega measures labels with the font it draws
 CATEGORY_TINTS = ("#fdecea", "#e8f0fc", "#e6f5ee", "#fdf3e1", "#f0ecfa", "#e3f4f6", "#fbeaf2", "#eef1e4")
 
@@ -139,7 +139,7 @@ def plain_label(model):
     return LABELS[model].replace(" (top-128)", "")
 
 
-@st.cache_resource(show_spinner="Đang nạp tập huấn luyện và tập xác thực…")
+@st.cache_resource(show_spinner="Đang nạp tập huấn luyện, tập xác thực và tập kiểm tra…")
 def get_data():
     data = load_data()
     samples, eligible = sample_users(data)
@@ -259,7 +259,7 @@ def history_panel(data, user):
                 f'<ol class="hist">{"".join(rows)}</ol></div>', unsafe_allow_html=True)
     target = data.target[user]
     title, brand, leaf = item_label(data, target)
-    st.markdown(f'<div class="panel answer"><h4>Sản phẩm mục tiêu (tập xác thực)</h4>{html.escape(title)}'
+    st.markdown(f'<div class="panel answer"><h4>Sản phẩm mục tiêu (tập kiểm tra)</h4>{html.escape(title)}'
                 f'<span class="sub">{html.escape(brand)}</span>{category_chip(leaf)}</div>', unsafe_allow_html=True)
     return codes, target
 
@@ -396,9 +396,9 @@ def verdict_style(verdict):
     return AMBER if verdict.startswith("Chưa") else RED
 
 
-@st.cache_data(show_spinner="Đang chạy paired bootstrap 10.000 lần cho từng cặp…")
+@st.cache_data(show_spinner=False)
 def cached_significance(density):
-    return significance(density, get_data()[0].target)
+    return significance(density)
 
 
 def finding(color, text):
@@ -412,8 +412,9 @@ def findings_main(table, tests, density):
                                 f"<b>{vn(best['NDCG@20'], '.4f')}</b>.")
     rows = tests[tests.proposed == "dfhf"] if not tests.empty else tests
     if not rows.empty:
-        wins = rows[rows.p_holm < .05]
-        ties = rows[(rows.p_holm >= .05) & rows.ci95.map(lambda c: c[1] >= 0)]
+        win = (rows.p_holm < .05) & rows.ci95.map(lambda c: c[0] > 0)
+        wins = rows[win]
+        ties = rows[~win & rows.ci95.map(lambda c: c[1] >= 0)]
         worse = rows[rows.ci95.map(lambda c: c[1] < 0)]  # whole 95% interval below zero
         text = (f"DFHF cao hơn có ý nghĩa thống kê <b>{len(wins)}/{len(rows)}</b> baseline cùng nhóm "
                 f"(p Holm &lt; 0,05, khoảng tin cậy không chứa 0)")
@@ -443,7 +444,8 @@ def leaderboard_view(table):
                    subset=["NDCG@20 so với DFHF (%)"])
               .apply(lambda row: ["background-color:#fcefe8" if row["Mô hình"] == "DFHF" else ""] * len(row), axis=1))
     st.dataframe(styler, hide_index=True, width="stretch")
-    st.caption("Tô xanh: cao nhất cột. Kết quả trên tập xác thực; cả bốn mô hình huấn luyện trên GPU Tesla T4.")
+    st.caption("Tô xanh: cao nhất cột. Chất lượng đo trên tập kiểm tra; thời gian huấn luyện và suy luận đo khi "
+               "huấn luyện trên GPU Tesla T4.")
 
 
 def charts(density, metric):
@@ -472,7 +474,7 @@ def charts(density, metric):
 
 def significance_view(tests):
     if tests.empty:
-        st.caption("Chưa đủ dự đoán trên tập xác thực để kiểm định ở tỉ lệ dữ liệu này.")
+        st.caption("Chưa có bảng kiểm định trên tập kiểm tra ở tỉ lệ dữ liệu này.")
         return
     view = pd.DataFrame({
         "So sánh": tests.proposed.map(LABELS) + " − " + tests.baseline.map(LABELS), "Hiệu NDCG@20": tests.delta,
@@ -498,7 +500,7 @@ def closed_form_overview(b5, b6, density):
     parts = [label + " " + ", ".join(f"<b>{name}</b>" for name, v in rivals.items() if v == verdict)
              for verdict, label in phrases if verdict in rivals.values()]
     text = "; ".join(parts)
-    finding(COLORS["grnr"], text[:1].upper() + text[1:] + " (p Holm &lt; 0,05).")
+    finding(COLORS["grnr"], text[:1].upper() + text[1:] + " (tốt hơn: p Holm &lt; 0,05 và khoảng tin cậy không chứa 0).")
     size = dict(zip(b5["Mô hình"], b5["Checkpoint (MB)"]))
     minutes = dict(zip(b5["Mô hình"], b5["Train (phút)"]))
     finding("#13865d", f"Dung lượng: GRNR <b>{vn(size['GRNR (đề xuất)'], '.1f')} MiB</b> · EASE top-128 "
@@ -514,7 +516,7 @@ def closed_form_overview(b5, b6, density):
                  .highlight_max(subset=metrics, props="font-weight:700; background-color:#e6f5ee")
                  .apply(lambda row: ["background-color:#e8f0fc" if row["Mô hình"].startswith("GRNR") else ""]
                         * len(row), axis=1), hide_index=True, width="stretch")
-    st.caption("Tô xanh: cao nhất cột. Kết quả trên tập xác thực; cả bốn mô hình chạy trên CPU. "
+    st.caption("Tô xanh: cao nhất cột. Kết quả trên tập kiểm tra; cả bốn mô hình xây dựng trên CPU. "
                "Dung lượng của EASE đầy đủ là kích thước lý thuyết của ma trận số thực 32 bit.")
 
 
@@ -575,13 +577,12 @@ def figure_gallery(metric, closed_form=False):
     if closed_form:
         figures.append(("H7c_closed_form_checkpoint_size.png", "Dung lượng lưu trữ"))
     else:
-        figures += [(f"H3_trained_learning_curves_{slug}.png", f"Đường học {metric}"),
+        figures += [(f"H3_trained_learning_curves_{slug}.png", f"Đường học {metric} (tập xác thực)"),
                     ("H3c_loss.png", "Hàm mất mát huấn luyện")]
-    figures = [((MOSTPOP_FIGURES if name.startswith("H9_") else FIGURES) / name, caption)
-               for name, caption in figures]
+    figures = [(FIGURES / name, caption) for name, caption in figures]
     figures = [(path, caption) for path, caption in figures if path.is_file()]
     if not figures:
-        st.caption(f"Chưa có hình cho {metric} trong thư mục reports/val/figures.")
+        st.caption(f"Chưa có hình cho {metric} trong thư mục report/image.")
     for row in range(0, len(figures), 3):
         for column, (path, caption) in zip(st.columns(3, gap="large"), figures[row:row + 3]):
             column.image(str(path), caption=caption, width="stretch")
@@ -592,10 +593,9 @@ def tab_benchmark(data):
     with pick_density:
         density = density_radio("bench_density")
     metric = pick_metric.selectbox("Chỉ số cho biểu đồ và hình", METRICS)
-    summary = RESULTS / "summary.csv"
-    if summary.exists():
-        download.download_button("Tải bảng kết quả (CSV)", read_summary(summary).to_csv(index=False).encode("utf-8-sig"),
-                                 "summary.csv", "text/csv",
+    if SUMMARY.exists():
+        download.download_button("Tải bảng kết quả (CSV)", read_summary().to_csv(index=False).encode("utf-8-sig"),
+                                 "summary_test.csv", "text/csv",
                                  icon=":material/download:", width="stretch")
     table = leaderboard(density)
     if table.empty:

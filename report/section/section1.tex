@@ -1,0 +1,69 @@
+\section{Giới thiệu}
+\label{sec:intro}
+
+\subsection{Bối cảnh và động cơ}
+\label{sec:intro-context}
+
+Một sàn thương mại điện tử có từ hàng chục nghìn đến hàng triệu sản phẩm, trong khi mỗi người dùng chỉ biết đến một phần rất nhỏ trong số đó. Hệ thống khuyến nghị thu hẹp khoảng cách này bằng một danh sách ngắn gồm những sản phẩm người dùng nhiều khả năng quan tâm. Báo cáo xét dạng phổ biến nhất của bài toán, gọi là \emph{khuyến nghị top-$K$}: dựa vào lịch sử của một người dùng, mô hình xếp hạng các sản phẩm người đó chưa tương tác rồi chọn ra $K$ sản phẩm đứng đầu.
+
+Trong phần lớn hệ thống thực tế, ta không có điểm số của người dùng cho từng sản phẩm. Thứ hệ thống thường biết chỉ là người dùng đã mua, đã xem hay đã đánh giá tốt những sản phẩm nào. Dữ liệu kiểu này gọi là \emph{phản hồi ngầm}~\cite{hu2008wmf}, và nó mơ hồ ở một điểm cơ bản: một sản phẩm chưa được tương tác có thể là sản phẩm người dùng không thích, nhưng cũng có thể chỉ là sản phẩm họ chưa từng thấy. Phương pháp nào cũng phải xử lý sự mơ hồ này, hoặc bằng cách tin các ô có tương tác hơn các ô trống~\cite{hu2008wmf}, hoặc bằng cách chỉ học thứ tự giữa sản phẩm đã và chưa tương tác~\cite{rendle2009bpr}.
+
+Nhóm sử dụng danh mục Electronics trong bộ dữ liệu đánh giá sản phẩm Amazon của McAuley và cộng sự~\cite{mcauley2015image,he2016ups}. Bộ dữ liệu công khai, được dùng rộng rãi trong nghiên cứu, và có thời điểm của từng đánh giá nên chia được tập theo thứ tự thời gian. Dữ liệu ghi số sao từ 1 đến 5, nhưng nhóm chỉ giữ lại một thông tin: người dùng có đánh giá tốt sản phẩm hay không. Đánh giá từ 4 sao trở lên được coi là một tương tác, còn mức sao cụ thể bị bỏ. Bài toán top-$K$ chỉ cần biết người dùng quan tâm đến sản phẩm nào, và cách làm này cho mọi mô hình cùng một dạng đầu vào; cái giá là những đánh giá thấp không được dùng đến. Vì thế, ``tương tác'' trong báo cáo là một đánh giá tích cực công khai, không phải một lượt mua. Sau tiền xử lý, dữ liệu còn 124.895 người dùng, 44.843 sản phẩm và khoảng 1,07 triệu tương tác.
+
+\subsection{Thách thức của bài toán}
+\label{sec:intro-challenges}
+
+Dữ liệu này có ba đặc điểm chi phối cách xây dựng mô hình, và việc đánh giá mô hình trên nó cũng có những cạm bẫy riêng.
+
+Trước hết, dữ liệu rất thưa. Chỉ khoảng 0,02\% số ô của ma trận tương tác khác 0, và một nửa số người dùng có không quá 6 tương tác. Mỗi người dùng chỉ để lại vài manh mối về sở thích, nên một biểu diễn học riêng cho từng người rất dễ bị nhiễu chi phối. Trường hợp khó nhất là khi người dùng chỉ còn đúng một tương tác, và nhóm xem xét kỹ trường hợp này khi giảm dần dữ liệu huấn luyện.
+
+Đặc điểm thứ hai là lịch sử của người dùng luôn thay đổi. Nhiều mô hình phổ biến, như phân rã ma trận~\cite{koren2009mf} hay các mô hình đồ thị kiểu Light Graph Convolution Network (LightGCN)~\cite{he2020lightgcn}, gán cho mỗi người dùng một vector riêng học trong lúc huấn luyện. Khi người dùng có thêm tương tác, hoặc khi có người dùng mới, vector đó không còn đúng nữa và chỉ cập nhật được bằng cách huấn luyện lại. Ngược lại, có những mô hình tính điểm của một sản phẩm trực tiếp từ các sản phẩm trong lịch sử, chẳng hạn các mô hình láng giềng sản phẩm~\cite{sarwar2001itembased,ning2011slim,steck2019ease} hay Factored Item Similarity Models (FISM)~\cite{kabbur2013fism}. Những mô hình này chấm được một lịch sử mới ngay lập tức. Đây là một tính chất có lợi khi triển khai, có được nhờ thiết kế và được minh họa trong ứng dụng demo, nhưng báo cáo không đo lợi ích của nó bằng số liệu. Điều được đánh giá là mặt trái của lựa chọn này: khi người dùng được biểu diễn hoàn toàn bằng lịch sử, chất lượng phụ thuộc vào việc lịch sử có đủ dài hay không, mà dữ liệu thưa thì không bảo đảm điều đó.
+
+Đặc điểm thứ ba là độ phổ biến tự nó đã là một đối thủ mạnh. Trong thương mại điện tử, một số ít sản phẩm chiếm phần lớn tương tác: ở tập huấn luyện của dự án, 1\% sản phẩm phổ biến nhất chiếm 19,2\% số tương tác, còn 10\% phổ biến nhất chiếm tới 51,8\%. Chỉ cần gợi ý những sản phẩm phổ biến nhất (MostPop) cũng đã đạt một mức chất lượng đáng kể, và Dacrema cùng cộng sự cho thấy nhiều mô hình mạng nơ-ron đã công bố không vượt được các phương pháp đơn giản nếu những phương pháp này được thiết lập cẩn thận~\cite{dacrema2019progress}. Trong các công trình nhóm đã đọc, mô hình mới thường chỉ được so với các mô hình khác; khoảng cách giữa mô hình và cách gợi ý theo độ phổ biến, cùng sự thay đổi của khoảng cách đó khi dữ liệu thưa dần, hiếm khi được báo cáo riêng. Đây là trục chính trong phần đánh giá độ thưa của báo cáo.
+
+Bên cạnh ba đặc điểm trên, việc đánh giá có ba cạm bẫy đã được ghi nhận:
+\begin{itemize}
+\item thước đo tính trên một mẫu nhỏ sản phẩm âm có thể đảo thứ tự giữa các mô hình~\cite{krichene2020sampled};
+\item cách chia dữ liệu và cách chọn siêu tham số có thể làm thay đổi kết luận~\cite{sun2020rigorous};
+\item chia tập không theo thứ tự thời gian có thể làm lộ thông tin của tương lai~\cite{ji2023leakage}.
+\end{itemize}
+Giao thức đánh giá của dự án được thiết kế để tránh hoặc giảm nhẹ từng cạm bẫy này.
+
+\subsection{Hướng tiếp cận}
+\label{sec:intro-approach}
+
+Theo cách học tham số, các mô hình khuyến nghị dựa trên phản hồi ngầm chia thành hai nhóm.
+
+Nhóm giải trực tiếp tính tham số bằng một công thức đóng hoặc một phép lọc tuyến tính, không có vòng lặp huấn luyện, và mọi mô hình trong nhóm đều biểu diễn người dùng bằng lịch sử. Hai đại diện tiêu biểu là Embarrassingly Shallow Autoencoder (EASE)~\cite{steck2019ease} và Graph Filter based Collaborative Filtering (GF-CF)~\cite{shen2021gfcf}. Hướng này vẫn đang phát triển: các công trình gần đây như Blurring-Sharpening Process Models (BSPM)~\cite{choi2023bspm} và Turbo-CF~\cite{park2024turbocf} tiếp tục khai thác đồ thị giữa các sản phẩm để giữ chất lượng với chi phí tính toán thấp hơn.
+
+Nhóm cần huấn luyện học embedding, tức vector biểu diễn của sản phẩm và thường của cả người dùng, bằng tối ưu theo gradient qua nhiều epoch. LightGCN, eXtremely Simple Graph Contrastive Learning (XSimGCL)~\cite{yu2023xsimgcl} và DirectAU~\cite{wang2022directau} đều thuộc nhóm này; trong báo cáo, DirectAU được ghép với bộ mã hóa của LightGCN. Cả ba đều dùng vector riêng cho từng người dùng.
+
+Nếu đem một mô hình giải trực tiếp so với một mô hình cần huấn luyện, rất khó biết chênh lệch đến từ đâu, vì hai bên khác nhau cả về chi phí, cách tinh chỉnh lẫn phần cứng phù hợp. Vì vậy nhóm đề xuất một mô hình cho mỗi nhóm và chỉ so mô hình đó với các baseline (mô hình đối chứng) cùng nhóm. Hai mô hình đề xuất được đánh giá độc lập, không so với nhau.
+
+Graph-Regularized Neighborhood Regression (GRNR) thuộc nhóm giải trực tiếp và xuất phát từ một câu hỏi thực dụng. EASE thường là một baseline rất mạnh nhưng cần một ma trận trọng số đầy đủ, có kích thước bằng bình phương số sản phẩm. Liệu có thể thay ma trận đó bằng một số ít láng giềng được ước lượng cẩn thận mà không mất chất lượng? GRNR giải một bài toán hồi quy nhỏ cho mỗi sản phẩm, chỉ trên tối đa 128 sản phẩm láng giềng, với trọng số dành cho dữ liệu ngầm và điều chuẩn theo đồ thị giữa các láng giềng. Với 44.843 sản phẩm của dự án, ma trận đầy đủ của EASE chiếm khoảng 7,5 GiB và vẫn chạy được, nên lợi ích về bộ nhớ của GRNR mới chỉ là dự phóng cho những danh mục lớn hơn. Điều kiểm chứng được trên dữ liệu này là chất lượng: GRNR có giữ được chất lượng của EASE đầy đủ khi chỉ dùng một phần nhỏ số hệ số hay không.
+
+Diffusion-Filtered History Factorization (DFHF) thuộc nhóm cần huấn luyện. Khác với ba baseline cùng nhóm, DFHF không có vector người dùng: mỗi người dùng được mô tả bằng embedding của các sản phẩm trong lịch sử, theo hướng của FISM~\cite{kabbur2013fism}. Hai bảng embedding sản phẩm được làm trơn bằng một bộ lọc khuếch tán trên đồ thị người dùng--sản phẩm, để một sản phẩm ít tương tác mượn được thông tin từ những sản phẩm mà cùng nhóm người dùng đã tương tác. Mô hình được huấn luyện bằng softmax trên toàn bộ danh mục, tức so sản phẩm đúng với mọi sản phẩm ứng viên cùng lúc~\cite{liang2018multvae}. Lựa chọn này lấy động cơ từ phân tích của Wu và cộng sự về softmax lấy mẫu: hàm mất mát này gắn với việc tối đa hóa thước đo xếp hạng, còn phép lan truyền trên đồ thị bù được điểm yếu của nó trong việc điều chỉnh độ lớn của vector biểu diễn~\cite{wu2024sampledsoftmax}. Vì DFHF dùng softmax trên toàn danh mục chứ không lấy mẫu, phân tích này chỉ là cơ sở thiết kế, không phải một bảo đảm cho mô hình. Câu hỏi với DFHF là một mô hình như vậy có cạnh tranh được với các mô hình đồ thị dùng vector người dùng hay không.
+
+Dữ liệu gốc đã qua bộ lọc 5-core, tức chỉ giữ những người dùng và sản phẩm có ít nhất 5 đánh giá, nên dày hơn dữ liệu của một hệ thống thực tế. Để xét những mức thưa gần thực tế hơn, nhóm giảm tập huấn luyện xuống còn 75\%, 50\% và 25\% số tương tác rồi đánh giá lại mọi mô hình. Ở mỗi mức, kết quả được đặt cạnh MostPop để xem mô hình còn hơn cách gợi ý theo độ phổ biến bao nhiêu khi dữ liệu thưa dần. Cách giảm ngẫu nhiên này chỉ mô phỏng độ thưa, không tái hiện đúng tình huống người dùng mới: mọi người dùng vẫn giữ ít nhất một tương tác, và người dùng nhiều tương tác mất nhiều dữ liệu hơn người dùng ít tương tác.
+
+Dự án có ba đóng góp. Thứ nhất là hai mô hình biểu diễn người dùng bằng lịch sử, mỗi mô hình cho một nhóm phương pháp, đều chấm được lịch sử mới mà không cần huấn luyện lại. Thứ hai là một đánh giá có kiểm soát trong từng nhóm, với cùng tập ứng viên, cùng người dùng, bốn mức thưa, kiểm định thống kê ghép cặp theo từng người dùng và đối chiếu có hệ thống với MostPop. Thứ ba là một kho dự án lưu mã nguồn, cấu hình và kết quả của các lần chạy, kèm một ứng dụng demo cho phép thử gợi ý với lịch sử tùy ý. Cả hai mô hình được ghép từ những thành phần đã biết. Trong các tài liệu nhóm đã đọc, chưa thấy công trình nào kết hợp đúng các thành phần này (Mục~\ref{sec:closed-form-gap} và Mục~\ref{sec:trained-gap}), nhưng nhóm không cho rằng đây là những phương pháp hoàn toàn mới.
+
+\subsection{Câu hỏi nghiên cứu và phạm vi}
+\label{sec:intro-rq}
+
+Mục tiêu của đề tài là xây dựng hai mô hình khuyến nghị biểu diễn người dùng bằng lịch sử, mỗi mô hình cho một nhóm phương pháp, và đánh giá chúng một cách có kiểm soát, nhất là khi dữ liệu thưa dần. Thước đo chính là Normalized Discounted Cumulative Gain tại 20 vị trí đầu (NDCG@20), cho biết sản phẩm người dùng thực sự tương tác tiếp theo có nằm trong 20 gợi ý đầu hay không và nằm ở vị trí nào. Báo cáo trả lời bốn câu hỏi:
+\begin{enumerate}
+\item Trong nhóm của mình, mỗi mô hình đề xuất có NDCG@20 cao hơn các baseline cùng nhóm không, và chênh lệch có vượt khỏi biến động theo người dùng không?
+\item Khi chỉ giữ lại 75\%, 50\% hoặc 25\% tương tác huấn luyện, chất lượng của mỗi mô hình thay đổi thế nào so với các baseline cùng nhóm và so với MostPop?
+\item Chi phí tính toán của mỗi mô hình, gồm thời gian huấn luyện, thời gian suy luận và dung lượng lưu trữ, so với nhóm của nó ra sao?
+\item Hai mô hình phục vụ một lịch sử mới như thế nào khi triển khai, và điểm số của GRNR có phân rã được thành lý do gợi ý hay không?
+\end{enumerate}
+
+Phạm vi của báo cáo có những giới hạn rõ ràng:
+\begin{itemize}
+% \item Chất lượng được đo bằng thước đo xếp hạng ngoại tuyến; báo cáo không đánh giá doanh thu, mức hài lòng hay hành vi của người dùng thật.
+\item Mọi kết quả đánh giá cuối cùng được đo trên tập kiểm tra độc lập (test set) của một bộ dữ liệu, với một seed (giá trị khởi tạo bộ sinh số ngẫu nhiên), và chỉ trên những người dùng có sản phẩm mục tiêu nằm trong tập ứng viên. Tập xác thực (validation set) chỉ được sử dụng để lựa chọn siêu tham số và checkpoint, không tham gia vào quá trình đánh giá cuối cùng.
+\item Câu hỏi thứ tư được trả lời bằng mô tả hệ thống và một ví dụ minh họa, không bằng phép đo định lượng.
+% \item Các câu hỏi được chốt sau khi đã có kết quả thực nghiệm, và MostPop được bổ sung trong lúc phân tích. Vì vậy mọi phân tích, kể cả các so sánh với MostPop, đều mang tính khám phá chứ không phải kiểm định một giả thuyết đặt ra từ trước, và kết luận cần được xác nhận trên dữ liệu chưa dùng để chọn cấu hình.
+\item Các câu hỏi nghiên cứu và phép so sánh với MostPop được hoàn thiện trong quá trình phân tích thực nghiệm. Vì vậy, các phân tích vẫn mang tính khám phá, chưa phải kiểm định những giả thuyết được xác lập hoàn toàn từ trước. Kết quả cuối cùng được đánh giá trên tập kiểm tra độc lập sau khi cố định cấu hình và checkpoint của các mô hình.
+\end{itemize}
