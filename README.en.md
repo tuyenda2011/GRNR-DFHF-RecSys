@@ -4,8 +4,10 @@
 
 This Advanced Machine Learning project develops two top-K recommenders that score items from user interaction histories. The Amazon Electronics experiments examine trade-offs among ranking quality, model storage, and the amount of training data.
 
-- **GRNR** reaches **0.03829 NDCG@20** with all training interactions and a **40.5 MiB** checkpoint. Its difference from full EASE is +0.00033, with a 95% confidence interval from −0.00007 to +0.00073.
-- **DFHF** has the highest NDCG@20 among the iteratively trained models at all four retention levels. At 25%, its score of **0.01766** falls slightly below **MostPop**, the popularity baseline (0.01771).
+All results below are measured on the **held-out test split**; the validation split is used only to select checkpoints.
+
+- **GRNR** reaches **0.02843 NDCG@20** with all training interactions and a **40.5 MiB** checkpoint. Its difference from full EASE is +0.00034, with a 95% confidence interval from −0.00003 to +0.00072, so the two models are not distinguishable, while the full EASE matrix is about 190 times larger.
+- **DFHF** has the highest NDCG@20 among the iteratively trained models at all four retention levels. At 25%, its score of **0.01710** equals **MostPop**, the popularity baseline.
 
 ## Run the demo
 
@@ -39,35 +41,38 @@ The experiments use the Amazon Electronics 5-core subset, treating ratings of at
 
 - **Chronological split.** For each selected evaluation user, the penultimate interaction goes to validation and the final interaction goes to test. The 80/10/10 ratio applies to the overall interaction counts.
 - **Training retention.** All models share the same subsets retaining 25%, 50%, 75%, or 100% of the original training interactions. Sampling uses seed 42 and preserves at least one interaction for each user and item present in the original training split.
-- **Top-K ranking.** All models are evaluated on the same 107,215 users with a training history and a validation target seen in training. The evaluator ranks all candidate items from the training split, masks the original training history, and reports NDCG and Recall at K = 10 and 20, plus MRR@20.
+- **Model selection and evaluation.** The validation split is used only to select checkpoints by NDCG@20. Configurations and checkpoints are then frozen and scored once on the test split. When scoring test, the validation item is masked from the ranking but not added to the input history, and no model is retrained.
+- **Top-K ranking.** On the test split, all models are evaluated on the same 107,087 users with a training history and a target item seen in training. The evaluator ranks all candidate items from the training split, masks the original training history, and reports NDCG and Recall at K = 10 and 20, plus MRR@20.
 
 ## Experimental results
 
-The tables show **validation NDCG@20**. Columns indicate the fraction of training interactions retained.
+The tables show **test NDCG@20**. Columns indicate the fraction of training interactions retained.
 
 ### Closed-form models
 
 | Model | 25% | 50% | 75% | 100% |
 | --- | ---: | ---: | ---: | ---: |
-| **GRNR** | **0.00798** | 0.01715 | 0.02928 | **0.03829** |
-| Full EASE | 0.00674 | **0.01917** | **0.02939** | 0.03796 |
-| EASE top-128 | 0.00497 | 0.01766 | 0.02772 | 0.03679 |
-| GF-CF | 0.00385 | 0.00384 | 0.00839 | 0.01886 |
+| **GRNR** | **0.00703** | 0.01291 | 0.02214 | **0.02843** |
+| Full EASE | 0.00557 | **0.01432** | **0.02230** | 0.02809 |
+| EASE top-128 | 0.00400 | 0.01267 | 0.02033 | 0.02635 |
+| GF-CF | 0.00358 | 0.00284 | 0.00560 | 0.01280 |
+| MostPop (reference) | 0.01710 | 0.01782 | 0.01778 | 0.01775 |
 
-GRNR scores above EASE top-128 at three of the four retention levels and below both EASE variants at 50%. At 100%, GRNR takes about 2.5 minutes to fit on CPU. The estimated float32 weight matrix of full EASE is 7.49 GiB, compared with the 40.5 MiB GRNR checkpoint. [Closed-form comparison with MostPop](report/image/H9_mostpop_closed_ndcg20.png)
+GRNR scores above EASE top-128 at three of the four retention levels; at 50%, it is not distinguishable from EASE top-128 and scores below full EASE. At 50% and below, the whole group falls under MostPop. At 100%, GRNR takes about 2.5 minutes to fit on CPU. The estimated float32 weight matrix of full EASE is 7.49 GiB, compared with the 40.5 MiB GRNR checkpoint. [Closed-form comparison with MostPop](report/image/H9_mostpop_closed_ndcg20.png)
 
 ### Iteratively trained models
 
 | Model | 25% | 50% | 75% | 100% |
 | --- | ---: | ---: | ---: | ---: |
-| **DFHF** | **0.01766** | **0.02266** | **0.02901** | **0.03519** |
-| LightGCN | 0.00842 | 0.01839 | 0.02261 | 0.02655 |
-| XSimGCL | 0.01117 | 0.01933 | 0.02759 | 0.03292 |
-| DirectAU | 0.01029 | 0.02050 | 0.02698 | 0.03205 |
+| **DFHF** | **0.01710** | **0.01971** | **0.02324** | **0.02724** |
+| LightGCN | 0.00786 | 0.01691 | 0.01930 | 0.02168 |
+| XSimGCL | 0.01019 | 0.01544 | 0.02158 | 0.02561 |
+| DirectAU | 0.00856 | 0.01585 | 0.02065 | 0.02407 |
+| MostPop (reference) | 0.01710 | 0.01782 | 0.01778 | 0.01775 |
 
-At 25% retention, MostPop scores 0.01771. The small gap between DFHF and MostPop was not tested. For users with a single interaction, DFHF ranks items using their learned item biases. [Iteratively trained models compared with MostPop](report/image/H9_mostpop_trained_ndcg20.png)
+DFHF scores above all three baselines at every level, with 95% confidence intervals excluding 0. At 25%, DFHF only matches MostPop: for users with a single interaction, it ranks items by their learned item biases, while the three baselines fall below this reference. [Iteratively trained models compared with MostPop](report/image/H9_mostpop_trained_ndcg20.png)
 
-Within-group comparisons are exploratory and use a paired user bootstrap with 10,000 resamples and Holm correction. Results come from one dataset and one seed, on the same validation split used to select checkpoints for iterative models. Tuning budgets differed across models, and run times were measured on different hardware. [Detailed protocol and results, Chapters 4–6](report/main.pdf)
+Within-group comparisons are exploratory and use a paired user bootstrap with 10,000 resamples and Holm correction. Results come from one dataset and one seed. Test scores are about a quarter lower than validation scores, but the ordering within each group is largely preserved; validation scores are in `results/val/summary.csv`. Tuning budgets differed across models, and run times were measured on different hardware. [Detailed protocol and results, Chapters 4–6](report/main.pdf)
 
 ## Reproduce the experiments
 
@@ -79,14 +84,21 @@ python scripts/train_model.py --model grnr --density 1.0 --seed 42 --device cpu 
 
 Set `--model` to `dfhf`, `lightgcn`, `xsimgcl`, `directau`, `ease`, or `gfcf` and choose `--density` from `0.25`, `0.5`, `0.75`, and `1.0`. Run each model at all four levels to reproduce both comparison groups. DFHF and the three iterative baselines train for 200 epochs and retain the checkpoint with the highest validation NDCG@20. The original runs used a [GPU notebook](kaggle/kaggle_train.ipynb) for these models and a [CPU notebook](kaggle/kaggle_ease.ipynb) for full EASE because of its dense matrix memory requirements.
 
-Once all four retention levels are available, run these commands to generate the summary and separate figures for both groups. The report re-scores the checkpoints on validation. Full EASE uses the original saved predictions because its dense matrix was discarded. Add `--refit-full-ease` to solve the matrix again with about 9 GiB of available RAM.
+Once checkpoints exist at all four levels, score the test split and build the report tables and figures. `evaluate_test.py` first re-scores validation and stops if NDCG@20 differs from `metrics.json`, then scores test from the saved checkpoints without retraining. Full EASE has no saved weight matrix, so the script re-solves it from the training split, which needs about 9 GiB of RAM and 11 minutes per level; add `--ease checkpoint` to use the saved top-128 matrix instead.
+
+```bash
+python scripts/evaluate_test.py --device cuda                # writes results/test/
+python scripts/make_test_report.py --report-image            # writes reports/test/ and report/image/
+```
+
+The validation summary and figures used during model selection are produced by:
 
 ```bash
 python scripts/summarize_results.py --results results/reproduction
 python scripts/make_report.py --results results/reproduction --output results/reproduction/report
 ```
 
-**Included artifacts.** Git tracks the processed data, checkpoints, training histories, and report figures. The demo reads `results/val/summary.csv`, per-run `metrics.json` files, paired `val_predictions.npy` and `val_users.npy` files for the trained group, and tables B5/B6 in `reports/val/tables/`. Historical GRNR and DFHF checkpoints live under `results/val/sgkr/` and `results/val/sphr/`, respectively.
+**Included artifacts.** Git tracks the processed data, checkpoints, training histories, and report figures. The demo loads checkpoints from `results/val/` and displays test-split numbers: `results/test/summary_test.csv`, per-run `metrics.json` files under `results/test/`, and tables B3/B5/B6 in `reports/test/tables/`. Historical GRNR and DFHF checkpoints live under `results/val/sgkr/` and `results/val/sphr/`, respectively.
 
 ## Repository layout
 
@@ -95,7 +107,7 @@ python scripts/make_report.py --results results/reproduction --output results/re
 | [`src/`](src/) · [`configs/`](configs/) | Models, data processing, evaluation, and experiment configurations |
 | [`scripts/`](scripts/) · [`kaggle/`](kaggle/) | Training and reporting commands, plus notebooks |
 | [`app/`](app/) | Streamlit demo |
-| [`data/`](data/) · [`results/`](results/) | Processed data; validation results (`results/val/`, with checkpoints) and test results (`results/test/`) |
+| [`data/`](data/) · [`results/`](results/) | Processed data; checkpoints and validation results (`results/val/`), test results (`results/test/`) |
 | [`report/`](report/) · [`reports/val/`](reports/val/) · [`reports/test/`](reports/test/) | PDF report, illustrations, and experiment figures |
 
 ## References

@@ -4,8 +4,10 @@
 
 Dự án Học máy nâng cao xây dựng hai mô hình khuyến nghị top-K từ lịch sử tương tác và đánh giá chúng trên Amazon Electronics. Nghiên cứu xem xét sự đánh đổi giữa chất lượng xếp hạng, dung lượng mô hình và lượng dữ liệu huấn luyện.
 
-- **GRNR** đạt NDCG@20 **0,03829** khi giữ toàn bộ dữ liệu huấn luyện, với checkpoint **40,5 MiB**. Chênh lệch so với EASE đầy đủ là +0,00033, với khoảng tin cậy 95% từ −0,00007 đến +0,00073.
-- **DFHF** có NDCG@20 cao nhất trong nhóm mô hình huấn luyện lặp ở cả bốn mức dữ liệu. Khi chỉ giữ 25%, DFHF đạt **0,01766**, thấp hơn nhẹ so với mốc xếp hạng theo độ phổ biến **MostPop** (0,01771).
+Mọi kết quả dưới đây đo trên **tập kiểm tra độc lập**; tập xác thực chỉ dùng để chọn checkpoint.
+
+- **GRNR** đạt NDCG@20 **0,02843** khi giữ toàn bộ dữ liệu huấn luyện, với checkpoint **40,5 MiB**. Chênh lệch so với EASE đầy đủ là +0,00034, khoảng tin cậy 95% từ −0,00003 đến +0,00072, nên hai mô hình chưa phân biệt được, trong khi ma trận của EASE đầy đủ lớn hơn khoảng 190 lần.
+- **DFHF** có NDCG@20 cao nhất trong nhóm mô hình huấn luyện lặp ở cả bốn mức dữ liệu. Khi chỉ giữ 25%, DFHF đạt **0,01710**, bằng mốc xếp hạng theo độ phổ biến **MostPop**.
 
 ## Chạy demo
 
@@ -39,35 +41,38 @@ Thực nghiệm dùng bản 5-core của Amazon Electronics. Đánh giá từ 4 
 
 - **Chia dữ liệu theo thời gian.** Với mỗi người dùng được chọn để đánh giá, tương tác áp cuối vào tập xác thực (validation) và tương tác cuối vào tập kiểm tra (test). Tỉ lệ 80/10/10 được tính trên toàn bộ tương tác.
 - **Giảm dữ liệu huấn luyện.** Mọi mô hình dùng chung các tập giữ lại 25%, 50%, 75% hoặc 100% tương tác huấn luyện. Việc lấy mẫu dùng seed 42 và giữ ít nhất một tương tác cho mỗi người dùng và sản phẩm có trong tập huấn luyện gốc.
-- **Xếp hạng top-K.** Các mô hình được đánh giá trên cùng 107.215 người dùng có lịch sử và sản phẩm đích đã xuất hiện trong tập huấn luyện. Bộ đánh giá xếp hạng toàn bộ sản phẩm ứng viên trong tập huấn luyện, loại các mục trong lịch sử huấn luyện gốc và báo cáo NDCG, Recall ở K = 10 và 20, cùng MRR@20.
+- **Chọn mô hình và đánh giá.** Tập xác thực chỉ dùng để chọn checkpoint theo NDCG@20. Cấu hình và checkpoint sau đó được giữ cố định và chấm một lần trên tập kiểm tra. Khi chấm tập kiểm tra, sản phẩm của tập xác thực bị loại khỏi danh sách nhưng không được đưa vào lịch sử, và mô hình không được huấn luyện lại.
+- **Xếp hạng top-K.** Trên tập kiểm tra, các mô hình được đánh giá trên cùng 107.087 người dùng có lịch sử và sản phẩm đích đã xuất hiện trong tập huấn luyện. Bộ đánh giá xếp hạng toàn bộ sản phẩm ứng viên trong tập huấn luyện, loại các mục trong lịch sử huấn luyện gốc và báo cáo NDCG, Recall ở K = 10 và 20, cùng MRR@20.
 
 ## Kết quả thực nghiệm
 
-Các bảng dưới đây ghi **NDCG@20 trên tập xác thực**. Mỗi cột là tỉ lệ tương tác huấn luyện được giữ lại.
+Các bảng dưới đây ghi **NDCG@20 trên tập kiểm tra**. Mỗi cột là tỉ lệ tương tác huấn luyện được giữ lại.
 
 ### Nhóm giải trực tiếp
 
 | Mô hình | 25% | 50% | 75% | 100% |
 | --- | ---: | ---: | ---: | ---: |
-| **GRNR** | **0,00798** | 0,01715 | 0,02928 | **0,03829** |
-| EASE đầy đủ | 0,00674 | **0,01917** | **0,02939** | 0,03796 |
-| EASE top-128 | 0,00497 | 0,01766 | 0,02772 | 0,03679 |
-| GF-CF | 0,00385 | 0,00384 | 0,00839 | 0,01886 |
+| **GRNR** | **0,00703** | 0,01291 | 0,02214 | **0,02843** |
+| EASE đầy đủ | 0,00557 | **0,01432** | **0,02230** | 0,02809 |
+| EASE top-128 | 0,00400 | 0,01267 | 0,02033 | 0,02635 |
+| GF-CF | 0,00358 | 0,00284 | 0,00560 | 0,01280 |
+| MostPop (tham chiếu) | 0,01710 | 0,01782 | 0,01778 | 0,01775 |
 
-GRNR cao hơn EASE top-128 ở ba trong bốn mức và thấp hơn cả hai bản EASE ở mức 50%. Ở mức 100%, GRNR mất khoảng 2,5 phút để khớp mô hình trên CPU. Ma trận trọng số float32 của EASE đầy đủ ước tính chiếm 7,49 GiB, so với checkpoint 40,5 MiB của GRNR. [Biểu đồ nhóm giải trực tiếp và MostPop](report/image/H9_mostpop_closed_ndcg20.png)
+GRNR cao hơn EASE top-128 ở ba trong bốn mức; ở mức 50%, GRNR chưa phân biệt được với EASE top-128 và thấp hơn EASE đầy đủ. Từ mức 50% trở xuống, cả nhóm thấp hơn MostPop. Ở mức 100%, GRNR mất khoảng 2,5 phút để khớp mô hình trên CPU. Ma trận trọng số float32 của EASE đầy đủ ước tính chiếm 7,49 GiB, so với checkpoint 40,5 MiB của GRNR. [Biểu đồ nhóm giải trực tiếp và MostPop](report/image/H9_mostpop_closed_ndcg20.png)
 
 ### Nhóm huấn luyện lặp
 
 | Mô hình | 25% | 50% | 75% | 100% |
 | --- | ---: | ---: | ---: | ---: |
-| **DFHF** | **0,01766** | **0,02266** | **0,02901** | **0,03519** |
-| LightGCN | 0,00842 | 0,01839 | 0,02261 | 0,02655 |
-| XSimGCL | 0,01117 | 0,01933 | 0,02759 | 0,03292 |
-| DirectAU | 0,01029 | 0,02050 | 0,02698 | 0,03205 |
+| **DFHF** | **0,01710** | **0,01971** | **0,02324** | **0,02724** |
+| LightGCN | 0,00786 | 0,01691 | 0,01930 | 0,02168 |
+| XSimGCL | 0,01019 | 0,01544 | 0,02158 | 0,02561 |
+| DirectAU | 0,00856 | 0,01585 | 0,02065 | 0,02407 |
+| MostPop (tham chiếu) | 0,01710 | 0,01782 | 0,01778 | 0,01775 |
 
-Ở mức 25%, MostPop đạt 0,01771. Chênh lệch nhỏ giữa DFHF và MostPop chưa được kiểm định. Với lịch sử chỉ có một tương tác, DFHF xếp hạng bằng hệ số chặn đã học của từng sản phẩm. [Biểu đồ nhóm huấn luyện lặp và MostPop](report/image/H9_mostpop_trained_ndcg20.png)
+DFHF cao hơn cả ba đối chứng ở mọi mức, với khoảng tin cậy 95% không chứa 0. Ở mức 25%, DFHF chỉ còn bằng MostPop: với lịch sử chỉ có một tương tác, DFHF xếp hạng bằng hệ số chặn đã học của từng sản phẩm, còn ba đối chứng rơi xuống dưới mốc này. [Biểu đồ nhóm huấn luyện lặp và MostPop](report/image/H9_mostpop_trained_ndcg20.png)
 
-Các phép so sánh trong từng nhóm mang tính khám phá, dùng bootstrap ghép cặp theo người dùng với 10.000 lần lấy mẫu lại và hiệu chỉnh Holm. Kết quả đến từ một bộ dữ liệu, một seed và tập xác thực đã dùng để chọn checkpoint cho các mô hình huấn luyện lặp. Ngân sách tinh chỉnh chưa đồng đều và thời gian chạy được đo trên các phần cứng khác nhau. [Giao thức và kết quả chi tiết, Chương 4–6](report/main.pdf)
+Các phép so sánh trong từng nhóm mang tính khám phá, dùng bootstrap ghép cặp theo người dùng với 10.000 lần lấy mẫu lại và hiệu chỉnh Holm. Kết quả đến từ một bộ dữ liệu và một seed. Giá trị trên tập kiểm tra thấp hơn trên tập xác thực khoảng một phần tư, nhưng thứ tự trong từng nhóm phần lớn giữ nguyên; số trên tập xác thực nằm trong `results/val/summary.csv`. Ngân sách tinh chỉnh chưa đồng đều và thời gian chạy được đo trên các phần cứng khác nhau. [Giao thức và kết quả chi tiết, Chương 4–6](report/main.pdf)
 
 ## Tái tạo thực nghiệm
 
@@ -79,14 +84,21 @@ python scripts/train_model.py --model grnr --density 1.0 --seed 42 --device cpu 
 
 Thay `--model` bằng `dfhf`, `lightgcn`, `xsimgcl`, `directau`, `ease` hoặc `gfcf` và chọn `--density` từ `0.25`, `0.5`, `0.75`, `1.0`. Chạy lại mỗi mô hình ở cả bốn mức để tái tạo hai nhóm so sánh. DFHF và ba đối chứng huấn luyện lặp dùng 200 epoch, giữ checkpoint có NDCG@20 cao nhất trên tập xác thực. Các lần chạy gốc dùng [notebook GPU](kaggle/kaggle_train.ipynb) cho nhóm này và [notebook CPU](kaggle/kaggle_ease.ipynb) cho EASE đầy đủ do yêu cầu bộ nhớ của ma trận dày.
 
-Sau khi có kết quả ở cả bốn mức, chạy các lệnh sau để tạo bảng tổng hợp và xuất hai bộ hình riêng. Script báo cáo suy luận lại từ checkpoint trên tập xác thực. Với EASE đầy đủ, ma trận trọng số không được lưu, nên script dùng dự đoán đã lưu của lần chạy gốc. Thêm `--refit-full-ease` để giải lại ma trận khi có khoảng 9 GiB RAM trống.
+Sau khi có checkpoint ở cả bốn mức, chấm tập kiểm tra rồi tạo bảng và hình của báo cáo. `evaluate_test.py` chấm lại tập xác thực trước và dừng nếu NDCG@20 lệch với `metrics.json`, sau đó mới chấm tập kiểm tra từ checkpoint đã lưu, không huấn luyện lại. Với EASE đầy đủ, ma trận trọng số không được lưu nên script giải lại từ tập huấn luyện, cần khoảng 9 GiB RAM và 11 phút cho mỗi mức; thêm `--ease checkpoint` để dùng bản top-128 đã lưu.
+
+```bash
+python scripts/evaluate_test.py --device cuda                # ghi results/test/
+python scripts/make_test_report.py --report-image            # ghi reports/test/ và report/image/
+```
+
+Bảng tổng hợp và hình trên tập xác thực, dùng khi chọn mô hình, được tạo bằng:
 
 ```bash
 python scripts/summarize_results.py --results results/reproduction
 python scripts/make_report.py --results results/reproduction --output results/reproduction/report
 ```
 
-**Tệp đi kèm repo.** Git lưu dữ liệu đã xử lý, checkpoint, lịch sử huấn luyện và hình báo cáo. Demo đọc `results/val/summary.csv`, `metrics.json` của từng lần chạy, các cặp `val_predictions.npy` và `val_users.npy` của nhóm cần huấn luyện, cùng bảng B5/B6 trong `reports/val/tables/`. Các checkpoint lịch sử nằm trong `results/val/sgkr/` và `results/val/sphr/`, tương ứng với GRNR và DFHF.
+**Tệp đi kèm repo.** Git lưu dữ liệu đã xử lý, checkpoint, lịch sử huấn luyện và hình báo cáo. Demo nạp checkpoint từ `results/val/`, còn số liệu hiển thị lấy từ tập kiểm tra: `results/test/summary_test.csv`, `metrics.json` của từng lần chạy trong `results/test/` và bảng B3/B5/B6 trong `reports/test/tables/`. Các checkpoint lịch sử nằm trong `results/val/sgkr/` và `results/val/sphr/`, tương ứng với GRNR và DFHF.
 
 ## Cấu trúc repo
 
@@ -95,7 +107,7 @@ python scripts/make_report.py --results results/reproduction --output results/re
 | [`src/`](src/) · [`configs/`](configs/) | Mô hình, xử lý dữ liệu, đánh giá và cấu hình thực nghiệm |
 | [`scripts/`](scripts/) · [`kaggle/`](kaggle/) | Lệnh huấn luyện, tổng hợp kết quả và notebook |
 | [`app/`](app/) | Demo Streamlit |
-| [`data/`](data/) · [`results/`](results/) | Dữ liệu đã xử lý; kết quả val (`results/val/`, kèm checkpoint) và test (`results/test/`) |
+| [`data/`](data/) · [`results/`](results/) | Dữ liệu đã xử lý; checkpoint và kết quả tập xác thực (`results/val/`), kết quả tập kiểm tra (`results/test/`) |
 | [`report/`](report/) · [`reports/val/`](reports/val/) · [`reports/test/`](reports/test/) | Báo cáo PDF, hình minh họa và hình thực nghiệm |
 
 ## Tài liệu tham khảo
