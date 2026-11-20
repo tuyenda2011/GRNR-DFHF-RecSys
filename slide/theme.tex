@@ -1,0 +1,45 @@
+% Beamer theme -- no grey "Nguon" lines (at the user's request).
+\usetheme{Boadilla}
+\useoutertheme{miniframes}
+\useinnertheme{circles}
+\definecolor{PrimaryBlue}{RGB}{24,48,111}
+\definecolor{SecondaryBlue}{RGB}{25,100,157}
+\definecolor{PaleBlue}{RGB}{233,244,251}
+\definecolor{LightGray}{RGB}{245,248,250}
+\definecolor{AccentOrange}{RGB}{190,91,25}
+\definecolor{AccentGreen}{RGB}{14,113,103}
+\setbeamercolor{normal text}{fg=black,bg=white}
+\setbeamercolor{structure}{fg=PrimaryBlue}
+\setbeamercolor{title}{fg=PrimaryBlue}
+\setbeamercolor{frametitle}{fg=PrimaryBlue,bg=white}
+\setbeamercolor{block title}{fg=white,bg=PrimaryBlue}
+\setbeamercolor{block body}{fg=black,bg=PaleBlue}
+\setbeamercolor{alerted text}{fg=AccentOrange}
+\setbeamercolor{palette primary}{bg=PrimaryBlue,fg=white}
+\setbeamercolor{palette secondary}{bg=SecondaryBlue,fg=white}
+\setbeamercolor{palette tertiary}{bg=PrimaryBlue,fg=white}
+\setbeamercolor{palette quaternary}{bg=PrimaryBlue,fg=white}
+\setbeamercolor{section in head/foot}{bg=PrimaryBlue,fg=white}
+\setbeamercolor{subsection in head/foot}{bg=SecondaryBlue,fg=white}
+\setbeamercolor{author in head/foot}{bg=PrimaryBlue,fg=white}
+\setbeamercolor{title in head/foot}{bg=SecondaryBlue,fg=white}
+\setbeamercolor{date in head/foot}{bg=PrimaryBlue,fg=white}
+\setbeamerfont{frametitle}{size=\large,series=\bfseries}
+\setbeamerfont{block title}{series=\bfseries}
+\setbeamertemplate{navigation symbols}{}
+\setbeamertemplate{footline}{%
+  \leavevmode\hbox{%
+  \begin{beamercolorbox}[wd=.20\paperwidth,ht=2.4ex,dp=1.1ex,center]{author in head/foot}Học máy nâng cao\end{beamercolorbox}%
+  \begin{beamercolorbox}[wd=.65\paperwidth,ht=2.4ex,dp=1.1ex,center]{title in head/foot}Khuyến nghị sản phẩm điện tử -- GRNR \& DFHF\end{beamercolorbox}%
+  \begin{beamercolorbox}[wd=.15\paperwidth,ht=2.4ex,dp=1.1ex,right]{date in head/foot}\insertframenumber/\inserttotalframenumber\hspace*{1.5ex}\end{beamercolorbox}}%
+  \vskip0pt}
+\setbeamersize{text margin left=0.6cm,text margin right=0.6cm}
+\setlength{\parskip}{0.6pt}
+\newcommand{\takeaway}[1]{%
+\par\vspace{0.12cm}%
+\begin{beamercolorbox}[rounded=true,sep=4pt]{block body}%
+\footnotesize\textbf{Ý chính:} #1%
+\end{beamercolorbox}}
+\newcommand{\metric}[2]{%
+\begin{block}{\centering\Large\bfseries #1}\centering\footnotesize #2\end{block}}
+\newcommand{\shortnote}[1]{\vspace{0.1cm}\centerline{\footnotesize\color{PrimaryBlue}\textbf{#1}}}

@@ -1,0 +1,81 @@
+\section{Kết quả DFHF}
+
+\begin{frame}{DFHF tại $d=1$: Dẫn đầu nhóm cần huấn luyện}
+\centering
+\small
+\begin{tabular}{lrr}
+\toprule
+\textbf{Nhóm cần huấn luyện (test)} & \textbf{NDCG@20} $\uparrow$ & \textbf{Recall@20} $\uparrow$\\
+\midrule
+\rowcolor{PaleBlue}\textbf{DFHF} & \textbf{0,02724} & \textbf{0,05966}\\
+LightGCN & 0,02168 & 0,04870\\
+XSimGCL & 0,02561 & 0,05647\\
+DirectAU & 0,02407 & 0,05256\\
+\bottomrule
+\end{tabular}
+\vspace{0.37cm}
+\begin{block}{Kiểm định NDCG@20}
+\small
+DFHF $-$ XSimGCL: $+0{,}00163$; KTC 95\% $[+0{,}00111;\,+0{,}00213]$.\\[5pt]
+DFHF $-$ DirectAU: $+0{,}00317$; KTC 95\% $[+0{,}00260;\,+0{,}00375]$.
+\end{block}
+\vspace{0.22cm}
+\takeaway{DFHF tốt nhất \textbf{trong nhóm} trên test, hơn cả ba baseline ở mọi mức $d$; chênh lệch còn phụ thuộc ngân sách tuning.}
+\end{frame}
+
+\begin{frame}{DFHF theo $d$: Dẫn đầu nhóm, chỉ ngang MostPop khi rất thưa}
+\centering
+\includegraphics[width=\linewidth,height=0.66\textheight,keepaspectratio]{figures/fig_5_21_DFHF_vs_MostPop.png}
+\takeaway{Ở $d=0{,}25$, DFHF hơn cả ba baseline cùng nhóm nhưng \textbf{chỉ bằng MostPop} (0,01710); MostPop là mốc tham chiếu.}
+\end{frame}
+
+\begin{frame}{DFHF ($d=0{,}25$): 68\% người dùng chỉ còn 1 tương tác}
+\centering
+\begin{columns}[T,totalwidth=\textwidth]
+\column{0.43\textwidth}
+{\color{PrimaryBlue}\fontsize{27}{32}\selectfont\bfseries 68\%}\par
+\small Người dùng warm bậc 1\par
+\footnotesize ($n=72.889$, $d=0{,}25$, test)
+\column{0.55\textwidth}
+\begin{block}{Cơ chế DFHF}
+\vspace{-0.16cm}\[q_u=0\Rightarrow s(u,i)=b_i\]\vspace{-0.06cm}
+\footnotesize Không dùng tín hiệu từ lịch sử đơn.
+\end{block}
+\end{columns}
+\vspace{0.08cm}
+\begin{block}{NDCG@20 theo lịch sử bậc 1}
+\vspace{-0.1cm}
+\centering
+\small
+\renewcommand{\arraystretch}{0.86}
+\begin{tabular}{lr}
+\toprule
+\textbf{Phương pháp} & \textbf{NDCG@20}\\
+\midrule
+\rowcolor{PaleBlue} DFHF (chỉ hệ số chặn) & \textbf{0,01757}\\
+MostPop (không cá nhân hóa) & \textbf{0,01746}\\
+LightGCN & 0,00788\\
+XSimGCL & 0,01041\\
+DirectAU & 0,00849\\
+\bottomrule
+\end{tabular}
+\end{block}
+\vspace{0.04cm}
+\takeaway{DFHF bậc 1 gần MostPop; lợi thế so với baseline \textbf{không chứng minh} cá nhân hóa tốt hơn.}
+\end{frame}
+
+\begin{frame}{DFHF: Kết quả phụ thuộc checkpoint}
+\centering
+\includegraphics[width=\linewidth,height=0.55\textheight,keepaspectratio]{figures/fig_5_30_DFHF_LearningCurve.png}
+\begin{columns}[T,totalwidth=\textwidth]
+\column{0.48\textwidth}
+\begin{block}{\centering\bfseries Chọn epoch 71}
+\centering\large 0,03519\par\footnotesize NDCG@20 validation
+\end{block}
+\column{0.48\textwidth}
+\begin{block}{\centering\bfseries Epoch cuối}
+\centering\large 0,02658\par\footnotesize NDCG@20 validation
+\end{block}
+\end{columns}
+\shortnote{Giảm 24,5\% sau đỉnh; trên test, epoch 71 đạt 0,02724, cao nhất nhóm.}
+\end{frame}

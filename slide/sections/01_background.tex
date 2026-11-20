@@ -1,0 +1,55 @@
+\section{Bài toán}
+
+\begin{frame}{Vấn đề: dữ liệu tương tác cực thưa}
+
+\begin{columns}[T,onlytextwidth]
+
+\begin{column}{0.30\textwidth}
+    \metric{124.895}{Người dùng}
+\end{column}
+\hfill
+\begin{column}{0.30\textwidth}
+    \metric{44.843}{Sản phẩm}
+\end{column}
+\hfill
+\begin{column}{0.30\textwidth}
+    \metric{0,0192\%}{Mật độ tương tác}
+\end{column}
+
+\end{columns}
+\vspace{0.28cm}
+\begin{itemize}\setlength\itemsep{10pt}
+\item \textbf{Lịch sử ngắn:} trung vị chỉ 6 tương tác/người dùng.
+\item \textbf{Lịch sử thay đổi:} ưu tiên tính gợi ý cho lịch sử mới mà không học lại vector người dùng.
+\item \textbf{MostPop là đối chứng mạnh:} phải kiểm chứng lợi ích của cá nhân hóa.
+\end{itemize}
+\takeaway{Đặt câu hỏi không chỉ ``mô hình nào tốt nhất'', mà còn ``khi thiếu dữ liệu, mô hình có hơn cách gợi ý phổ biến không?''}
+\end{frame}
+
+\begin{frame}{Từ lịch sử tương tác đến danh sách Top-20}
+\centering
+\begin{tikzpicture}[
+ node distance=0.6cm,
+ pbox/.style={draw=PrimaryBlue,fill=PaleBlue,rounded corners=5pt,
+ text width=3.0cm,minimum height=1.5cm,align=center,font=\small,inner sep=6pt},
+ edge/.style={-Latex,draw=PrimaryBlue,line width=1.5pt}]
+\node[pbox] (hist) {\textbf{Lịch sử $H_u$}\\ Tai nghe, chuột, bàn phím};
+\node[pbox,right=of hist] (rank) {\textbf{Điểm $s(u,i)$}\\ Xếp hạng sản phẩm ứng viên};
+\node[pbox,right=of rank] (res) {\textbf{Top-20}\\ Chọn 20 sản phẩm chưa tương tác};
+\draw[edge] (hist) -- (rank);
+\draw[edge] (rank) -- (res);
+\end{tikzpicture}
+\vspace{0.30cm}
+\begin{block}{Phản hồi ngầm}
+\centering\small $X_{ui}=1$: đã đánh giá tích cực (\,$\ge4$ sao\,) \\
+$X_{ui}=0$: \textbf{chưa quan sát}, không có nghĩa ``không thích''.
+\end{block}
+\vspace{0.15cm}
+\begin{columns}[T,totalwidth=\textwidth]
+\column{0.48\textwidth}
+\begin{block}{GRNR - nhóm giải trực tiếp}\small EASE đầy đủ, EASE top-128, GF-CF.\end{block}
+\column{0.48\textwidth}
+\begin{block}{DFHF - cần huấn luyện}\small LightGCN, XSimGCL, DirectAU.\end{block}
+\end{columns}
+\shortnote{Hai nhóm được đánh giá riêng, không xếp hạng GRNR và DFHF với nhau.}
+\end{frame}

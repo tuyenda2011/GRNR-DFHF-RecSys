@@ -1,0 +1,52 @@
+% !TeX program = xelatex
+% Khoa hoc may nang cao 2026: review-guided, report-aligned edition.
+\documentclass[10pt,aspectratio=43]{beamer}
+\usepackage{fontspec}
+\setsansfont{lmsans10-regular.otf}[BoldFont=lmsans10-bold.otf,ItalicFont=lmsans10-oblique.otf,BoldItalicFont=lmsans10-boldoblique.otf]
+\setmainfont{lmsans10-regular.otf}[BoldFont=lmsans10-bold.otf,ItalicFont=lmsans10-oblique.otf,BoldItalicFont=lmsans10-boldoblique.otf]
+\usepackage[vietnamese]{babel}
+\usepackage{amsmath,amssymb,mathtools,booktabs,array,tabularx,multirow}
+\usepackage[table]{xcolor}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,shapes.geometric,calc,fit}
+\usepackage{graphicx}
+\input{theme.tex}
+\definecolor{CoverBlue}{RGB}{25,48,106}
+\title[Khuyến nghị sản phẩm điện tử]{Hệ thống khuyến nghị sản phẩm điện tử bằng hồi quy lân cận và khuếch tán trên đồ thị}
+\author[Nhóm thực hiện]{Đặng Anh Tuyền \and Phạm Văn Sự \and Nguyễn Chí Tài}
+\institute[Phenikaa]{Đại học Phenikaa -- Trường Công nghệ Thông tin\\[3pt]GVHD: PGS.TS. Phạm Tiến Lâm}
+\date{Hà Nội, 2026}
+\begin{document}
+\begin{frame}[plain]
+\centering
+\vspace*{0.28cm}
+{\small\bfseries\color{PrimaryBlue}BỘ GIÁO DỤC VÀ ĐÀO TẠO \quad | \quad ĐẠI HỌC PHENIKAA\par}
+\vspace{0.30cm}
+{\footnotesize TRƯỜNG CÔNG NGHỆ THÔNG TIN\par}
+\vspace{0.56cm}
+\begin{tikzpicture}
+\node[rounded corners=7pt,fill=CoverBlue,text=white,text width=10.55cm,
+      minimum height=3.05cm,align=center,inner sep=14pt] (cover)
+{\fontsize{20.3}{26}\selectfont\bfseries HỆ THỐNG KHUYẾN NGHỊ\\ SẢN PHẨM ĐIỆN TỬ\\[5pt]
+ \fontsize{15.1}{20}\selectfont BẰNG HỒI QUY LÂN CẬN VÀ\\ KHUẾCH TÁN TRÊN ĐỒ THỊ};
+\end{tikzpicture}
+\vspace{0.25cm}
+{\small Học phần: Học máy nâng cao 1-1-26 (N01)\par}
+\vspace{0.3cm}
+{\small Đặng Anh Tuyền \quad \quad Phạm Văn Sự \quad \quad Nguyễn Chí Tài\par}
+\vspace{0.18cm}
+{\small GVHD: \textbf{PGS.TS. Phạm Tiến Lâm}\par}
+\vspace{0.17cm}
+{\footnotesize Hà Nội, 2026\par}
+\end{frame}
+
+\begin{frame}{Nội dung trình bày}
+\tableofcontents[hideallsubsections]
+\end{frame}
+\input{sections/01_background.tex}
+\input{sections/02_models.tex}
+\input{sections/03_setup.tex}
+\input{sections/04_grnr_results.tex}
+\input{sections/05_dfhf_results.tex}
+\input{sections/06_conclusion.tex}
+\end{document}

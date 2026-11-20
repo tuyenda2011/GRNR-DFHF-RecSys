@@ -1,0 +1,71 @@
+\section{Thiết lập thực nghiệm}
+
+\begin{frame}{Amazon Electronics: Tiền xử lý và chia dữ liệu}
+\centering
+\begin{tikzpicture}[
+ stat/.style={draw=PrimaryBlue,fill=PaleBlue,rounded corners=4pt,
+ text width=3.12cm,minimum height=1.25cm,align=center,font=\small,inner sep=5pt},
+ a/.style={-Latex,draw=PrimaryBlue,thick}]
+\node[stat] (a) {\bfseries 1.689.188\\ Đánh giá thô};
+\node[stat,right=0.37cm of a] (b) {\bfseries 1.356.067\\ Giữ đánh giá $\ge4$ sao};
+\node[stat,right=0.37cm of b] (c) {\bfseries 1.072.740\\ 5-core hai phía};
+\draw[a](a)--(b);\draw[a](b)--(c);
+\end{tikzpicture}
+\vspace{0.35cm}
+\begin{columns}[T,onlytextwidth]
+
+\begin{column}{0.30\textwidth}
+    \metric{858.192}{Train: 80\%}
+\end{column}
+\hfill
+\begin{column}{0.30\textwidth}
+    \metric{107.274}{Validation: 10\%}
+\end{column}
+\hfill
+\begin{column}{0.30\textwidth}
+    \metric{107.274}{Test: 10\%}
+\end{column}
+
+\end{columns}
+\vspace{0.18cm}
+\begin{block}{Giảm tương tác huấn luyện - giữ validation và test cố định}
+\centering $d\in\{1;\ 0{,}75;\ 0{,}5;\ 0{,}25\}$\\ (có giữ ít nhất 1 tương tác cho mỗi người dùng/sản phẩm).
+\end{block}
+\shortnote{Trên test: 107.087 người dùng warm được đánh giá, sau khi loại 187 đích chưa có trong train.}
+\end{frame}
+
+\begin{frame}{Giao thức đánh giá: NDCG@20 và bootstrap}
+\centering
+\begin{block}{Thước đo chính: chỉ có một sản phẩm đích / người dùng}
+\vspace{-0.08cm}
+\[ \mathrm{NDCG@20}(u)=\frac{\mathbf{1}[r_u\le20]}{\log_2(r_u+1)} \]
+\vspace{-0.10cm}
+\small $r_u$ là thứ hạng của sản phẩm đích trên toàn bộ tập ứng viên hợp lệ.
+\end{block}
+\vspace{0.28cm}
+\begin{columns}[T,onlytextwidth]
+
+    \begin{column}{0.47\textwidth}
+        \begin{block}{So sánh công bằng}
+            \small
+            Cùng người dùng warm, ứng viên,
+            lịch sử được che và bốn mức dữ liệu $d$.
+        \end{block}
+    \end{column}
+
+    \hfill
+
+    \begin{column}{0.47\textwidth}
+        \begin{block}{Độ bất định}
+            \small
+            Bootstrap ghép cặp
+            \textbf{10.000 lần};
+            KTC 95\%, hiệu chỉnh Holm
+            cho ba đối chứng.
+        \end{block}
+    \end{column}
+
+\end{columns}
+\vspace{0.28cm}
+\takeaway{Validation \textbf{chỉ dùng để chọn} checkpoint/cấu hình; mọi kết quả được đo \textbf{một lần trên test độc lập}.}
+\end{frame}

@@ -1,0 +1,110 @@
+\section{Phương pháp}
+
+\begin{frame}{GRNR: Quy trình 5 bước (rút gọn)}
+\centering
+{\footnotesize\bfseries\color{PrimaryBlue}Khớp mô hình: từ ma trận tương tác đến trọng số sản phẩm - sản phẩm}\par
+\vspace{0.32cm}
+\begin{tikzpicture}[
+ sbox/.style={draw=PrimaryBlue,fill=PaleBlue,rounded corners=4pt,
+ minimum height=1.60cm,text width=1.65cm,align=center,font=\footnotesize,
+ inner sep=3.7pt},
+ sedge/.style={-Latex,draw=PrimaryBlue,line width=1.25pt}]
+\node[sbox] (a) at (0,0) {\bfseries Phản hồi ngầm\\[4pt]$X$};
+\node[sbox] (b) at (2.30,0) {\bfseries Chọn nguồn\\[4pt]Tối đa 128 láng giềng};
+\node[sbox] (c) at (4.60,0) {\bfseries Lập đồ thị\\[4pt]Laplacian $L$};
+\node[sbox] (d) at (6.90,0) {\bfseries Hồi quy\\[4pt]Trọng số $\omega_+$, chặn $b_i$};
+\node[sbox] (e) at (9.20,0) {\bfseries Tham số\\[4pt]$\beta_{ij}$ và $b_i$};
+\foreach \l/\r in {a/b,b/c,c/d,d/e} {\draw[sedge] (\l.east) -- (\r.west);}
+\end{tikzpicture}
+\vspace{0.75cm}
+\begin{tikzpicture}[
+ iobox/.style={draw=AccentGreen,fill=AccentGreen!8,rounded corners=4pt,
+ minimum height=1.1cm,text width=3.15cm,align=center,font=\small,inner sep=5pt},
+ arr/.style={-Latex,draw=AccentGreen,line width=1.15pt}]
+\node[iobox] (h) {\textbf{Lịch sử mới} $H_u$};
+\node[iobox,right=0.50cm of h] (s) {\textbf{Tính điểm} từ $\beta,b$};
+\node[iobox,right=0.50cm of s] (k) {\textbf{Top-20} ứng viên};
+\draw[arr] (h) -- (s);\draw[arr] (s) -- (k);
+\end{tikzpicture}
+\takeaway{GRNR \textbf{ước lượng lại} các hệ số trong lân cận đã chọn, không chỉ cắt ma trận EASE đầy đủ.}
+\end{frame}
+
+\begin{frame}{GRNR: Hồi quy có trọng số và điểm xếp hạng}
+\small
+\begin{block}{Hàm mục tiêu theo từng sản phẩm $i$}
+\vspace{0.13cm}
+\[\begin{aligned}
+\min_{\theta_i}\; &\frac12\sum_{u\in U}w_{ui}
+\big(X_{ui}-(\phi_u^{(i)})^\top\theta_i\big)^2\\[-2pt]
+&+\frac{|U|}{2}(\theta_i-\theta_{i0})^\top P_i(\theta_i-\theta_{i0})
+\end{aligned}\]
+\vspace{-0.17cm}
+\end{block}
+\vspace{0.04cm}
+\begin{block}{Điểm trước hiệu chỉnh phổ biến}
+\vspace{-0.15cm}
+\[\boxed{\displaystyle s(u,i)=\frac{\sum_{j\in H_u\cap N_i}\beta_{ij}}{\sqrt{\max(n_u,1)}}+b_i}\]
+\vspace{-0.18cm}
+\end{block}
+\vspace{0cm}
+\begin{itemize}\setlength\itemsep{2pt}
+\item $\omega_+=10$ cho phản hồi tích cực; phạt $P_i$ chứa điều chuẩn theo đồ thị.
+\item \textbf{Hệ số chặn $b_i$} được neo vào $b_{0i}=\dfrac{\omega_+p_i}{1+(\omega_+-1)p_i}$, dựa trên độ phổ biến nền.
+\item Xếp hạng nhân $(1+c_i)^{-0{,}1}$; nếu thiếu láng giềng, điểm phụ thuộc vào $b_i$.
+\end{itemize}
+\end{frame}
+
+\begin{frame}{DFHF: Khuếch tán và tổng hợp lịch sử}
+\centering
+{\footnotesize\bfseries\color{PrimaryBlue}Luồng chính: học biểu diễn sản phẩm, không lưu embedding riêng từng người dùng}\par
+\vspace{0.30cm}
+\begin{tikzpicture}[
+ sbox/.style={draw=PrimaryBlue,fill=PaleBlue,rounded corners=4pt,
+ minimum height=1.60cm,text width=1.60cm,align=center,font=\footnotesize,
+ inner sep=4pt},
+ sedge/.style={-Latex,draw=PrimaryBlue,line width=1.25pt}]
+\node[sbox] (a) at (0,0) {\bfseries Đồ thị $X$\\[4pt]Chuyển hai bước $T$};
+\node[sbox] (b) at (2.30,0) {\bfseries Bộ lọc $F$\\[4pt]$I,\ T,\ T^2$};
+\node[sbox] (c) at (4.60,0) {\bfseries Embedding\\[4pt]Nguồn $\widetilde S$\\ Đích $\widetilde V$};
+\node[sbox] (d) at (6.90,0) {\bfseries Lịch sử $H_u$\\[4pt]Gộp thành $q_u$};
+\node[sbox] (e) at (9.20,0) {\bfseries Chấm điểm\\[4pt]$q_u^\top\widetilde V_i+b_i$};
+\foreach \l/\r in {a/b,b/c,c/d,d/e} {\draw[sedge] (\l.east) -- (\r.west);}
+\end{tikzpicture}
+\vspace{0.5cm}
+\begin{block}{Huấn luyện}
+\centering\small Softmax \textbf{trên toàn danh mục}, bỏ sản phẩm đích khỏi ngữ cảnh; cập nhật hai bảng embedding và hệ số chặn.
+\end{block}
+\vspace{0.12cm}
+\takeaway{Với lịch sử mới, tổng hợp lại $q_u$ từ embedding sản phẩm; không cần tối ưu embedding người dùng.}
+\end{frame}
+
+\begin{frame}{DFHF: Bộ lọc, hàm điểm và vai trò của hệ số chặn}
+\small
+\begin{block}{Khuếch tán 0, 1, 2 bước}
+\vspace{-0.15cm}
+\[ F=\tfrac12 I+\tfrac14 T+\tfrac14 T^2,\qquad
+ \widetilde S=FS,\quad \widetilde V=FV.\]
+\vspace{-0.15cm}
+\end{block}
+\vspace{0.16cm}
+\begin{block}{Vector lịch sử và điểm số}
+\vspace{-0.17cm}
+\[ q_u=\begin{cases}
+ \displaystyle\frac{1}{\sqrt{n_u}}\sum_{j\in H_u}\widetilde S_j,&n_u\ge 2,\\
+ 0,&n_u\le 1,
+ \end{cases}\qquad
+ s(u,i)=q_u^\top\widetilde V_i+b_i.\]
+\vspace{-0.15cm}
+\end{block}
+\vspace{0.3cm}
+\begin{columns}[T,totalwidth=\textwidth]
+\column{0.48\textwidth}
+\begin{block}{Lịch sử $n_u\ge 2$}
+\small Có thông tin từ lịch sử và hệ số chặn.
+\end{block}
+\column{0.48\textwidth}
+\begin{block}{Lịch sử $n_u=1$}
+\small $q_u=0$: chỉ còn $b_i$ - thứ hạng chung, \textbf{không nhất thiết trùng} MostPop.
+\end{block}
+\end{columns}
+\end{frame}

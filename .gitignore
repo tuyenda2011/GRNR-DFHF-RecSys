@@ -142,3 +142,17 @@ report/section/*
 report/image/*
 !report/image/*.png
 !report/image/test/
+
+# Slides: keep LaTeX sources and figures; ignore build outputs and the val-figure backup
+slide/*.aux
+slide/*.log
+slide/*.nav
+slide/*.out
+slide/*.snm
+slide/*.toc
+slide/*.synctex.gz
+slide/*.fls
+slide/*.fdb_latexmk
+slide/*.xdv
+slide/main.pdf
+slide/figures/val/
